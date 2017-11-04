@@ -1,0 +1,78 @@
+Installing the cross compiler:
+[[http://work.eswarprakash.com/2016/12/10/cross-compiling-for-raspberry-pi-in-windows-10/ ]]
+
+$ sudo apt-get install build-essential cmake pkg-config
+$ sudo apt-get install python2.7-dev python3-dev
+$ wget https://bootstrap.pypa.io/get-pip.py
+$ sudo python get-pip.py
+$ wget https://bootstrap.pypa.io/get-pip.py
+$ sudo python get-pip.py  //Not 100% sure I did this.
+$ sudo apt-get install gcc-arm-linux-gnueabi
+$ sudo apt-get install gcc-arm-linux-gnueabihf
+
+Build example:
+arm-linux-gnueabi-g++ -c spiapp.cpp spi.out –o spi.out -mcpu=arm1176jzf-s -mfloat-abi=soft
+
+This example is for c++.  To build C use gcc instead of c++
+
+The output app must be made to run IE:
+chmod +x spiapp
+
+Most raspi projects are in d:\projects\raspi
+
+PI is set to 192.168.2.61 static IP address.
+Add this to /etc/dhcpcd.conf
+  interface wlan0
+  static pi_address=192.168.2.61/24
+  static routers=192.168.2.1
+  static domain_name_servers=8.8.8.8 8.8.4.4
+
+Can do the same for eth0 instead of wlan0.
+
+Add this to the bottom of your /etc/network/interfaces file, as it prevents power-save modes in the wifi dongles.
+
+wireless-power off
+
+Use WinSCP to transfer files.
+
+Can copy from ubunto bash directly to raspi with the following command:
+scp file pi@192.168.2.61:[destdir/filename]
+
+can ssh from ubuntu using:
+ssh pi@192.168.2.61
+ctrl+d or exit will stop the ssh session.
+
+Add aliases to:
+{
+  ~/.bash_aliases
+}
+
+Mounting external HD:
+[[https://www.modmypi.com/blog/how-to-mount-an-external-hard-drive-on-the-raspberry-pi-raspian]]
+In order to be able to write data I had to install ntfs-3g.
+
+USB Drive Backup:
+I formatted a 16gb USB drive with
+  sudo mkfs.vfat /dev/sda -n pibackup
+Then mounted with
+  sudo mkdir /mnt/usb
+  sudo mount /dev/sda /mnt/usb
+Running the SD Card Copier app after this didn't work.  In order to get it to work I had to not mount /dev/sda.  It still showed up in the write dropdown.
+
+Cross Compile OpenCV:
+This is the command used to cross compile OpenCV for arm on PC using the ubunto linux console.
+cmake -DCMAKE_TOOLCHAIN_FILE=../arm-gnueabi.toolchain.cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D BUILD_NEW_PYTHON_SUPPORT=ON -D INSTALL_C_EXAMPLES=ON -D INSTALL_PYTHON_EXAMPLES=ON  -D BUILD_EXAMPLES=ON ..
+
+PC Ubunto loc:
+ubunto bash files are at C:\Users\gcarver\AppData\Local\lxss
+You can't see this directory or set a shortcut to it but it exists.
+Copying files to here from windows will not be visible in ubuntu bash unless you touch them (so I heard).  So it's best to copy from bash using /mnt/? drive access.
+
+From bash you can access the windows files from /mnt/c or d.  But can't see usb drives.
+
+ST7735:
+sudo modprobe fbtft_device name=sainsmart18 speed=16000000 rotate=270
+
+Hardware clock:
+I followed the instructions here.
+[[https://www.raspberrypi.org/forums/viewtopic.php?f=63&t=161133]]
