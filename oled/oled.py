@@ -1,12 +1,10 @@
-#driver for Sainsmart 1.8" TFT display ST7735
-#Translated by Guy Carver from the ST7735 sample code.
-
-#NOTE: This current code will set the pixel at 0,0 but the scrolling will not scroll it.  Don't know if it's software causing it or not.
+#driver for diyMall OLED 9.6 128x64 display.
 
 from smbus import SMBus
 
 #Buffer layout in bits.  128 columns by 64 rows.
-#Each byte represents 8 pixels in a row.
+#Each byte represents 8 pixels in a column.  Then next byte is another 8 rows of pixels in
+# the next column.  The diagram shows the bit #s for the rows and columns.
 #   Column
 # R 0   8   10 ... 3F8
 # O 1   9   11 ... 3F9
