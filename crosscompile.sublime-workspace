@@ -1,0 +1,754 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"update",
+				"UpdateWeather"
+			],
+			[
+				"_in",
+				"_invertcolor"
+			],
+			[
+				"sc",
+				"screen_height"
+			],
+			[
+				"def",
+				"define\t#define"
+			],
+			[
+				"wr",
+				"wiringPi"
+			],
+			[
+				"sub",
+				"sublime_plugin"
+			],
+			[
+				"cl",
+				"cln"
+			],
+			[
+				"b",
+				"bool"
+			],
+			[
+				"i",
+				"i"
+			],
+			[
+				"tabs",
+				"tab_size"
+			],
+			[
+				"B",
+				"BSInt32"
+			],
+			[
+				"subl",
+				"sublime_plugin"
+			],
+			[
+				"focus",
+				"focus_view"
+			],
+			[
+				"in",
+				"inc\t#include \"…\""
+			],
+			[
+				"column",
+				"columnSelect"
+			],
+			[
+				"sublime",
+				"sublime_plugin"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "/C/Users/gcarver/OneDrive/notes.ida",
+			"settings":
+			{
+				"buffer_size": 16947,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/notes.ida",
+			"settings":
+			{
+				"buffer_size": 4387,
+				"encoding": "UTF-8",
+				"line_ending": "Windows"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 392.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"gi",
+				"GitHub: Open Gist in Browser"
+			],
+			[
+				"g",
+				"GitHub: Open Gist in Browser"
+			],
+			[
+				"Package Control: ",
+				"Package Control: Discover Packages"
+			],
+			[
+				"pa",
+				"Package Control: Install Package"
+			],
+			[
+				"Snippet: ",
+				"Snippet: Lorem ipsum"
+			],
+			[
+				"or",
+				"Origami: Create Pane Below"
+			],
+			[
+				"a",
+				"View: Toggle Open Files in Side Bar"
+			],
+			[
+				"fil",
+				"Origami: Clone File to Pane on the Right"
+			],
+			[
+				"per",
+				"Perforce: Checkout"
+			],
+			[
+				"sw",
+				"Sweyla's Color Theme Generator: Generate dark!"
+			],
+			[
+				"p",
+				"Package Control: Install Package"
+			]
+		],
+		"width": 456.0
+	},
+	"console":
+	{
+		"height": 153.0,
+		"history":
+		[
+			"def dude():",
+			"for x in range(7,0):",
+			"for x in range(7,0): print x;",
+			"for x in range(7,0): print x",
+			"b",
+			"b[-1] = 1",
+			"b",
+			"b = bytearray(8)",
+			"hex(104)",
+			"sublime.log_commands(False)",
+			"sublime.log_commands(True)",
+			"dir(sublime)",
+			"help(sublime)",
+			"hex(x & (~y))",
+			"hex(x & (~z))",
+			"hex",
+			"x & (~ z)",
+			"x & (not z)",
+			"z = 0x1000",
+			"y = 0x10",
+			"x = 0xFFFFFFFF",
+			"Eraser",
+			"Pencil",
+			"Pen",
+			"Pen, Pencil, Eraser = range(3)",
+			"range(3)",
+			"view.run_command()"
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": false,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/c/Users/gcarver/OneDrive/Projects/Raspi",
+		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi",
+		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/wiringPi",
+		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/wiringPi/wiringPi"
+	],
+	"file_history":
+	[
+		"/C/Users/gcarver/OneDrive/Projects/raspi/raspi.sublime-project",
+		"/c/Users/gcarver/OneDrive/Projects/Raspi/tft/ST77352.py",
+		"/C/Users/gcarver/OneDrive/notes.ida",
+		"/c/Users/gcarver/OneDrive/Projects/Raspi/tft/shapes.py",
+		"/C/Users/gcarver/OneDrive/Projects/Python/clock/clock.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/tft/ST7735.py",
+		"/C/Users/gcarver/OneDrive/Projects/Python/weathertest.py",
+		"/c/Users/gcarver/OneDrive/Projects/Raspi/oled/clock.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/pygame/clock.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/clock/clock.py",
+		"/c/Users/gcarver/OneDrive/Projects/Raspi/oled/oled.py",
+		"/c/Users/gcarver/OneDrive/Projects/Raspi/clock/clock.py",
+		"/C/Users/gcarver/OneDrive/Projects/MicroPython/lib/ST7735.py",
+		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/penguinspuzzle.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp31059/home/pi/python_games/memorypuzzle.py",
+		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/penguinspuzzle.bin",
+		"/C/Users/gcarver/AppData/Local/Temp/scp11626/usr/include/EGL/egl.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp11842/usr/include/EGL/eglext.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp12876/usr/include/EGL/eglmesaext.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp12447/usr/include/EGL/eglplatform.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp59009/home/gcarver/Projects/penguins/penguins.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp58580/home/gcarver/Projects/penguins/penguinspuzzle.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp38916/opt/vc/src/hello_pi/Makefile.include",
+		"/C/Users/gcarver/AppData/Local/Temp/scp05977/usr/include/X11/Xlib.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp07681/usr/include/X11/X.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp07658/home/gcarver/penguinspuzzle/penguinspuzzle.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp34111/usr/include/GL/glfw.h",
+		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/README",
+		"/C/Users/gcarver/AppData/Local/Temp/scp47668/home/gcarver/penguinspuzzle/matrix.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp47188/home/gcarver/penguinspuzzle/global.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp13189/usr/include/GLES2/gl2.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp45595/usr/include/GLES2/gl2ext.h",
+		"/C/Projects/raspi/wiringPi/examples/Makefile",
+		"/C/Users/gcarver/AppData/Local/Temp/scp58827/home/gcarver/myglfw/Makefile",
+		"/C/Users/gcarver/AppData/Local/Temp/scp31657/home/gcarver/penguinspuzzle/audio.c",
+		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/matrix.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp41190/home/gcarver/myglfw/myglfw.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp42865/root/.vnc/xstartup",
+		"/C/Projects/raspi/myglfw/Makefile",
+		"/C/Projects/raspi/pforth/build/wiringPi/examples/Makefile",
+		"/C/Projects/raspi/pforth/build/unix/Makefile",
+		"/C/Projects/raspi/myglfw/myglfw.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp07658/home/gcarver/myglfw/myglfw.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp06550/usr/include/X11/Xutil.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp00579/usr/include/KHR/khrplatform.h",
+		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/Makefile",
+		"/C/Users/gcarver/AppData/Local/Temp/scp18976/home/gcarver/penguinspuzzle/shaders.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp37557/home/gcarver/penguinspuzzle/framebuffer.c",
+		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/matrix.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp45879/home/gcarver/penguinspuzzle/model.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp05866/home/gcarver/penguinspuzzle/audio.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp44996/usr/include/GLES2/gl2platform.h",
+		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/global.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp48909/home/gcarver/penguinspuzzle/keys.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp54218/home/gcarver/penguinspuzzle/embed_file.c",
+		"/C/Projects/raspi/peterderivaz-penguinspuzzle-818906c/audio.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp18947/home/gcarver/penguinspuzzle/global.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp19262/home/gcarver/penguinspuzzle/embed_file.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp42202/home/gcarver/penguinspuzzle/global.h",
+		"/C/Users/gcarver/AppData/Local/Temp/scp16684/home/gcarver/penguinspuzzle/buffer.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp49363/home/gcarver/penguinspuzzle/embed_file.c",
+		"/C/Users/gcarver/AppData/Local/Temp/scp49498/home/gcarver/penguinspuzzle/embed_file.c",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages.sublime-project",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/XDevkit/Main.sublime-menu",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/MailFile/MailFile.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Super Calculator/Main.sublime-menu",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Origami/Main.sublime-menu",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Origami/origami.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Function Name Display/Main.sublime-menu",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Diff/Context.sublime-menu",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Default/Syntax.sublime-menu",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Default/Main.sublime-menu",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Default/Find in Files.sublime-menu",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Color Highlighter/Main.sublime-menu",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Automatic Backups/Main.sublime-menu",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/XDevkit/XDevkit.sublime-settings",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/VisualStudio/VisualStudio.sublime-settings",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Automatic Backups/AutomaticBackups.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Automatic Backups/backups_navigator.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Automatic Backups/win32helpers.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Automatic Backups/backup_paths.py",
+		"/C/Utils/RaspPI/peterderivaz-penguinspuzzle-818906c/README",
+		"/C/Utils/RaspPI/peterderivaz-penguinspuzzle-818906c/matrix.c",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/FoldConditions/FoldConditions.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/VisualStudio/README.md",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/VisualStudio/package-metadata.json",
+		"/C/Users/gcarver/SkyDrive/Sublime/Packages/VisualStudio/.gitignore",
+		"/C/temp/TestDefine.c",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/VisualStudio/.gitignore",
+		"/C/Projects/Python/Guy/dte.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/MyUtils/.gitignore",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/VisualStudio/Help.me",
+		"/C/Projects/FSharp/FileEdit/XboxFileList.fs",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/User/MyUtils.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/VisualStudio/VisualStudio.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/MailFile/MailFile.sublime-settings",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/User/.gitignore",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/XDevkit/XDevkit.py",
+		"//192.168.1.200/gcarver/Boot/main.s",
+		"//192.168.1.200/gcarver/Projects/wiringPi/examples/test1.c",
+		"//192.168.1.200/gcarver/Projects/wiringpi/gpio/Makefile",
+		"//192.168.1.200/gcarver/Projects/wiringpi/gpio/gpio.c",
+		"/C/Users/gcarver/SkyDrive/notes.ida",
+		"//192.168.1.200/gcarver/Projects/wiringPi/examples/test2.c",
+		"//192.168.1.200/gcarver/Projects/wiringPi/examples/test1",
+		"//192.168.1.200/gcarver/Projects/wiringpi/wiringPi/Makefile",
+		"//192.168.1.200/gcarver/Projects/wiringpi/examples/test1.c",
+		"//192.168.1.200/gcarver/Projects/wiringpi/wiringPi/gertboard.h",
+		"//192.168.1.200/gcarver/Projects/wiringpi/examples/Makefile",
+		"//192.168.1.200/gcarver/Projects/wiringpi/gpio/test.sh",
+		"//192.168.1.200/gcarver/Projects/wiringpi/examples/COPYING.LESSER",
+		"//192.168.1.200/gcarver/Projects/wiringpi/wiringPi/README",
+		"//192.168.1.200/gcarver/Projects/wiringpi/wiringPi/piNes.h",
+		"//192.168.1.200/gcarver/Projects/wiringpi/wiringPi/piNes.c",
+		"/C/Users/gcarver/Downloads/WiringPi-WiringPi-ae40bda/.gitignore",
+		"/C/Users/gcarver/Downloads/pforth_v27/fth/misc2.fth",
+		"/C/Users/gcarver/Downloads/pforth_v27/fth/misc1.fth",
+		"/C/Users/gcarver/Downloads/pforth_v27/fth/smart_if.fth",
+		"/C/Users/gcarver/Downloads/pforth_v27/fth/case.fth",
+		"//192.168.1.200/gcarver/pforth_v27/readme.txt",
+		"//192.168.1.200/gcarver/pforth_v27/csrc/pf_cglue.c",
+		"//192.168.1.200/gcarver/pforth_v27/build/unix/Makefile",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/VisualStudio/Default (Windows).sublime-keymap",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Default/Default (Windows).sublime-keymap",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/ida/.gitignore",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Perforce/Perforce.sublime-settings",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Printer/Printer.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/User/MailFile.sublime-settings"
+	],
+	"find":
+	{
+		"height": 34.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+			"C:\\Users\\gcarver\\AppData\\Roaming\\Sublime Text 2\\Packages,*.py",
+			"C:\\Users\\gcarver\\AppData\\Roaming\\Sublime Text 2\\Packages,*.sublime-keymap",
+			"C:\\Users\\gcarver\\AppData\\Roaming\\Sublime Text 2\\Packages,*.py",
+			"C:\\Users\\gcarver\\AppData\\Roaming\\Sublime Text 2\\Packages,*.sublime-keymap",
+			"C:\\Users\\gcarver\\AppData\\Roaming\\Sublime Text 2\\Packages,*.py",
+			"C:\\Users\\gcarver\\AppData\\Roaming\\Sublime Text 2\\Packages",
+			"C:\\Users\\gcarver\\AppData\\Roaming\\Sublime Text 2\\Packages\\EnvDTE",
+			"C:\\Users\\gcarver\\AppData\\Roaming\\Sublime Text 2\\Packages\\EnvDTE,*.py",
+			"C:\\Users\\gcarver\\AppData\\Roaming\\Sublime Text 2\\Packages,*.py",
+			"C:\\Users\\gcarver\\AppData\\Roaming\\Sublime Text 2\\Packages"
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"adj",
+			"  def UpdateWeather( self ):\n    try:\n",
+			"UpdateW",
+			"_rotate",
+			"draw",
+			"img2data",
+			"windowLocData",
+			"_windowLocData",
+			"colorData",
+			"CASET",
+			"print",
+			"_size",
+			"color565",
+			"fill",
+			"reset",
+			"bytearray",
+			"pyb",
+			"_draw",
+			"_write",
+			"_draw",
+			"_write",
+			"\\.rot",
+			"\\._spi",
+			"\\.spi",
+			"_write",
+			"draw",
+			"spi",
+			"reset",
+			"TFT",
+			"TFT\\.",
+			"TFT",
+			"_writedata\\((.*)\\)",
+			"_writecommand\\((.*)\\)",
+			"_writecommand\\((.*\\))",
+			"rect",
+			"Dispaly",
+			"rect",
+			"Display",
+			"start",
+			"add",
+			"dst_rect",
+			"Window",
+			"wl_egl_window",
+			"NativeWindowType",
+			"dispman_element",
+			"Update",
+			"width",
+			"update",
+			"width",
+			"element",
+			"nativewindow",
+			"EGL_DISP",
+			"EGL_DISPMAN",
+			"path",
+			"dreamhost",
+			"gert",
+			"89",
+			"x89",
+			"89",
+			"print",
+			"else",
+			"**\n",
+			"DicName",
+			"ifdef",
+			"endif",
+			"ctrl+shift",
+			"^#(if|else|elif|endif)",
+			"conditionkeys",
+			"endif",
+			"ifdef",
+			"defined",
+			"#ifdef",
+			"ifdef",
+			"print",
+			"insert_snippet",
+			"join",
+			"ClassName",
+			"write_file",
+			"active",
+			"faa912",
+			"bool",
+			"defined",
+			"endif",
+			"sets_path",
+			"GetHistory",
+			"print",
+			"on_query_context",
+			"edit",
+			"if",
+			"while",
+			"is_loading",
+			"WindowCommand",
+			"status",
+			"show_status",
+			"set_timeout",
+			"unsavedchanges",
+			"unsaved_changes",
+			"get_output_panel",
+			"incremental_find",
+			"show_input_panel",
+			"another",
+			"Lets",
+			"function",
+			"replace_",
+			"Function",
+			"Function\n\n\n\n\n\n",
+			"Function",
+			"replace",
+			"Function",
+			"replace",
+			"Function",
+			"\\t",
+			"tabs_to",
+			"translatetab",
+			"space",
+			"tabtos",
+			"tabsto",
+			"line_comments",
+			"line_comment_region",
+			"ToggleCommentCommand",
+			"replace",
+			"Function",
+			"enter\"",
+			"Function\nFunction",
+			"Function",
+			"replace",
+			"PickOpenFilesCommand",
+			"\n    "
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": true,
+		"replace_history":
+		[
+			"ST7735.",
+			"ST7735",
+			"data = \\1",
+			"command = \\1",
+			"command = %1",
+			"sets_file",
+			"Bubba",
+			"nction(  )\n{",
+			"Function",
+			"Bubba",
+			"Bubba\nBubba"
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "/C/Users/gcarver/OneDrive/notes.ida",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 16947,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1345,
+								1345
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/ida/ida.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 135.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				}
+			]
+		},
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 1,
+					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/notes.ida",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 4387,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/ida/ida.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 39.0
+	},
+	"input":
+	{
+		"height": 36.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			],
+			[
+				1,
+				0,
+				2,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			0.5,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.exec":
+	{
+		"height": 100.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"output.unsaved_changes":
+	{
+		"height": 100.0
+	},
+	"pinned_build_system": "",
+	"project": "raspi.sublime-project",
+	"replace":
+	{
+		"height": 73.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"st",
+				"tft\\ST77352.py"
+			],
+			[
+				"mailfile",
+				"MailFile/MailFile.py"
+			],
+			[
+				"mail",
+				"MailFile/MailFile.py"
+			],
+			[
+				"env",
+				"EnvDTE/EnvDTE.py"
+			],
+			[
+				"clipk",
+				"ClipBoards/Default (Windows).sublime-keymap"
+			],
+			[
+				"clipke",
+				"ClipBoards/Default (Linux).sublime-keymap"
+			],
+			[
+				"clipkeymap",
+				"ClipBoards/Default (Linux).sublime-keymap"
+			],
+			[
+				"clip",
+				"ClipBoards/Clipboards.py"
+			],
+			[
+				"colo",
+				"Color Highlighter/ColorHighlighter.py"
+			],
+			[
+				"ba",
+				"Automatic Backups/backup_paths.py"
+			],
+			[
+				"au",
+				"Automatic Backups/AutomaticBackups.py"
+			],
+			[
+				"my",
+				"User/MyUtils.py"
+			]
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 500.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"",
+				"C:\\Users\\gcarver\\OneDrive\\Projects\\raspi\\raspi.sublime-project"
+			]
+		],
+		"width": 380.0
+	},
+	"select_symbol":
+	{
+		"height": 392.0,
+		"last_filter": "MP_DEFINE",
+		"selected_items":
+		[
+			[
+				"MP_DEFINE",
+				"MP_DEFINE_CONST_DICT"
+			],
+			[
+				"mp_obj_new_int",
+				"mp_obj_new_int"
+			],
+			[
+				"mp_call",
+				"mp_call_function_n_kw"
+			],
+			[
+				"mp_map_loo",
+				"mp_map_lookup"
+			],
+			[
+				"mp_map_ele",
+				"_mp_map_elem_t"
+			],
+			[
+				"Test",
+				"Test3"
+			]
+		],
+		"width": 664.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 184.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

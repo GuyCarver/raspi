@@ -4,11 +4,12 @@ import sys, pygame
 from pygame.locals import *
 import time
 from urllib.request import urlopen
-from json import loads
+from json import loads, dump, load
 from threading import Thread
 import settings
 
-#todo: Save/Load
+#todo: Day/Date display?
+#todo: DST?  Probably, though the computer should usually handle it.
 
 class Clock:
   #  0
@@ -28,10 +29,11 @@ class Clock:
   twoline = 7
   threeline = 10
   tempsize = 6
+  fname = 'clock.json'
 
-  defaulttempinterval = 30    #seconds to wait before tempurature update.
-  defaulttempdur = 3          #Duration of main temp display.
-  defaulttempupdate = 60 * 5  #Time between tempurature querries.
+  defaulttempinterval = 30                      #seconds to wait before tempurature update.
+  defaulttempdur = 3                            #Duration of main temp display.
+  defaulttempupdate = 5.0                       #Time between tempurature querries.
 
   def __init__( self ):
     #Frederick = 2458710
@@ -52,6 +54,7 @@ class Clock:
     self._color = 0x00FFFF
     self._url = ''
     self.location = '2458710'
+    self.load()
     self.running = True
 
     self._ldthread = Thread(target=self.loadthread)
@@ -83,7 +86,7 @@ class Clock:
   @tempdisplaytime.setter
   def tempdisplaytime( self, aValue ) :
     self._tempdisplaytime = aValue
-    self.tempdisplayinterval = self.tempdisplayinterval
+    self.tempdisplayinterval = self.tempdisplayinterval #Recalculate the temp display interval.
 
   @property
   def tempupdateinterval( self ) :
@@ -115,16 +118,40 @@ class Clock:
     settings.run(self)
 
   def loadthread(self):
-    elapse = 0
+    elapse = 0.0
     step = 1.0
     while self.running:
       if elapse <= 0.0 :
         self.UpdateWeather()
-        elapse += self.tempupdateinterval
+        elapse += self.tempupdateinterval * 60.0
 
       elapse -= step
       time.sleep(step)
 #    print('loadThread stopping')
+
+  def save( self ) :
+      with open(Clock.fname, 'w+') as f:
+        data = {}
+        data['tempon'] = self.tempdisplay
+        data['duration'] = self.tempdisplaytime
+        data['interval'] = self.tempdisplayinterval
+        data['update'] = self.tempupdateinterval
+        data['location'] = self.location
+
+        dump(data, f)
+
+  def load( self ) :
+    try:
+      with open(Clock.fname, 'r') as f:
+        data = load(f)
+        self.tempdisplay = data['tempon']
+        self.tempdisplayinterval = data['interval']
+        self.tempdisplaytime = data['duration']
+        self.tempupdateinterval = data['update']
+        self.location = data['location']
+    except:
+      pass
+
 
   def iline( self, sx, sy, ex, ey ):
     pygame.draw.line(self.screen, self._color, (sx, sy), (ex, ey))
@@ -259,6 +286,7 @@ class Clock:
 #        self.x = float(self.screen.get_size()[0])
     pygame.display.quit()
 
+    self.save()                                 #Save current settings.
     self._ldthread.join()
     self._settingsthread.join()
 

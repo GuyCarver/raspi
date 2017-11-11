@@ -11,6 +11,8 @@ import woeid
 
 #http://woeid.rosselliot.co.nz/lookup/21774
 
+#todo: Handle time setting. C vs F?
+
 HTML = Template('<html><head><style type="text/css">' +
   ' body {margin: 30px; font-family: sans-serif; background: #ddd;}' +
   ' span {font-style: italic; padding: 0 .5em 0 1em;}' +
@@ -34,8 +36,8 @@ HTML = Template('<html><head><style type="text/css">' +
   '<option ${i_10}>10<option ${i_15}>15<option ${i_30}>30</select> seconds<br/>' +
   '<span>Update Interval:</span>' +
   '<select name="update" style="width:50px" onchange="form.submit()">' +
-  '<option ${u_10}>10<option ${u_15}>15<option ${u_30}>30' +
-  '<option ${u_45}>45<option ${u_60}>60</select> minutes' +
+  '<option ${u_5}>5<option ${u_10}>10<option ${u_15}>15' +
+  '<option ${u_30}>30<option ${u_45}>45<option ${u_60}>60</select> minutes' +
   '</form><br/>${conditions}</body></html>')
 
 
@@ -62,19 +64,22 @@ class RH(BaseHTTPRequestHandler):
     return 'i_' + str(inter)
 
   def determineupdate(  ) :
-    upd = 60 if RH.ourTarget == None else RH.ourTarget.tempupdateinterval
-    if upd >= 60:
-      upd = 60
-    elif upd >= 45:
-      upd = 45
-    elif upd >= 30:
-      upd = 30
-    elif upd >= 15:
-      upd = 15
+    upd = 15.0 if RH.ourTarget == None else RH.ourTarget.tempupdateinterval
+    upds = ''
+    if upd >= 60.0:
+      upds = '60'
+    elif upd >= 45.0:
+      upds = '45'
+    elif upd >= 30.0:
+      upds = '30'
+    elif upd >= 15.0:
+      upds = '15'
+    elif upd >= 10.0:
+      upds = '10'
     else:
-      upd = 10
+      upds = '5'
 
-    return 'u_' + str(upd)
+    return 'u_' + upds
 
   def do_GET( self ) :  #load initial page
 #    print('getting ' + self.path)
@@ -126,7 +131,7 @@ class RH(BaseHTTPRequestHandler):
       RH.ourTarget.tempdisplay = t == 'on'
       RH.ourTarget.tempdisplaytime = int(dur)
       RH.ourTarget.tempdisplayinterval = int(dis)
-      RH.ourTarget.tempupdateinterval = int(ud)
+      RH.ourTarget.tempupdateinterval = float(ud) #Convert from minutes to seconds.
 
     self.do_GET()
 
