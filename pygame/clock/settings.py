@@ -44,11 +44,6 @@ class RH(BaseHTTPRequestHandler):
   ourTarget = None
 
   def determineloc(  ) :
-    if RH.ourTarget != None :
-      print('ourTarget set again!')
-    else:
-      print('ourTarget is None!')
-
     return '2483553' if RH.ourTarget == None else RH.ourTarget.location
 
   def determinedur(  ) :
@@ -81,7 +76,7 @@ class RH(BaseHTTPRequestHandler):
 
     return 'u_' + str(upd)
 
-  def do_GET(self):  #load initial page
+  def do_GET( self ) :  #load initial page
 #    print('getting ' + self.path)
     subs = {RH.determinedur() : 'selected', RH.determineinterval(): 'selected',
       RH.determineupdate(): 'selected', 'woeid': RH.determineloc() }
@@ -100,7 +95,7 @@ class RH(BaseHTTPRequestHandler):
     self.end_headers()
     self.wfile.write(bytearray(HTML.safe_substitute(subs), 'utf-8'))
 
-  def do_POST(self):  #process requests
+  def do_POST( self ) :  #process requests
     #read form data
 #    print('posting ' + self.path)
     form = cgi.FieldStorage(fp = self.rfile, headers = self.headers,
@@ -120,51 +115,29 @@ class RH(BaseHTTPRequestHandler):
 #    print('dis = ' + str(dis))
 #    print('ud = ' + str(ud))
 #    print('vars {}, {}'.format(c, s))
-    #maintain form state
-    subs = {}
-    subs['z_' + dur] = 'selected'
-    subs['i_' + dis] = 'selected'
-    subs['u_' + ud] = 'selected'
 
     if g != None :
 #      print('doing gps')
       w = woeid.get()
 #      print(w)
 
-    if t:
-      subs['t_' + t] = 'checked'
-
-    subs['woeid'] = w
-
-    cond = ''
     if RH.ourTarget != None:
+      RH.ourTarget.location = w
       RH.ourTarget.tempdisplay = t == 'on'
       RH.ourTarget.tempdisplaytime = int(dur)
       RH.ourTarget.tempdisplayinterval = int(dis)
       RH.ourTarget.tempupdateinterval = int(ud)
-      cond = RH.ourTarget.text + ' and ' + str(RH.ourTarget.temp) + ' degrees.'
 
-    subs['conditions'] = cond
-
-    #send response
-    self.send_response(200)
-    self.send_header('Content-Type', 'text/html')
-    self.end_headers()
-    self.wfile.write(bytearray(HTML.safe_substitute(subs), 'utf-8'))
+    self.do_GET()
 
 def run( aTarget ) :
   RH.ourTarget = aTarget
 
   server = HTTPServer(('', 80), RH)
   server.timeout = 2.0 #handle_request times out after 2 seconds.
-#  webbrowser.open('http://localhost', False, True)
-#  server.serve_forever()
-
 #  print("Staring server")
 
   if RH.ourTarget != None:
-#    print('ourTarget Set!')
-
     while aTarget.running :
       server.handle_request()
       time.sleep(1.0)
