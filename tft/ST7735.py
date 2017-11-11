@@ -4,16 +4,19 @@
 from math import sqrt
 import numbers
 import time
+
+import numpy
+
+from PIL import Image
+from PIL import ImageDraw
+
+from PIL import ImageFont
+
 import Adafruit_GPIO as GPIO
 import Adafruit_GPIO.SPI as SPI
 
 def clamp( aValue, aMin, aMax ) :
   return max(aMin, min(aMax, aValue))
-
-def TFTColor( aR, aG, aB ) :
-  '''Create a 16 bit rgb value from the given R,G,B from 0-255.
-     This assumes rgb 565 layout and will be incorrect for bgr.'''
-  return ((aR & 0xF8) << 8) | ((aG & 0xFC) << 3) | (aB >> 3)
 
 ScreenSize = (128, 160)
 
@@ -84,30 +87,33 @@ class ST7735(object) :
   GMCTRP1 = 0xE0
   GMCTRN1 = 0xE1
 
-  BLACK = 0
-  RED = TFTColor(0xFF, 0x00, 0x00)
-  MAROON = TFTColor(0x80, 0x00, 0x00)
-  GREEN = TFTColor(0x00, 0xFF, 0x00)
-  FOREST = TFTColor(0x00, 0x80, 0x80)
-  BLUE = TFTColor(0x00, 0x00, 0xFF)
-  NAVY = TFTColor(0x00, 0x00, 0x80)
-  CYAN = TFTColor(0x00, 0xFF, 0xFF)
-  YELLOW = TFTColor(0xFF, 0xFF, 0x00)
-  PURPLE = TFTColor(0xFF, 0x00, 0xFF)
-  WHITE = TFTColor(0xFF, 0xFF, 0xFF)
-  GRAY = TFTColor(0x80, 0x80, 0x80)
+  BLACK = (0,0,0)
+  RED = (0xFF, 0x00, 0x00)
+  MAROON = (0x80, 0x00, 0x00)
+  GREEN = (0x00, 0xFF, 0x00)
+  FOREST = (0x00, 0x80, 0x80)
+  BLUE = (0x00, 0x00, 0xFF)
+  NAVY = (0x00, 0x00, 0x80)
+  CYAN = (0x00, 0xFF, 0xFF)
+  YELLOW = (0xFF, 0xFF, 0x00)
+  PURPLE = (0xFF, 0x00, 0xFF)
+  WHITE = (0xFF, 0xFF, 0xFF)
+  GRAY = (0x80, 0x80, 0x80)
 
-  @staticmethod
-  def color( aR, aG, aB ) :
-    '''Create a 565 rgb TFTColor value'''
-    return TFTColor(aR, aG, aB)
+  def img2data( image ) :
+    """Generator function to convert a PIL image to 16-bit 565 RGB bytes."""
+    # NumPy is much faster at doing this. NumPy code provided by:
+    # Keith (https://www.blogger.com/profile/02555547344016007163)
+    pb = numpy.array(image.convert('RGB')).astype('uint16')
+    color = ((pb[:,:,0] & 0xF8) << 8) | ((pb[:,:,1] & 0xFC) << 3) | (pb[:,:,2] >> 3)
+    return numpy.dstack(((color >> 8) & 0xFF, color & 0xFF)).flatten().tolist()
 
   def __init__( self, aSPI, aDC, aReset = None, aGPIO = None ) :
     """aLoc SPI pin location is either 1 for 'X' or 2 for 'Y'.
        aDC is the DC pin and aReset is the reset pin."""
-    self._size = ScreenSize
     self._rotate = 0                            #Vertical with top toward pins.
     self._rgb = True                            #color order of rgb.
+    self._on = True
     self._dc  = aDC
     self._rst = aReset
     self._spi = aSPI
@@ -125,20 +131,42 @@ class ST7735(object) :
     self._spi.set_bit_order(SPI.MSBFIRST)
     self._spi.set_clock_hz(ST7735.SPI_HZ)
 
-    self.colorData = [0, 0]
-    self.windowLocData = [0, 0, 0, 0]
+    self._oneData = [0]
+    self._windowLocData = [0, 0, 0, 0]
+
+    # Create an image buffer.
+    self._buffer = Image.new('RGB', ScreenSize)
 
   @property
   def size( self ) :
-    return self._size
+    return self._buffer.size
+
+  @property
+  def surface( self ) :
+    """Return a PIL ImageDraw instance for 2D drawing on the image buffer."""
+    return ImageDraw.Draw(self._buffer)
+
+  @property
+  def buffer( self ) :
+    return self._buffer
 
   @property
   def rotate( self ) :
     return self.rotate
 
   @rotate.setter
-  def rotate( self, aValue ) :
-    self._rotate = aValue & 0x03
+  def rotate( self, aRot ) :
+    '''0 - 3. Starts vertical with top toward pins and rotates 90 deg
+       clockwise each step.'''
+    aRot &= 0x03
+    rotchange = self._rotate ^ aRot
+    if rotchange :
+      self._rotate = aRot
+      #If switching from vertical to horizontal swap x,y
+      # (indicated by bit 0 changing).
+      if (rotchange & 1):
+        self._buffer.size =(self.buffer.size[1], self._buffer.size[0])
+      self._setMADCTL()
 
   @property
   def command( self ) :
@@ -158,285 +186,60 @@ class ST7735(object) :
     '''Write given data to the device.'''
     self._write(aData)
 
-  def on( self, aTF = True ) :
+  @property
+  def on( self ) :
+    return self._on
+
+  @on.setter
+  def on( self, aTF ) :
     '''Turn display on or off.'''
-    self.ommand = ST7735.DISPON if aTF else ST7735.DISPOFF
+    self._on = aTF
+    self.command = ST7735.DISPON if aTF else ST7735.DISPOFF
 
-  def invertcolor( self, aBool ) :
+  @property
+  def invertcolor( self ) :
+    return self._invertcolor
+
+  @invertcolor.setter
+  def invertcolor( self, aTF ) :
+    self._invertcolor = aTF
     '''Invert the color data IE: Black = White.'''
-    self.command = ST7735.INVON if aBool else ST7735.INVOFF
+    self.command = ST7735.INVON if aTF else ST7735.INVOFF
 
-  def rgb( self, aTF = True ) :
+  @property
+  def rgb( self ) :
+    return self._rgb
+
+  @rgb.setter
+  def rgb( self, aTF ) :
     '''True = rgb else bgr'''
     self._rgb = aTF
     self._setMADCTL()
 
-  def rotation( self, aRot ) :
-    '''0 - 3. Starts vertical with top toward pins and rotates 90 deg
-       clockwise each step.'''
-    if (0 <= aRot < 4):
-      rotchange = self._rotate ^ aRot
-      self._rotate = aRot
-      #If switching from vertical to horizontal swap x,y
-      # (indicated by bit 0 changing).
-      if (rotchange & 1):
-        self._size =(self._size[1], self._size[0])
-      self._setMADCTL()
-
-  def pixel( self, aPos, aColor ) :
-    '''Draw a pixel at the given position'''
-    if 0 <= aPos[0] < self._size[0] and 0 <= aPos[1] < self._size[1]:
-      self._setwindowpoint(aPos)
-      self._pushcolor(aColor)
-
-  def text( self, aPos, aString, aColor, aFont, aSize = 1 ) :
-    '''Draw a text at the given position.  If the string reaches the end of the
-       display it is wrapped to aPos[0] on the next line.  aSize may be an integer
-       which will size the font uniformly on w,h or a or any type that may be
-       indexed with [0] or [1].'''
-
-    if aFont == None:
-      return
-
-    #Make a size either from single value or 2 elements.
-    if (type(aSize) == int) or (type(aSize) == float):
-      wh = (aSize, aSize)
-    else:
-      wh = aSize
-
-    px, py = aPos
-    width = wh[0] * aFont["Width"] + 1
-    for c in aString:
-      self.char((px, py), c, aColor, aFont, wh)
-      px += width
-      #We check > rather than >= to let the right (blank) edge of the
-      # character print off the right of the screen.
-      if px + width > self._size[0]:
-        py += aFont["Height"] * wh[1] + 1
-        px = aPos[0]
-
-  def char( self, aPos, aChar, aColor, aFont, aSizes ) :
-    '''Draw a character at the given position using the given font and color.
-       aSizes is a tuple with x, y as integer scales indicating the
-       # of pixels to draw for each pixel in the character.'''
-
-    if aFont == None:
-      return
-
-    startchar = aFont['Start']
-    endchar = aFont['End']
-
-    ci = ord(aChar)
-    if (startchar <= ci <= endchar):
-      fontw = aFont['Width']
-      fonth = aFont['Height']
-      ci = (ci - startchar) * fontw
-
-      charA = aFont["Data"][ci:ci + fontw]
-      px = aPos[0]
-      if aSizes[0] <= 1 and aSizes[1] <= 1 :
-        for c in charA :
-          py = aPos[1]
-          for r in range(fonth) :
-            if c & 0x01 :
-              self.pixel((px, py), aColor)
-            py += 1
-            c >>= 1
-          px += 1
-      else:
-        for c in charA :
-          py = aPos[1]
-          for r in range(fonth) :
-            if c & 0x01 :
-              self.fillrect((px, py), aSizes, aColor)
-            py += aSizes[1]
-            c >>= 1
-          px += aSizes[0]
-
-  def line( self, aStart, aEnd, aColor ) :
-    '''Draws a line from aStart to aEnd in the given color.  Vertical or horizontal
-       lines are forwarded to vline and hline.'''
-    if aStart[0] == aEnd[0]:
-      #Make sure we use the smallest y.
-      pnt = aEnd if (aEnd[1] < aStart[1]) else aStart
-      self.vline(pnt, abs(aEnd[1] - aStart[1]) + 1, aColor)
-    elif aStart[1] == aEnd[1]:
-      #Make sure we use the smallest x.
-      pnt = aEnd if aEnd[0] < aStart[0] else aStart
-      self.hline(pnt, abs(aEnd[0] - aStart[0]) + 1, aColor)
-    else:
-      px, py = aStart
-      ex, ey = aEnd
-      dx = ex - px
-      dy = ey - py
-      inx = 1 if dx > 0 else -1
-      iny = 1 if dy > 0 else -1
-
-      dx = abs(dx)
-      dy = abs(dy)
-      if (dx >= dy):
-        dy <<= 1
-        e = dy - dx
-        dx <<= 1
-        while (px != ex):
-          self.pixel((px, py), aColor)
-          if (e >= 0):
-            py += iny
-            e -= dx
-          e += dy
-          px += inx
-      else:
-        dx <<= 1
-        e = dx - dy
-        dy <<= 1
-        while (py != ey):
-          self.pixel((px, py), aColor)
-          if (e >= 0):
-            px += inx
-            e -= dy
-          e += dx
-          py += iny
-
-  def vline( self, aStart, aLen, aColor ) :
-    '''Draw a vertical line from aStart for aLen. aLen may be negative.'''
-    start = (clamp(aStart[0], 0, self._size[0]), clamp(aStart[1], 0, self._size[1]))
-    stop = (start[0], clamp(start[1] + aLen, 0, self._size[1]))
-    #Make sure smallest y 1st.
-    if (stop[1] < start[1]):
-      start, stop = stop, start
-    self._setwindowloc(start, stop)
-    self._draw(aLen, aColor)
-
-  def hline( self, aStart, aLen, aColor ) :
-    '''Draw a horizontal line from aStart for aLen. aLen may be negative.'''
-    start = (clamp(aStart[0], 0, self._size[0]), clamp(aStart[1], 0, self._size[1]))
-    stop = (clamp(start[0] + aLen, 0, self._size[0]), start[1])
-    #Make sure smallest x 1st.
-    if (stop[0] < start[0]):
-      start, stop = stop, start
-    self._setwindowloc(start, stop)
-    self._draw(aLen, aColor)
-
-  def rect( self, aStart, aSize, aColor ) :
-    '''Draw a hollow rectangle.  aStart is the smallest coordinate corner
-       and aSize is a tuple indicating width, height.'''
-    self.hline(aStart, aSize[0], aColor)
-    self.hline((aStart[0], aStart[1] + aSize[1] - 1), aSize[0], aColor)
-    self.vline(aStart, aSize[1], aColor)
-    self.vline((aStart[0] + aSize[0] - 1, aStart[1]), aSize[1], aColor)
-
-  def fillrect( self, aStart, aSize, aColor ) :
-    '''Draw a filled rectangle.  aStart is the smallest coordinate corner
-       and aSize is a tuple indicating width, height.'''
-    start = (clamp(aStart[0], 0, self._size[0]), clamp(aStart[1], 0, self._size[1]))
-    end = (clamp(start[0] + aSize[0] - 1, 0, self._size[0]), clamp(start[1] + aSize[1] - 1, 0, self._size[1]))
-
-    if (end[0] < start[0]):
-      tmp = end[0]
-      end = (start[0], end[1])
-      start = (tmp, start[1])
-    if (end[1] < start[1]):
-      tmp = end[1]
-      end = (end[0], start[1])
-      start = (start[0], tmp)
-
-    self._setwindowloc(start, end)
-    numPixels = (end[0] - start[0] + 1) * (end[1] - start[1] + 1)
-    self._draw(numPixels, aColor)
-
-  def circle( self, aPos, aRadius, aColor ) :
-    '''Draw a hollow circle with the given radius and color with aPos as center.'''
-    self.colorData[0] = aColor >> 8
-    self.colorData[1] = aColor
-    xend = int(0.7071 * aRadius) + 1
-    rsq = aRadius * aRadius
-    for x in range(xend) :
-      y = int(sqrt(rsq - x * x))
-      xp = aPos[0] + x
-      yp = aPos[1] + y
-      xn = aPos[0] - x
-      yn = aPos[1] - y
-      xyp = aPos[0] + y
-      yxp = aPos[1] + x
-      xyn = aPos[0] - y
-      yxn = aPos[1] - x
-
-      self._setwindowpoint((xp, yp))
-      self.data = self.colorData
-      self._setwindowpoint((xp, yn))
-      self.data = self.colorData
-      self._setwindowpoint((xn, yp))
-      self.data = self.colorData
-      self._setwindowpoint((xn, yn))
-      self.data = self.colorData
-      self._setwindowpoint((xyp, yxp))
-      self.data = self.colorData
-      self._setwindowpoint((xyp, yxn))
-      self.data = self.colorData
-      self._setwindowpoint((xyn, yxp))
-      self.data = self.colorData
-      self._setwindowpoint((xyn, yxn))
-      self.data = self.colorData
-
-  def fillcircle( self, aPos, aRadius, aColor ) :
-    '''Draw a filled circle with given radius and color with aPos as center'''
-    rsq = aRadius * aRadius
-    for x in range(aRadius) :
-      y = int(sqrt(rsq - x * x))
-      y0 = aPos[1] - y
-      ey = y0 + y * 2
-      y0 = clamp(y0, 0, self._size[1])
-      ln = abs(ey - y0) + 1;
-
-      self.vline((aPos[0] + x, y0), ln, aColor)
-      self.vline((aPos[0] - x, y0), ln, aColor)
-
-  def fill( self, aColor = BLACK ) :
-    '''Fill screen with the given color.'''
-    self.fillrect((0, 0), self._size, aColor)
-
-  def _draw( self, aPixels, aColor ) :
-    '''Send given color to the device aPixels times.'''
-    self.colorData[0] = aColor >> 8
-    self.colorData[1] = aColor
-
-    #dc high for data output.
-    self._gpio.output(self._dc, True)
-    for i in range(aPixels):
-      self._spi.write(self.colorData)
-
-  def _setwindowpoint( self, aPos ) :
-    '''Set a single point for drawing a color to.'''
-    x = int(aPos[0])
-    y = int(aPos[1])
-    self.command = ST7735.CASET                    #Column address set.
-    self.windowLocData[0] = 0x00
-    self.windowLocData[1] = x
-    self.windowLocData[2] = 0x00
-    self.windowLocData[3] = x
-    self.data = self.windowLocData
-
-    self.command = ST7735.RASET                    #Row address set.
-    self.windowLocData[1] = y
-    self.windowLocData[3] = y
-    self.data = self.windowLocData
-    self.command = ST7735.RAMWR                    #Write to RAM.
-
-  def _setwindowloc( self, aPos0, aPos1 ) :
-    '''Set a rectangular area for drawing a color to.'''
-    self.command = ST7735.CASET                    #Column address set.
-    self.windowLocData[0] = 0x00
-    self.windowLocData[1] = int(aPos0[0])
-    self.windowLocData[2] = 0x00
-    self.windowLocData[3] = int(aPos1[0])
-    self.data = self.windowLocData
-
-    self.command = ST7735.RASET                    #Row address set.
-    self.windowLocData[1] = int(aPos0[1])
-    self.windowLocData[3] = int(aPos1[1])
-    self.data = self.windowLocData
-
-    self.command = ST7735.RAMWR                    #Write to RAM.
+  def set_window(self, x0=0, y0=0, x1=None, y1=None):
+    """Set the pixel address window for succeeding drawing commands. x0 and
+    x1 should define the minimum and maximum x pixel bounds.  y0 and y1
+    should define the minimum and maximum y pixel bound.  If no parameters
+    are specified the default will be to update the entire display from 0,0
+    to width-1,height-1.
+    """
+    if x1 is None:
+        x1 = self.size[0] - 1
+    if y1 is None:
+        y1 = self.size[1] - 1
+    self.command = ST7735.CASET                 # Column addr set
+    self._windowLocData[0] = x0 >> 8
+    self._windowLocData[1] = x0                 # XSTART
+    self._windowLocData[2] = x1 >> 8
+    self._windowLocData[3] = x1                 # XEND
+    self.data = self._windowLocData
+    self.command = ST7735.RASET                 # Row addr set
+    self._windowLocData[0] = y0 >> 8
+    self._windowLocData[1] = y0                 # YSTART
+    self._windowLocData[2] = y1 >> 8
+    self._windowLocData[3] = y1                 # YEND
+    self.data = self._windowLocData
+    self.command = ST7735.RAMWR               # write to RAM
 
   def _write( self, data, isData = True, chunkSize = 4096 ) :
     """Write a byte or array of bytes to the display. Is_data parameter
@@ -448,20 +251,14 @@ class ST7735(object) :
     self._gpio.output(self._dc, isData)
     # Convert scalar argument to list so either can be passed as parameter.
     if isinstance(data, numbers.Number):
-      print("number")
-      data = [data & 0xFF]
+      self._oneData[0] = data & 0xFF
+      data = self._oneData
 
     # Write data a chunk at a time.
     for start in range(0, len(data), chunkSize):
       end = min(start + chunkSize, len(data))
-      print("writing:", start, end)
       self._spi.write(data[start:end])
 
-  def _pushcolor( self, aColor ) :
-    '''Push given color to the device.'''
-    self.colorData[0] = aColor >> 8
-    self.colorData[1] = aColor
-    self.data = self.colorData
 
   def _setMADCTL( self ) :
     '''Set screen rotation and RGB/BGR format.'''
@@ -469,7 +266,7 @@ class ST7735(object) :
     rgb = ST7735.RGB if self._rgb else ST7735.BGR
     self.data = ST7735.Rotations[self._rotate] | rgb
 
-  def _reset( self ) :
+  def reset( self ) :
     """Reset the display, if reset pin is connected."""
     if self._rst is not None:
       self._gpio.output(self._dc, False)
@@ -480,10 +277,32 @@ class ST7735(object) :
       self._gpio.set_high(self._rst)
       time.sleep(0.500)
 
+  def fill( self, aColor = BLACK ) :
+    """Fill buffer with color (default = black)."""
+    w, h = self._buffer.size
+    self._buffer.putdata([aColor] * (w * h))
+
+  def display(self, image=None):
+    """Write the display buffer or provided image to the hardware.  If no
+    image parameter is provided the display buffer will be written to the
+    hardware.  If an image is provided, it should be RGB format and the
+    same dimensions as the display hardware.
+    """
+    # By default write the internal buffer to the display.
+    if image is None:
+      image = self._buffer
+    # Set address bounds to entire display.
+    self.set_window()
+    # Convert image to array of 16bit 565 RGB data bytes.
+    # Unfortunate that this copy has to occur, but the SPI byte writing
+    # function needs to take an array of bytes and PIL doesn't natively
+    # store images in 16-bit 565 RGB format.
+    self.data = list(ST7735.img2data(image))
+
   def initb( self ) :
     '''Initialize blue tab version.'''
-    self._size = (ScreenSize[0] + 2, ScreenSize[1] + 1)
-    self._reset()
+#    self._size = (ScreenSize[0] + 2, ScreenSize[1] + 1)
+    self.reset()
     self.command = ST7735.SWRESET               #Software reset.
     time.sleep(.150)
     self.command = ST7735.SLPOUT                #out of sleep mode.
@@ -551,16 +370,16 @@ class ST7735(object) :
 #    pyb.delay(10)
 
     self.command = ST7735.CASET                 #Column address set.
-    self.windowLocData[0] = 0x00
-    self.windowLocData[1] = 2                   #Start at column 2
-    self.windowLocData[2] = 0x00
-    self.windowLocData[3] = self._size[0] - 1
-    self.data = self.windowLocData
+    self._windowLocData[0] = 0x00
+    self._windowLocData[1] = 2                  #Start at column 2
+    self._windowLocData[2] = 0x00
+    self._windowLocData[3] = self.size[0] - 1
+    self.data = self._windowLocData
 
     self.command = ST7735.RASET                 #Row address set.
-    self.windowLocData[1] = 1                   #Start at row 2.
-    self.windowLocData[3] = self._size[1] - 1
-    self.data = self.windowLocData
+    self._windowLocData[1] = 1                  #Start at row 2.
+    self._windowLocData[3] = self.size[1] - 1
+    self.data = self._windowLocData
 
     self.command = ST7735.NORON                 #Normal display on.
 #    pyb.delay(10)
@@ -574,7 +393,7 @@ class ST7735(object) :
 
   def initr( self ) :
     '''Initialize a red tab version.'''
-    self._reset()
+    self.reset()
 
     self.command = ST7735.SWRESET               #Software reset.
     time.sleep(0.15)
@@ -639,15 +458,15 @@ class ST7735(object) :
     self.data = data1
 
     self.command = ST7735.CASET                 #Column address set.
-    self.windowLocData[0] = 0x00
-    self.windowLocData[1] = 0x00
-    self.windowLocData[2] = 0x00
-    self.windowLocData[3] = self._size[0] - 1
-    self.data = self.windowLocData
+    self._windowLocData[0] = 0x00
+    self._windowLocData[1] = 0x00
+    self._windowLocData[2] = 0x00
+    self._windowLocData[3] = self.size[0] - 1
+    self.data = self._windowLocData
 
     self.command = ST7735.RASET                 #Row address set.
-    self.windowLocData[3] = self._size[1] - 1
-    self.data = self.windowLocData
+    self._windowLocData[3] = self.size[1] - 1
+    self.data = self._windowLocData
 
     dataGMCTRP = bytearray([0x0f, 0x1a, 0x0f, 0x18, 0x2f, 0x28, 0x20, 0x22, 0x1f,
                             0x1b, 0x23, 0x37, 0x00, 0x07, 0x02, 0x10])
@@ -670,9 +489,8 @@ class ST7735(object) :
 
   def initg( self ) :
     '''Initialize a green tab version.'''
-    self._reset()
+    self.reset()
 
-    print("1")
     self.command = ST7735.SWRESET               #Software reset.
     time.sleep(0.15)
     self.command = ST7735.SLPOUT                #out of sleep mode.
@@ -683,28 +501,23 @@ class ST7735(object) :
     self.command = ST7735.FRMCTR1               #Frame rate control.
     self.data = data3
 
-    print("2")
     self.command = ST7735.FRMCTR2               #Frame rate control.
     self.data = data3
 
-    print("3")
     data6 = [0x01, 0x2c, 0x2d, 0x01, 0x2c, 0x2d]
     self.command = ST7735.FRMCTR3               #Frame rate control.
     self.data = data6
 #    pyb.delay(10)
 
-    print("4")
     self.command = ST7735.INVCTR                #Display inversion control
     self.data = 0x07
 
-    print("5")
     self.command = ST7735.PWCTR1                #Power control
     data3[0] = 0xA2
     data3[1] = 0x02
     data3[2] = 0x84
     self.data = data3
 
-    print("6")
     self.command = ST7735.PWCTR2                #Power control
     self.data = 0xC5
 
@@ -712,7 +525,6 @@ class ST7735(object) :
     data2 = [0x0A, 0x00]   #Opamp current small, Boost frequency
     self.data = data2
 
-    print("7")
     self.command = ST7735.PWCTR4                #Power control
     data2[0] = 0x8A   #Opamp current small
     data2[1] = 0x2A   #Boost frequency
@@ -730,22 +542,20 @@ class ST7735(object) :
 
     self._setMADCTL()
 
-    print("8")
     self.command = ST7735.COLMOD
     self.data = 0x05
 
     self.command = ST7735.CASET                 #Column address set.
-    self.windowLocData[0] = 0x00
-    self.windowLocData[1] = 0x01                #Start at row/column 1.
-    self.windowLocData[2] = 0x00
-    self.windowLocData[3] = self._size[0] - 1
-    self.data = self.windowLocData
+    self._windowLocData[0] = 0x00
+    self._windowLocData[1] = 0x01                #Start at row/column 1.
+    self._windowLocData[2] = 0x00
+    self._windowLocData[3] = self.size[0] - 1
+    self.data = self._windowLocData
 
     self.command = ST7735.RASET                 #Row address set.
-    self.windowLocData[3] = self._size[1] - 1
-    self.data = self.windowLocData
+    self._windowLocData[3] = self.size[1] - 1
+    self.data = self._windowLocData
 
-    print("9")
     dataGMCTRP = [0x02, 0x1c, 0x07, 0x12, 0x37, 0x32, 0x29, 0x2d, 0x29,
                             0x25, 0x2b, 0x39, 0x00, 0x01, 0x03, 0x10]
     self.command = ST7735.GMCTRP1
@@ -756,7 +566,6 @@ class ST7735(object) :
     self.command = ST7735.GMCTRN1
     self.data = dataGMCTRN
 
-    print("10")
     self.command = ST7735.NORON                 #Normal display on.
     time.sleep(0.10) # 10 ms
 
@@ -768,8 +577,57 @@ def makeg(  ) :
   #port, device
   s = SPI.SpiDev(0, 0, max_speed_hz=4000000)
   t = ST7735(s, 24, 25)
-  print("Initializing")
   t.initg()
-  print("filling")
-#  t.fill(0)
+  t.fill(0)
+  t.display()
   return t
+
+def Elipse( surface ) :
+  # Draw some shapes.
+  # Draw a blue ellipse with a green outline.
+  surface.ellipse((10, 10, 110, 80), outline=(0,255,0), fill=(0,0,255))
+
+def Rect( surface ) :
+  # Draw a purple rectangle with yellow outline.
+  surface.rectangle((10, 90, 110, 160), outline=(255,255,0), fill=(255,0,255))
+
+def Ex( surface ) :
+  # Draw a white X.
+  surface.line((10, 170, 110, 230), fill=(255,255,255))
+  surface.line((10, 230, 110, 170), fill=(255,255,255))
+
+def Triangle( surface ) :
+  # Draw a cyan triangle with a black outline.
+  surface.polygon([(10, 275), (110, 240), (110, 310)], outline=(0,0,0), fill=(0,255,255))
+
+def Text( tft ) :
+  s = tft.surface
+
+  # Load default font.
+  font = ImageFont.load_default()
+
+  # Alternatively load a TTF font.
+  # Some other nice fonts to try: http://www.dafont.com/bitmap.php
+  #font = ImageFont.truetype('Minecraftia.ttf', 16)
+
+  # Define a function to create rotated text.  Unfortunately PIL doesn't have good
+  # native support for rotated fonts, but this function can be used to make a
+  # text image and rotate it so it's easy to paste in the buffer.
+  def draw_rotated_text(image, text, position, angle, font, fill=(255,255,255)):
+    # Get rendered font width and height.
+    draw = ImageDraw.Draw(image)
+    width, height = draw.textsize(text, font=font)
+    # Create a new image with transparent background to store the text.
+    textimage = Image.new('RGBA', (width, height), (0,0,0,0))
+    # Render the text.
+    textdraw = ImageDraw.Draw(textimage)
+    textdraw.text((0,0), text, font=font, fill=fill)
+    # Rotate the text image.
+    rotated = textimage.rotate(angle, expand=1)
+    # Paste the text into the image, using it as a mask for transparency.
+    image.paste(rotated, position, rotated)
+
+  # Write two lines of white text on the buffer, rotated 90 degrees counter clockwise.
+  draw_rotated_text(tft.buffer, 'Hello World!', (150, 120), 90, font, fill=(255,255,255))
+  draw_rotated_text(tft.buffer, 'This is a line of text.', (170, 90), 90, font, fill=(255,255,255))
+

@@ -1,4 +1,37 @@
-Installing the cross compiler:
+todo:
+[ ] make oled clock read temp in bg thread.
+[ ] make a python c lib stub and test it.
+[ ] get the ST7735 code into a python c lib.
+[ ] Python get the camera to take pictures into a memory buffer
+[ ] Python get OpenCV to examine image for a face.
+[ ] Get the face recognition to enable/disable oled display.
+[ ] OLED brightness by adjusting the color.
+[ ] Create interface to be able to control clock setting remotely.
+
+UBUNTO file location:
+C:\Users\gcarver\AppData\Local\Lxss
+
+Cross Compiling:
+Ok, this is much more difficult than in should be.  There are multiple ways of doing this but I went with one that keeps all of the toolchain files separate in the ~/raspi directory.
+  Follow the instructions here:
+  [[https://medium.com/@au42/the-useful-raspberrypi-cross-compile-guide-ea56054de187]]
+This doesn't really cover how to install other libraries without building them.
+I kind of found that at
+  [[https://stackoverflow.com/questions/24141486/cmake-cross-compilation-fails-during-linking-stage-on-host-target-is-raspberry]]
+  Specifically I used these:
+{
+  Install what you need on the pi then
+  Make a ~/raspi/rootfs directory
+  cd to the ~/raspi/rootfs directory
+  rsync -rl pi@192.168.2.61:/lib .
+  rsync -rl pi@192.168.2.61:/usr .
+}
+These paths need to be added to the toolchain-rpi.cmake file (I think)
+This all requires use of cmake to createa makefile with the correct paths set.
+This command will make sure our toolchain paths are used.
+  cmake . -DCMAKE_TOOLCHAIN_FILE=toolchain-rpi.cmake
+
+Installing the cross compiler 1st attempt:
 [[http://work.eswarprakash.com/2016/12/10/cross-compiling-for-raspberry-pi-in-windows-10/ ]]
 
 $ sudo apt-get install build-essential cmake pkg-config
