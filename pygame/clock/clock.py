@@ -1,6 +1,6 @@
 #PC version of the clock display.
 
-import sys, pygame
+import os, sys, pygame
 from pygame.locals import *
 import time
 from urllib.request import urlopen
@@ -38,6 +38,7 @@ class Clock:
   def __init__( self ):
     #Frederick = 2458710
     #Rockville = 2483553
+    os.environ['SDL_VIDEO_WINDOW_POS'] = '900,600'
     self._tempdisplayinterval = Clock.defaulttempinterval
     self.tempdisplaytime = Clock.defaulttempdur
     self.tempupdateinterval = Clock.defaulttempupdate
@@ -49,6 +50,8 @@ class Clock:
     self.clock = pygame.time.Clock()
     self.digits = (0, 0, 0, 0, 0, 0)
     self._tempdisplay = True
+    self._h = 0
+    self._m = 0
     self.temp = 0
     self.text = 'Sunny'
     self._color = 0x00FFFF
@@ -99,6 +102,15 @@ class Clock:
   @property
   def color( self ) :
     return self._color
+
+  @property
+  def hhmm( self ) :
+    return str(self._h) + ':' + str(self._m)
+
+  @hhmm.setter
+  def hhmm( self, aValue ) :
+    #todo: Convert 'hh:mm' into hours/minutes and set the time.
+    pass
 
   @color.setter
   def color( self, aValue ) :
@@ -151,7 +163,6 @@ class Clock:
         self.location = data['location']
     except:
       pass
-
 
   def iline( self, sx, sy, ex, ey ):
     pygame.draw.line(self.screen, self._color, (sx, sy), (ex, ey))
@@ -249,6 +260,9 @@ class Clock:
     h = t.tm_hour
     m = t.tm_min
     s = t.tm_sec
+    self._h = h
+    self._m = m
+
     apm = 0
     if h >= 12:
       apm = 1

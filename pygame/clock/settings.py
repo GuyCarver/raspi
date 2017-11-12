@@ -24,9 +24,9 @@ HTML = Template('<html><head><style type="text/css">' +
   '<span>Temperature:</span>' +
   '<input type="checkbox" name="tempon" value="on" ' +
   'onclick="form.submit()" ${t_on}><br/> ' +
-  '<input type="submit" name="gps" value="gps"> ' +
   '<span>WOEID:</span>' +
-  '<input type="text" name="woeid" value="${woeid}"></input><br/>' +
+  '<input type="text" name="woeid" value="${woeid}"></input>' +
+  '<input type="submit" name="gps" value="gps"><br/>' +
   '<span>Display Duration:</span>' +
   '<select name="duration" style="width:50px" onchange="form.submit()">' +
   '<option ${z_0}>0<option ${z_1}>1<option ${z_2}>2<option ${z_3}>3' +
@@ -38,7 +38,9 @@ HTML = Template('<html><head><style type="text/css">' +
   '<select name="update" style="width:50px" onchange="form.submit()">' +
   '<option ${u_5}>5<option ${u_10}>10<option ${u_15}>15' +
   '<option ${u_30}>30<option ${u_45}>45<option ${u_60}>60</select> minutes' +
-  '</form><br/>${conditions}</body></html>')
+  '<span><br/><br/><input id="time" name="time" type="time" value=${thetime} ' +
+  'oninput="form.submit()"> time</span>' +
+  '</form><h3>Current Conditions:</h3>${conditions}</body></html>')
 
 
 class RH(BaseHTTPRequestHandler):
@@ -93,6 +95,8 @@ class RH(BaseHTTPRequestHandler):
     if RH.ourTarget != None:
       cond = RH.ourTarget.text + ' and ' + str(RH.ourTarget.temp) + ' degrees.'
 
+    t = time.localtime()
+    subs['thetime'] = RH.ourTarget.hhmm
     subs['conditions'] = cond
 
     self.send_response(200)
@@ -114,6 +118,9 @@ class RH(BaseHTTPRequestHandler):
     t = form.getfirst('tempon')
     g = form.getfirst('gps')
     w = form.getfirst('woeid')
+    tm = form.getfirst('time')
+
+    print('time = ' + str(tm))
 
 #    print('t = ' + str(t))
 #    print('dur = ' + str(dur))
