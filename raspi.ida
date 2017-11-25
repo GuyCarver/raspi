@@ -1,0 +1,178 @@
+todo:
+[*] make oled clock read temp in bg thread.
+[*] make a python c lib stub and test it.
+[ ] get the ST7735 code into a python c lib.
+[*] Python get the camera to take pictures into a memory buffer
+[*] Python get OpenCV to examine image for a face.
+[ ] Get the face recognition to enable/disable oled display.
+[*] OLED brightness by adjusting the color.  This actually doesn't work.  The OLED values are binary.  There is no brightness control.
+[*] Create interface to be able to control clock setting remotely.
+
+Linux:
+Put .sh files in: usr/local/bin
+Add aliases to: ~/.bash_aliases
+ls -a will show this file. if in ~/
+Edit /etc/dphys-swapfile and change CONF_SWAPSIZE to 1024 in order for make -j4 to work well.  Put back after use though.
+
+Cross Compiling:
+Ok, this is much more difficult than it should be.  There are multiple ways of doing this but I went with one that keeps all of the toolchain files separate in the ~/raspi directory.
+  Follow the instructions here:
+  [[https://medium.com/@au42/the-useful-raspberrypi-cross-compile-guide-ea56054de187]]
+This doesn't really cover how to install other libraries without building them.
+I kind of found that at
+  [[https://stackoverflow.com/questions/24141486/cmake-cross-compilation-fails-during-linking-stage-on-host-target-is-raspberry]]
+  Specifically I used these:
+{
+  Install what you need on the pi then
+  Make a ~/raspi/rootfs directory on the pc
+  cd to the ~/raspi/rootfs directory
+  rsync -rlv --delete-after --safe-links pi@192.168.2.61:/lib .
+  rsync -rlv --delete-after --safe-links pi@192.168.2.61:/usr .
+  rsync -rlv --delete-after --safe-links pi@192.168.2.61:/opt .
+}
+After all of this we should have the following path
+{
+~/
+  raspi/
+  rootfs/
+    lib/ with a bunch of stuff in it.
+    usr/ with a bunch of stuff in it.
+    opt/ with a bunch of stuff in it.
+}
+
+These paths need to be added to the toolchain-rpi.cmake file (I think)
+This all requires use of cmake to create a makefile with the correct paths set.
+This command will make sure our toolchain paths are used.
+  cmake -DCMAKE_TOOLCHAIN_FILE=toolchain-rpi.cmake [sourcepath]
+Additional modules:
+I had to add this to the CMakeLists.txt file to get a required module to link in when using raspicam
+LIST(APPEND CMAKE_MODULE_PATH "/usr/local/lib/cmake/")
+
+I have not been able to get things to build on PC.  I get the following error:
+  make[2]: *** No rule to make target '/opt/vc/lib/libmmal_core.so', needed by 'seeface'.  Stop.
+  CMakeFiles/Makefile2:67: recipe for target 'CMakeFiles/seeface.dir/all' failed
+I don't need to make that target, I just need to link it in.  Perhaps I'm missing that.
+
+Installing the cross compiler 1st attempt:
+This puts all of the crap into the ubuntu paths and muddies that up.  I prefer to keep everything
+ in a raspi path and explicitly point to it.
+[[http://work.eswarprakash.com/2016/12/10/cross-compiling-for-raspberry-pi-in-windows-10/ ]]
+
+$ sudo apt-get install build-essential cmake pkg-config
+$ sudo apt-get install python2.7-dev python3-dev
+$ wget https://bootstrap.pypa.io/get-pip.py
+$ sudo python get-pip.py
+$ wget https://bootstrap.pypa.io/get-pip.py
+$ sudo python get-pip.py  //Not 100% sure I did this.
+$ sudo apt-get install gcc-arm-linux-gnueabi
+$ sudo apt-get install gcc-arm-linux-gnueabihf
+
+Build example;
+  arm-linux-gnueabi-g++ -c spiapp.cpp spi.out –o spi.out -mcpu=arm1176jzf-s -mfloat-abi=soft
+  This example is for c++.  To build C use gcc instead of c++
+  The output app must be made to run IE;
+  chmod +x spiapp
+
+Most raspi projects are in ~/projects/raspi
+
+OpenCV:
+  After getting the Raspi3 I got OpenCV to compile on that.  Otherwise the compile was going to take about 3 days rather than 3 hours.  Best instructions for compiling on raspi are here:
+    [[https://www.pyimagesearch.com/2017/09/04/raspbian-stretch-install-opencv-3-python-on-your-raspberry-pi/]]
+    One note: showImage may not work with this version.  But the python stuff does.  With cross compiled version the Python stuff doesn't work but showImage does.
+
+  Cross compiling took a while but I finally got it working on my laptop.  Not so much on my PC.  The linker fails and I can't figure out how to fix it.  Or when it does compile I get segmentation faults when running it on raspi.
+  On PC I was using the opencv/platforms/linux/arm-gnueabi.toolchain.cmake (in the runcmake2 sh file).  laptop used runcmake
+
+  Had to manually remove all opencv*.2.4.so files in use/bin/arm???? directory.  These were messing with some linking and I would get a segmentation fault.  Make sure not to have opencv2.4 installed. apt purge didn't find it.
+
+  1 Follow the Cross Compiling instructions for wiringPi to get the raspi stuff installed.
+  2 Follow the rootfs copy instructions above to get a rootfs directory.
+  3 Get the OpenCV source with git clone https://github.com/opencv/opencv.git from within the raspi directory
+  4 cd to opencv/platforms/linux
+  5 edit arm.toolchain.cmake and add the following near the top of the file just after version and platform setting.
+{
+  #Define the cross compiler locations
+  SET(CMAKE_C_COMPILER /home/gcarver/raspi/tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc)
+  SET(CMAKE_CXX_COMPILER /home/gcarver/raspi/tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/bin/arm-linux-gnueabihf-g++)
+
+  #Define the sysroot path for the RaspberryPi distribution in our tools folder
+  SET(CMAKE_FIND_ROOT_PATH /home/gcarver/raspi/tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/arm-linux-gnueabihf/sysroo$
+  #Use our definitions for compiler tools
+  SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+  #Search for libraries and headers in the target directories only
+  SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+  SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+}
+  6 mkdir build and cd to it.
+  7 cmake -D CMAKE_TOOLCHAIN_FILE=../arm-gnueabi.toolchain.cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=raspi_install ../../..
+  8 make -j4
+  9 make install - This will create an install directory called raspi_install.
+  10 I zipped up the install and scpd it to the raspberry pi.
+  11 Then on the raspi I unzipped it into an opencv directory and copy the lib, bin, include and share directories to /usr/local IE: sudo cp -r bin /usr/local/
+
+It could be possible to install the files into rootfs on the PC then use rsync to push them back to the raspi.
+END:
+
+PI1 is set to 192.168.2.61 static IP address.
+Add this to /etc/dhcpcd.conf
+  interface wlan0
+  static pi_address=192.168.2.61/24
+  static routers=192.168.2.1
+  static domain_name_servers=8.8.8.8 8.8.4.4
+
+Can do the same for eth0 instead of wlan0.
+
+Add this to the bottom of your /etc/network/interfaces file, as it prevents power-save modes in the wifi dongles.
+
+wireless-power off
+
+Use WinSCP to transfer files.
+
+Can copy from ubunto bash directly to raspi with the following command:
+scp file pi@192.168.2.61:[destdir/filename]
+  -r dir will copy a directory to the destination IE:
+  scp -r clock pi@192.168.2.61:~/projects/pygame/clock
+
+can ssh from ubuntu using:
+ssh pi@192.168.2.61
+ctrl+d or exit will stop the ssh session.
+
+Mounting external HD:
+[[https://www.modmypi.com/blog/how-to-mount-an-external-hard-drive-on-the-raspberry-pi-raspian]]
+In order to be able to write data I had to install ntfs-3g.
+
+USB Drive Backup:
+I formatted a 16gb USB drive with
+  sudo mkfs.vfat /dev/sda -n pibackup
+Then mounted with
+  sudo mkdir /mnt/usb
+  sudo mount /dev/sda /mnt/usb
+Running the SD Card Copier app after this didn't work.  In order to get it to work I had to not mount /dev/sda.  It still showed up in the write dropdown.
+
+Cross Compile OpenCV:
+This is the command used to cross compile OpenCV for arm on PC using the ubunto linux console.
+cmake -DCMAKE_TOOLCHAIN_FILE=../arm-gnueabi.toolchain.cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D BUILD_NEW_PYTHON_SUPPORT=ON -D INSTALL_C_EXAMPLES=ON -D INSTALL_PYTHON_EXAMPLES=ON  -D BUILD_EXAMPLES=ON ..
+
+PC Ubunto loc:
+ubunto bash files are at C:\Users\gcarver\AppData\Local\lxss
+You can't see this directory or set a shortcut to it but it exists.
+Copying files to here from windows will not be visible in ubuntu bash unless you touch them (so I heard).  So it's best to copy from bash using /mnt/? drive access.
+
+From bash you can access the windows files from /mnt/c or d.  But can't see usb drives.
+
+Auto ssh login:
+ssh-keygen -t rsa
+(When prompted for a password, leave it blank)
+cat ~/.ssh/id_rsa.pub | ssh pi@192.168.2.62 'cat >> .ssh/authorized_keys'
+
+ST7735:
+sudo modprobe fbtft_device name=sainsmart18 speed=16000000 rotate=270
+
+Hardware clock:
+I followed the instructions here.
+[[https://www.raspberrypi.org/forums/viewtopic.php?f=63&t=161133]]
+
+Clock:
+Had to run pip install requests and pip install bs4 to run clock.py
+
+

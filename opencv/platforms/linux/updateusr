@@ -1,0 +1,4 @@
+#~/bin/sh
+
+cp -rv build/install/* ~/raspi/rootfs/usr/local
+

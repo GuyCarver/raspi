@@ -1,0 +1,7 @@
+#!/bin/sh
+#this runcmake uses the locally supplied arm-gnueabi.toolchain.cmake file instead of ~/raspi/raspi.cmake.
+#It worked best on PC but the best build of opencv came from the laptop using runcmake.
+rm -r build/*
+cd build
+cmake -D CMAKE_TOOLCHAIN_FILE=../arm-gnueabi.toolchain.cmake -D CMAKE_BUILD_TYPE=RELEASE ../../..
+

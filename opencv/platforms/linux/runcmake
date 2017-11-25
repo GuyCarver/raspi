@@ -1,0 +1,6 @@
+#!/bin/sh
+
+rm -r build/*
+cd build
+cmake -D CMAKE_TOOLCHAIN_FILE=~/raspi/rpi.cmake -D CMAKE_BUILD_TYPE=RELEASE ../../..
+
