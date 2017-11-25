@@ -8,6 +8,7 @@ import time, datetime
 from urllib.request import urlopen
 from json import loads, dump, load
 from threading import Thread, Lock
+import keyboard
 import checkface
 import settings
 
@@ -72,7 +73,7 @@ class Clock:
     self._dirtydisplay = False
     self._prevtime = time.time()
     self._checker = checkface.Create();
-    checkface.SetHorizontalFlip(self._checker, True)
+    checkface.SetVerticalFlip(self._checker, True)
 #    checkface.SetBrightness(self._checker, 20.0)
 
     self._sthread = Thread(target=self.seethread)
@@ -370,12 +371,16 @@ class Clock:
   def run( self ) :
     try:
       while self._running:
-        elapsed = time.time()
-        self.Update()
-        self.draw()
-        delay = 0.2 - (time.time() - elapsed)
-        if delay > 0.0 :
-          time.sleep(delay)
+        if keyboard.is_pressed('q') :
+          self._running = False
+          print("quiting.")
+        else:
+          elapsed = time.time()
+          self.Update()
+          self.draw()
+          delay = 0.2 - (time.time() - elapsed)
+          if delay > 0.0 :
+            time.sleep(delay)
     except KeyboardInterrupt:
       print("ctrl-c exit.")
       self._running = False
