@@ -1,0 +1,14 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/gcarver/raspi/projects/blink/blink.c
+wiringPi.h
+-
+
+/home/gcarver/raspi/wiringPi/wiringPi/wiringPi.h
+

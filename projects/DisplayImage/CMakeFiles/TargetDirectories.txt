@@ -1,0 +1,3 @@
+/home/pi/projects/DisplayImage/CMakeFiles/rebuild_cache.dir
+/home/pi/projects/DisplayImage/CMakeFiles/edit_cache.dir
+/home/pi/projects/DisplayImage/CMakeFiles/DisplayImage.dir

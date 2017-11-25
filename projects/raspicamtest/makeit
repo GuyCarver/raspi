@@ -1,0 +1,3 @@
+#!/bin/sh
+
+g++ raspicamtest.cpp -v -o raspicamtest -L/opt/vc/lib -I/usr/local/include/ -lraspicam -lraspicam_cv -lmmal -lmmal_core -lmmal_util -lopencv_core -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_objdetect
