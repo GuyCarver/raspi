@@ -19,33 +19,43 @@ HTML = Template('<html><head><style type="text/css">' +
   ' img {display: block; margin-left: auto; margin-right: auto; ' +
   'box-shadow: 5px 5px 10px 0 #666;}' +
   '</style></head><body>' +
+
   '<h2>Clock Settings</h2>' +
   '<form action="/" method="POST" enctype="multipart/form-data">' +
-  '<span>Temperature:</span>' +
+  '<span>Display Duration:</span>' +
+  '<select name="duration" style="width:50px" onchange="form.submit()">' +
+  '<option ${z_2}>2<option ${z_5}>5<option ${z_10}>10<option ${z_30}>30' +
+  '</select> seconds<br/>' +
+
+  '<h4>Temperature:' +
+#  '<span>On </span>' +
   '<input type="checkbox" name="tempon" value="on" ' +
-  'onclick="form.submit()" ${t_on}><br/> ' +
+  'onclick="form.submit()" ${t_on}></h4>' + #<br/> ' +
+
   '<span>WOEID:</span>' +
   '<input type="text" name="woeid" value="${woeid}"></input>' +
   '<input type="submit" name="gps" value="gps"><br/>' +
-  '<span>Display Duration:</span>' +
-  '<select name="duration" style="width:50px" onchange="form.submit()">' +
-  '<option ${z_0}>0<option ${z_1}>1<option ${z_2}>2<option ${z_3}>3' +
-  '<option ${z_4}>4<option ${z_5}>5</select> seconds<br/>' +
+
   '<span>Temp Display Duration:</span>' +
   '<select name="tempduration" style="width:50px" onchange="form.submit()">' +
   '<option ${t_0}>0<option ${t_1}>1<option ${t_2}>2<option ${t_3}>3' +
   '<option ${t_4}>4<option ${t_5}>5</select> seconds<br/>' +
+
   '<span>Display Interval:</span>' +
   '<select name="display" style="width:50px" onchange="form.submit()">' +
   '<option ${i_10}>10<option ${i_15}>15<option ${i_30}>30</select> seconds<br/>' +
+
   '<span>Update Interval:</span>' +
   '<select name="update" style="width:50px" onchange="form.submit()">' +
   '<option ${u_5}>5<option ${u_10}>10<option ${u_15}>15' +
   '<option ${u_30}>30<option ${u_45}>45<option ${u_60}>60</select> minutes' +
+
   '<h3>Current Conditions:</h3>${conditions}' +
+
   '<h3>Color:</h3>'
   '<span><input type="color" name="color" value=${thecolor} '
   'oninput="form.submit()"></span>' +
+
   '<h3>Date/Time:</h3>'
   '<span><input id="date" name="date" type="date" value=${thedate} ' +
   'oninput="form.submit()"></span>' +
@@ -62,11 +72,11 @@ class RH(BaseHTTPRequestHandler):
     return '2483553' if RH.ourTarget == None else RH.ourTarget.location
 
   def determinedur(  ) :
-    dur = 0 if RH.ourTarget == None else RH.ourTarget.displayduration
+    dur = 5 if RH.ourTarget == None else int(RH.ourTarget.displayduration)
     return 'z_' + str(dur)
 
   def determinetempdur(  ) :
-    dur = 0 if RH.ourTarget == None else RH.ourTarget.tempdisplaytime
+    dur = 0 if RH.ourTarget == None else int(RH.ourTarget.tempdisplaytime)
     return 't_' + str(dur)
 
   def determineinterval(  ) :
