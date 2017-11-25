@@ -2,13 +2,13 @@
 
 import os, sys, pygame
 from pygame.locals import *
-import time
+import time, datetime
 from urllib.request import urlopen
 from json import loads, dump, load
 from threading import Thread
 import settings
 
-#todo: Day/Date display?
+#todo: Save settings on change?
 #todo: DST?  Probably, though the computer should usually handle it.
 
 class Clock:
@@ -29,6 +29,9 @@ class Clock:
   twoline = 7
   threeline = 10
   tempsize = 6
+  tmconvert = '{:02d}:{:02d}'
+  dtconvert = '{}-{:02d}-{:02d}'
+  colorconvert = '#{:06x}'
   fname = 'clock.json'
 
   defaulttempinterval = 30                      #seconds to wait before tempurature update.
@@ -100,21 +103,35 @@ class Clock:
     self._tempupdateinterval = aValue
 
   @property
-  def color( self ) :
-    return self._color
-
-  @property
   def hhmm( self ) :
-    return str(self._h) + ':' + str(self._m)
+    return Clock.tmconvert.format(self._h, self._m)
 
   @hhmm.setter
   def hhmm( self, aValue ) :
     #todo: Convert 'hh:mm' into hours/minutes and set the time.
     pass
 
+  @property
+  def date( self ) :
+    t = datetime.date.today()
+    return Clock.dtconvert.format(t.year, t.month, t.day)
+
+  @property
+  def color( self ) :
+    return self._color
+
   @color.setter
   def color( self, aValue ) :
     self._color = aValue
+
+  @property
+  def colorstr( self ) :
+    return Clock.colorconvert.format(self._color)
+
+  @colorstr.setter
+  def colorstr( self, aValue ) :
+    c = int(aValue[1:], 16) #skin the leading #
+    self._color = c
 
   @property
   def location( self ) :
@@ -149,6 +166,7 @@ class Clock:
         data['interval'] = self.tempdisplayinterval
         data['update'] = self.tempupdateinterval
         data['location'] = self.location
+        data['color'] = self.colorstr
 
         dump(data, f)
 
@@ -161,6 +179,7 @@ class Clock:
         self.tempdisplaytime = data['duration']
         self.tempupdateinterval = data['update']
         self.location = data['location']
+        self.colorstr = data['color']
     except:
       pass
 
@@ -233,15 +252,15 @@ class Clock:
 
     def drawrect(pos):
       rect = (pos[0], pos[1], 3, 3)
-      pygame.draw.rect(self.screen, 0x00FFFF, rect)
+      pygame.draw.rect(self.screen, self._color, rect)
 
+    #Draw : every other second.
     if (self.digits[5] & 1) == 1:
       sx = (Clock.digitpos[1] + 1.0 + Clock.digitpos[2]) / 2
       sy = (self.wh // 3) * 2
       p = (int((sx * self.wh) + self.x), int(self.y + sy))
       drawrect(p)
-      sy += sy
-      p = (p[0], int(self.y + sy))
+      p = (p[0], int(self.y + sy + sy))
       drawrect(p)
 
   def UpdateWeather( self ):

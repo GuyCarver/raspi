@@ -12,6 +12,7 @@ import woeid
 #http://woeid.rosselliot.co.nz/lookup/21774
 
 #todo: Handle time setting. C vs F?
+#todo: Color changing.
 
 HTML = Template('<html><head><style type="text/css">' +
   ' body {margin: 30px; font-family: sans-serif; background: #ddd;}' +
@@ -38,10 +39,17 @@ HTML = Template('<html><head><style type="text/css">' +
   '<select name="update" style="width:50px" onchange="form.submit()">' +
   '<option ${u_5}>5<option ${u_10}>10<option ${u_15}>15' +
   '<option ${u_30}>30<option ${u_45}>45<option ${u_60}>60</select> minutes' +
-  '<span><br/><br/><input id="time" name="time" type="time" value=${thetime} ' +
-  'oninput="form.submit()"> time</span>' +
-  '</form><h3>Current Conditions:</h3>${conditions}</body></html>')
-
+  '<h3>Current Conditions:</h3>${conditions}' +
+  '<h3>Color:</h3>'
+  '<span><input type="color" name="color" value=${thecolor} '
+  'oninput="form.submit()"></span>' +
+  '<h3>Date/Time:</h3>'
+  '<span><input id="date" name="date" type="date" value=${thedate} ' +
+  'oninput="form.submit()"></span>' +
+  '<span><input id="time" name="time" type="time" value=${thetime} ' +
+  'oninput="form.submit()"></span>' +
+  '<br/><br/><input type="submit" name="Save" value="Save"><br/>' +
+  '</form></body></html>')
 
 class RH(BaseHTTPRequestHandler):
 
@@ -95,8 +103,9 @@ class RH(BaseHTTPRequestHandler):
     if RH.ourTarget != None:
       cond = RH.ourTarget.text + ' and ' + str(RH.ourTarget.temp) + ' degrees.'
 
-    t = time.localtime()
     subs['thetime'] = RH.ourTarget.hhmm
+    subs['thedate'] = RH.ourTarget.date
+    subs['thecolor'] = RH.ourTarget.colorstr
     subs['conditions'] = cond
 
     self.send_response(200)
@@ -119,9 +128,10 @@ class RH(BaseHTTPRequestHandler):
     g = form.getfirst('gps')
     w = form.getfirst('woeid')
     tm = form.getfirst('time')
+    clr = form.getfirst('color')
+    sv = form.getfirst('Save')
 
-    print('time = ' + str(tm))
-
+#    print('time = ' + str(tm))
 #    print('t = ' + str(t))
 #    print('dur = ' + str(dur))
 #    print('dis = ' + str(dis))
@@ -139,6 +149,11 @@ class RH(BaseHTTPRequestHandler):
       RH.ourTarget.tempdisplaytime = int(dur)
       RH.ourTarget.tempdisplayinterval = int(dis)
       RH.ourTarget.tempupdateinterval = float(ud) #Convert from minutes to seconds.
+      RH.ourTarget.colorstr = clr
+
+      if sv != None :
+#        print('saving')
+        RH.ourTarget.save()
 
     self.do_GET()
 
