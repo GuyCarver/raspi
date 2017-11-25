@@ -13,6 +13,7 @@ import checkface
 import settings
 
 #todo: camera controls for gain, saturation, contrast, brightness, exposure.
+#todo: Try checkface from the main thread to see if it's more efficient.  It's messing with display at the moment.
 
 class Clock:
 
@@ -183,7 +184,7 @@ class Clock:
   def seethread( self ) :
     c = 0
     while self._running:
-      elapse = time.time()
+#      elapse = time.time()
       #todo: Look for faces.  If found set on.
       #for now we just trigger every 15 seconds for 1 second.
 #      print("checking for face {}".format(c))
@@ -193,7 +194,8 @@ class Clock:
         print("  face found!")
         self.on = True
 
-      delay = 2.0 - (time.time() - elapse)
+      #Delaying for set 2.0 to try and give main thread more time.
+      delay = 2.0 #- (time.time() - elapse)
       #only delay if time left to delay for.
       if delay > 0.0 :
         time.sleep(delay)
@@ -373,7 +375,7 @@ class Clock:
       while self._running:
         if keyboard.is_pressed('q') :
           self._running = False
-          print("quiting.")
+          print("quitting.")
         else:
           elapsed = time.time()
           self.Update()
