@@ -101,6 +101,7 @@ namespace raspicam {
         bool set ( int propId, double value );
 
         void setHorizontalFlip( bool aValue );
+        void setVerticalFlip( bool aValue );
 
         /** Returns the camera identifier. We assume the camera id is the one of the raspberry obtained using raspberry serial number obtained in /proc/cpuinfo
          */
