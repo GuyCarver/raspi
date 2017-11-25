@@ -40,22 +40,26 @@
 
 static PyObject *Create( PyObject *apSelf, PyObject *apArgs );
 static PyObject *CheckFace( PyObject *apSelf, PyObject *apArg );
+static PyObject *SetProp( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetBrightness( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetContrast( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetSaturation( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetGain( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetExposure( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetHorizontalFlip( PyObject *apSelf, PyObject *apArgs );
+static PyObject *SetVerticalFlip( PyObject *apSelf, PyObject *apArgs );
 
 static PyMethodDef module_methods[] = {
 	{"Create", Create, METH_VARARGS, "Create a CheckFaceCamera object and return it in a PyCapsules object."},
-	{"Check", CheckFace, METH_O, "Pass CheckFaceCamera object.\nTake a still from camera module with RaspiCam and detect faces using OpenCV."},
-	{"SetBrightness", SetBrightness, METH_VARARGS, "Pass CheckFaceCamera object.\nSet camera brightness."},
-	{"SetExposure", SetExposure, METH_VARARGS, "Pass CheckFaceCamera object.\nSet camera exposure."},
-	{"SetGain", SetGain, METH_VARARGS, "Pass CheckFaceCamera object.\nSet camera gain."},
-	{"SetSaturation", SetSaturation, METH_VARARGS, "Pass CheckFaceCamera object.\nSet camera saturation."},
-	{"SetContrast", SetContrast, METH_VARARGS, "Pass CheckFaceCamera object.\nSet camera contrast."},
-	{"SetHorizontalFlip", SetHorizontalFlip, METH_VARARGS, "Pass CheckFaceCamera object.\nSet camera horizontal flip."},
+	{"Check", CheckFace, METH_O, "(CheckFaceCamera).\nTake a still from camera module with RaspiCam and detect faces using OpenCV."},
+	{"SetProp", SetProp, METH_VARARGS, "(CheckFaceCamera, prop, value).\nSet CV_CAP_PROP_??? value."},
+	{"SetBrightness", SetBrightness, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera brightness."},
+	{"SetExposure", SetExposure, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera exposure."},
+	{"SetGain", SetGain, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera gain."},
+	{"SetSaturation", SetSaturation, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera saturation."},
+	{"SetContrast", SetContrast, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera contrast."},
+	{"SetHorizontalFlip", SetHorizontalFlip, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera horizontal flip."},
+	{"SetVerticalFlip", SetVerticalFlip, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera vertical flip."},
 	{NULL, NULL, 0, NULL}
 };
 
@@ -75,6 +79,13 @@ extern "C" {
 		};
 
 		PyObject *pmodule = PyModule_Create(&moduledef);
+
+		PyModule_AddIntMacro(pmodule, CV_CAP_PROP_BRIGHTNESS);
+		PyModule_AddIntMacro(pmodule, CV_CAP_PROP_CONTRAST);
+		PyModule_AddIntMacro(pmodule, CV_CAP_PROP_SATURATION);
+		PyModule_AddIntMacro(pmodule, CV_CAP_PROP_GAIN);
+		PyModule_AddIntMacro(pmodule, CV_CAP_PROP_EXPOSURE);
+
 		return pmodule;
 	}
 }
@@ -181,6 +192,11 @@ public:
 		Camera.setHorizontalFlip(aValue);
 	}
 
+	void setVerticalFlip( bool aValue )
+	{
+		Camera.setVerticalFlip(aValue);
+	}
+
 private:
 	raspicam::RaspiCam_Cv Camera;
 	cv::CascadeClassifier EyeCascade;
@@ -217,6 +233,22 @@ static PyObject *CheckFace( PyObject *apSelf , PyObject *apArg )
 template<typename T> T clamp( T aValue, T aMin, T aMax )
 {
 	return std::min(aMax, std::max(aMin, aValue));
+}
+
+static PyObject *SetProp( PyObject *apSelf , PyObject *apArgs )
+{
+	PyObject *pobj;
+	int32_t prop;
+	double value;
+	if (!PyArg_ParseTuple(apArgs, "Oid", &pobj, &prop, &value))
+		return nullptr;
+
+	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
+	if (pcheck) {
+		pcheck->set(prop, value);
+	}
+
+	Py_RETURN_NONE;
 }
 
 static PyObject *SetContrast( PyObject *apSelf , PyObject *apArgs )
@@ -309,6 +341,21 @@ static PyObject *SetHorizontalFlip( PyObject *apSelf , PyObject *apArgs )
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
 	if (pcheck) {
 		pcheck->setHorizontalFlip(value);
+	}
+
+	Py_RETURN_NONE;
+}
+
+static PyObject *SetVerticalFlip( PyObject *apSelf , PyObject *apArgs )
+{
+	PyObject *pobj;
+	bool value;
+	if (!PyArg_ParseTuple(apArgs, "Ob", &pobj, &value))
+		return nullptr;
+
+	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
+	if (pcheck) {
+		pcheck->setVerticalFlip(value);
 	}
 
 	Py_RETURN_NONE;
