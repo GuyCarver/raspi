@@ -49,6 +49,8 @@ static PyObject *SetExposure( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetHorizontalFlip( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetVerticalFlip( PyObject *apSelf, PyObject *apArgs );
 
+static const double DefaultScale = 0.25;
+
 static PyMethodDef module_methods[] = {
 	{"Create", Create, METH_VARARGS, "Create a CheckFaceCamera object and return it in a PyCapsules object."},
 	{"Check", CheckFace, METH_O, "(CheckFaceCamera).\nTake a still from camera module with RaspiCam and detect faces using OpenCV."},
@@ -99,11 +101,9 @@ public:
 	CheckFaceCamera(  )
 	{
 		try {
-				// Load classifiers from "opencv/data/haarcascades" directory
-//				EyeCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_eye_tree_eyeglasses.xml");
-
 				// Change path before execution
 //				HeadCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_frontalcatface.xml");
+				//This one is faster and more reliable that catface.
 				HeadCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_frontalface_default.xml");
 		}
 		catch(...) {
@@ -161,7 +161,7 @@ public:
 			cv::Mat smallImg;
 
 			try {
-				cv::resize(image, smallImg, cv::Size(), 0.5, 0.5, cv::INTER_LINEAR);
+				cv::resize(image, smallImg, cv::Size(), DefaultScale, DefaultScale, cv::INTER_LINEAR);
 //				cv::equalizeHist(smallImg, smallImg);
 			}
 			catch(...) {
@@ -200,7 +200,6 @@ public:
 
 private:
 	raspicam::RaspiCam_Cv Camera;
-//	cv::CascadeClassifier EyeCascade;
 	cv::CascadeClassifier HeadCascade;
 	bool bOk = false;
 };
@@ -212,11 +211,6 @@ const char *CheckFaceCamera::Name = "CheckFaceCamera";
 ///
 static PyObject *Create( PyObject */*apSelf*/, PyObject */*apArgs*/ )
 {
-//	double m, b;
-//	PyObject *x_obj, *y_obj, *yerr_obj;
-//	if (!PyArg_ParseTuple(args, "ddOOO", &m, &b, &x_obj, &y_obj, &yerr_obj))
-//		return nullptr;
-
 	auto pcheck = new CheckFaceCamera();
 	//Wrap our camera in a PyCapsule.  When PyCapsule is deleted Kill() will be called.
 	PyObject *pret = PyCapsule_New(pcheck, CheckFaceCamera::Name, CheckFaceCamera::Kill);
@@ -242,7 +236,7 @@ static PyObject *SetProp( PyObject *apSelf , PyObject *apArgs )
 	int32_t prop;
 	double value;
 	if (!PyArg_ParseTuple(apArgs, "Oid", &pobj, &prop, &value))
-		return nullptr;
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, int, float.");
 
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
 	if (pcheck) {
@@ -257,7 +251,7 @@ static PyObject *SetContrast( PyObject *apSelf , PyObject *apArgs )
 	PyObject *pobj;
 	double value;
 	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
-		return nullptr;
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
 
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
 	if (pcheck) {
@@ -273,7 +267,7 @@ static PyObject *SetBrightness( PyObject *apSelf , PyObject *apArgs )
 	PyObject *pobj;
 	double value;
 	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
-		return nullptr;
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
 
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
 	if (pcheck) {
@@ -289,7 +283,7 @@ static PyObject *SetSaturation( PyObject *apSelf , PyObject *apArgs )
 	PyObject *pobj;
 	double value;
 	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
-		return nullptr;
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
 
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
 	if (pcheck) {
@@ -305,7 +299,7 @@ static PyObject *SetGain( PyObject *apSelf , PyObject *apArgs )
 	PyObject *pobj;
 	double value;
 	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
-		return nullptr;
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
 
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
 	if (pcheck) {
@@ -321,7 +315,7 @@ static PyObject *SetExposure( PyObject *apSelf , PyObject *apArgs )
 	PyObject *pobj;
 	double value;
 	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
-		return nullptr;
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
 
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
 	if (pcheck) {
@@ -337,7 +331,7 @@ static PyObject *SetHorizontalFlip( PyObject *apSelf , PyObject *apArgs )
 	PyObject *pobj;
 	bool value;
 	if (!PyArg_ParseTuple(apArgs, "Ob", &pobj, &value))
-		return nullptr;
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, True/False.");
 
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
 	if (pcheck) {
@@ -352,7 +346,7 @@ static PyObject *SetVerticalFlip( PyObject *apSelf , PyObject *apArgs )
 	PyObject *pobj;
 	bool value;
 	if (!PyArg_ParseTuple(apArgs, "Ob", &pobj, &value))
-		return nullptr;
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, True/False");
 
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
 	if (pcheck) {
