@@ -13,7 +13,9 @@ import checkface
 import settings
 
 #todo: camera controls for gain, saturation, contrast, brightness, exposure.
+#todo: Need to speed up the checkface system.  It takes way too long at the moment.  May need to go with a better raspi.
 #todo: Try checkface from the main thread to see if it's more efficient.  It's messing with display at the moment.
+#  Did this and it definitely worked better so I'm staying with it.
 
 class Clock:
 
@@ -48,7 +50,7 @@ class Clock:
   defaultdisplaydur = 5.0     #Default time in seconds display stays on after face detection.
 
   def __init__( self ) :
-    self._onlock = Lock()
+#    self._onlock = Lock()
     self._tempdisplayinterval = Clock.defaulttempinterval
     #set properties
     self.tempdisplaytime = Clock.defaulttempdur
@@ -73,12 +75,13 @@ class Clock:
     self.on = True
     self._dirtydisplay = False
     self._prevtime = time.time()
+    self._checktime = 2.0
     self._checker = checkface.Create();
     checkface.SetVerticalFlip(self._checker, True)
 #    checkface.SetBrightness(self._checker, 20.0)
 
-    self._sthread = Thread(target=self.seethread)
-    self._sthread.start()
+#    self._sthread = Thread(target=self.seethread)
+#    self._sthread.start()
 
     self._ldthread = Thread(target=self.loadthread)
     self._ldthread.start()
@@ -92,9 +95,9 @@ class Clock:
 
   @on.setter
   def on( self, aTF ) :
-    self._onlock.acquire()
+#    self._onlock.acquire()
     self._ontime = self.displayduration if aTF else 0.0
-    self._onlock.release()
+#    self._onlock.release()
 
   @property
   def tempdisplay( self ) :
@@ -334,10 +337,15 @@ class Clock:
     except Exception as e:
       print(e)
 
-  def Update( self ) :
-    ct = time.time()
-    dt = min(1.0, ct - self._prevtime) #clamp max elapsed time to 1 second.
-    self._prevtime = ct
+  def Update( self, dt ) :
+    #Only check for a face every so often.  If found turn display on.
+    self._checktime -= dt
+    if self._checktime <= 0.0 :
+      self._checktime = 2.0
+#      print("Checking Face")
+      if checkface.Check(self._checker) :
+        print("  face found!")
+        self.on = True
 
     t = time.localtime()
     h = t.tm_hour
@@ -360,10 +368,10 @@ class Clock:
     self.digits = (h // 10, h % 10, m // 10, m % 10, apm, s)
 
     if self.on :
-      self._onlock.acquire()
+#      self._onlock.acquire()
       self._ontime -= dt
       rem = self._ontime
-      self._onlock.release()
+#      self._onlock.release()
 
       #if time's up then clear the display.
       if rem <= 0 :
@@ -377,10 +385,14 @@ class Clock:
           self._running = False
           print("quitting.")
         else:
-          elapsed = time.time()
-          self.Update()
+          ct = time.time()
+          dt = min(1.0, ct - self._prevtime) #clamp max elapsed time to 1 second.
+          self._prevtime = ct
+
+          self.Update(dt)
           self.draw()
-          delay = 0.2 - (time.time() - elapsed)
+
+          delay = 0.2 - (time.time() - ct)
           if delay > 0.0 :
             time.sleep(delay)
     except KeyboardInterrupt:
@@ -388,7 +400,7 @@ class Clock:
       self._running = False
 
     self.save()                                 #Save current settings.
-    self._sthread.join()
+#    self._sthread.join()
     self._ldthread.join()
     self._settingsthread.join()
 

@@ -100,10 +100,11 @@ public:
 	{
 		try {
 				// Load classifiers from "opencv/data/haarcascades" directory
-				EyeCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_eye_tree_eyeglasses.xml");
+//				EyeCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_eye_tree_eyeglasses.xml");
 
 				// Change path before execution
-				HeadCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_frontalcatface.xml");
+//				HeadCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_frontalcatface.xml");
+				HeadCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_frontalface_default.xml");
 		}
 		catch(...) {
 			PyErr_SetString(PyExc_RuntimeError, "Haarcascade setup error.");
@@ -199,7 +200,7 @@ public:
 
 private:
 	raspicam::RaspiCam_Cv Camera;
-	cv::CascadeClassifier EyeCascade;
+//	cv::CascadeClassifier EyeCascade;
 	cv::CascadeClassifier HeadCascade;
 	bool bOk = false;
 };
