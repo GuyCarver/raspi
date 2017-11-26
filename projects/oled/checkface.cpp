@@ -95,7 +95,14 @@ extern "C" {
 }
 
 ///
-///<summary>  </summary>
+///<summary> Class containing a raspicam_cv camera and cascade for face detection. </summary>
+/// <remarks> Example of use in python:
+/// import checkface
+/// cam = checkface.Create()
+/// checkface.SetVerticalFlip(cam, True)
+/// checkface.SetProp(cam, checkface.CV_CAP_ROP_SATURATION, 100.0)
+/// seen = checkface.Check(cam)
+/// </remarks>
 ///
 class CheckFaceCamera
 {
@@ -103,10 +110,10 @@ public:
 	CheckFaceCamera(  )
 	{
 		try {
-				// Change path before execution
-//				HeadCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_frontalcatface.xml");
-				//This one is faster and more reliable that catface.
-				HeadCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_frontalface_default.xml");
+			// Change path before execution
+//			HeadCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_frontalcatface.xml");
+			//This one is faster and more reliable that catface.
+			HeadCascade.load("/usr/local/share/OpenCV/haarcascades/haarcascade_frontalface_default.xml");
 		}
 		catch(...) {
 			PyErr_SetString(PyExc_RuntimeError, "Haarcascade setup error.");
@@ -140,12 +147,19 @@ public:
 		}
 	}
 
+	///
+	///<summary> Function called when the wrapping PyCapsule of a CheckFaceCamera is geing deleted. </summary>
+	///
 	static void Kill( PyObject *apArg )
 	{
 		auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(apArg, CheckFaceCamera::Name));
 		delete pcheck;
 	}
 
+	///
+	///<summary> Grab a frame from the camera and check for a face.  Return true if found.  If
+	///  camera is not ok then also return true. </summary>
+	///
 	bool CheckFace(  )
 	{
 		bool bres = true;
@@ -163,6 +177,7 @@ public:
 			cv::Mat smallImg;
 
 			try {
+				//Resize image for smaller face check so it's quicker.
 				cv::resize(image, smallImg, cv::Size(), DefaultScale, DefaultScale, cv::INTER_LINEAR);
 //				cv::equalizeHist(smallImg, smallImg);
 			}
@@ -179,38 +194,54 @@ public:
 
 	bool QOk(  ) const { return bOk; }
 
-	static const char *Name;
+	static const char *Name;						//Name used for the PyCapsule object that will wrap this class.
 
+	///
+	///<summary> Set the given property to the given value. </summary>
+	/// <param name="aPropID"> See the CV_CAP_PROP_??? values in raspicam_cv.h </param>
+	/// <param name="aValue"> Value to set. </param>
+	///
 	void set( int32_t aPropID, double aValue )
 	{
 		Camera.set(aPropID, aValue);
 	}
 
+	///
+	///<summary> Get the given property value. </summary>
+	/// <param name="aPropID"> See the CV_CAP_PROP_??? values in raspicam_cv.h </param>
+	/// <returns> The value of the property. </returns>
+	///
 	double get( int32_t aPropID )
 	{
 		return Camera.get(aPropID);
 	}
 
+	///
+	///<summary> Set horizontal flip state. </summary>
+	///
 	void setHorizontalFlip( bool aValue )
 	{
 		Camera.setHorizontalFlip(aValue);
 	}
 
+	///
+	///<summary> Set vertical flip state. </summary>
+	///
 	void setVerticalFlip( bool aValue )
 	{
 		Camera.setVerticalFlip(aValue);
 	}
 
 private:
-	raspicam::RaspiCam_Cv Camera;
-	cv::CascadeClassifier HeadCascade;
-	bool bOk = false;
+	raspicam::RaspiCam_Cv Camera;				//Camera.
+	cv::CascadeClassifier HeadCascade;			//Cascade for scanning for head.
+	bool bOk = false;							//State of camera.
 };
 
 const char *CheckFaceCamera::Name = "CheckFaceCamera";
 
 ///
-///<summary>  </summary>
+///<summary> Create a CheckFaceCamera and return it wrapped in a PyCapsule object. </summary>
 ///
 static PyObject *Create( PyObject */*apSelf*/, PyObject */*apArgs*/ )
 {
@@ -220,6 +251,10 @@ static PyObject *Create( PyObject */*apSelf*/, PyObject */*apArgs*/ )
 	return pret;
 }
 
+///
+///<summary> Check for face using the given CheckFaceCamera.</summary>
+/// <returns> true if found or camera isn't ok. </returns>
+///
 static PyObject *CheckFace( PyObject *apSelf , PyObject *apArg )
 {
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(apArg, CheckFaceCamera::Name));
@@ -233,6 +268,9 @@ template<typename T> T clamp( T aValue, T aMin, T aMax )
 	return std::min(aMax, std::max(aMin, aValue));
 }
 
+///
+///<summary> Set a property of the camera. </summary>
+///
 static PyObject *SetProp( PyObject *apSelf , PyObject *apArgs )
 {
 	PyObject *pobj;
@@ -249,6 +287,9 @@ static PyObject *SetProp( PyObject *apSelf , PyObject *apArgs )
 	Py_RETURN_NONE;
 }
 
+///
+///<summary> Get a property of the camera. </summary>
+///
 static PyObject *GetProp( PyObject *apSelf , PyObject *apArgs )
 {
 	PyObject *pobj;
@@ -265,6 +306,9 @@ static PyObject *GetProp( PyObject *apSelf , PyObject *apArgs )
 	return Py_BuildValue("d", value);
 }
 
+///
+///<summary> Set horizontal flip state of camera. </summary>
+///
 static PyObject *SetHorizontalFlip( PyObject *apSelf , PyObject *apArgs )
 {
 	PyObject *pobj;
@@ -280,6 +324,9 @@ static PyObject *SetHorizontalFlip( PyObject *apSelf , PyObject *apArgs )
 	Py_RETURN_NONE;
 }
 
+///
+///<summary> Set vertical flip state of camera. </summary>
+///
 static PyObject *SetVerticalFlip( PyObject *apSelf , PyObject *apArgs )
 {
 	PyObject *pobj;
@@ -295,7 +342,7 @@ static PyObject *SetVerticalFlip( PyObject *apSelf , PyObject *apArgs )
 	Py_RETURN_NONE;
 }
 
-
+//NOTE: These are currently removed because SetProp() is more generic.
 //static PyObject *SetContrast( PyObject *apSelf , PyObject *apArgs )
 //{
 //	PyObject *pobj;

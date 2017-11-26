@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 
 def get(  ) :
+  '''Read WOEID from the zip code from our IP address.'''
   #Get the zip code for our IP address.
   response = requests.get('http://ipinfo.io/json')
   data = json.loads(response.content.decode("utf-8"))

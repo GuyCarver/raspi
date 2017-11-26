@@ -81,20 +81,24 @@ HTML = Template('<html><head><style type="text/css">' +
 
 class RH(BaseHTTPRequestHandler):
 
-  ourTarget = None
+  ourTarget = None                                #Target Clock class.
 
   def determineloc(  ) :
+    '''Get a location from the Clock.'''
     return '2483553' if RH.ourTarget == None else RH.ourTarget.location
 
   def determinedur(  ) :
+    '''Get a duration as z_??.'''
     dur = 5 if RH.ourTarget == None else int(RH.ourTarget.displayduration)
     return 'z_' + str(dur)
 
   def determinetempdur(  ) :
+    '''Get a duration as t_??.'''
     dur = 0 if RH.ourTarget == None else int(RH.ourTarget.tempdisplaytime)
     return 't_' + str(dur)
 
   def determineinterval(  ) :
+    '''Get a interval or i_10, 15 or 30.'''
     inter = 30 if RH.ourTarget == None else RH.ourTarget.tempdisplayinterval
     if inter >= 30:
       inter = 30
@@ -106,6 +110,7 @@ class RH(BaseHTTPRequestHandler):
     return 'i_' + str(inter)
 
   def determineupdate(  ) :
+    '''Get update time of u_5, 10, 15, 30, 45 or 60.'''
     upd = 15.0 if RH.ourTarget == None else RH.ourTarget.tempupdateinterval
     upds = ''
     if upd >= 60.0:
@@ -129,6 +134,7 @@ class RH(BaseHTTPRequestHandler):
       RH.determineinterval(): 'selected', RH.determineupdate(): 'selected',
       'woeid': RH.determineloc() }
 
+    #If we have a target read data from it.
     if RH.ourTarget != None:
       cond = RH.ourTarget.text + ' and ' + str(RH.ourTarget.temp) + ' degrees.'
       subs['conditions'] = cond
@@ -156,12 +162,11 @@ class RH(BaseHTTPRequestHandler):
 
   def do_POST( self ) :  #process requests
     #read form data
-#    print('posting ' + self.path)
     form = cgi.FieldStorage(fp = self.rfile, headers = self.headers,
                             environ = {'REQUEST_METHOD':'POST',
                            'CONTENT_TYPE':self.headers['Content-Type']})
 #    print(form)
-    #assign variables
+    #Read data from forms into variables.
     dur = form.getfirst('duration')
     tdur = form.getfirst('tempduration')
     dis = form.getfirst('display')
@@ -187,11 +192,13 @@ class RH(BaseHTTPRequestHandler):
 #    print('ud = ' + str(ud))
 #    print('vars {}, {}'.format(c, s))
 
+    #If gps button pressed then get the woeid from our IP address.
     if g != None :
 #      print('doing gps')
       w = woeid.get()
 #      print(w)
 
+    #if have a target clock write data to it.
     if RH.ourTarget != None:
       RH.ourTarget.location = w
       RH.ourTarget.tempdisplay = t == 'on'
@@ -207,11 +214,12 @@ class RH(BaseHTTPRequestHandler):
       RH.ourTarget.gain = float(gain)
       RH.ourTarget.exposure = float(exp)
 
+      #If save button pressed then save settings to json file.
       if sv != None :
 #        print('saving')
         RH.ourTarget.save()
 
-    self.do_GET()
+    self.do_GET()                               #Re-read the data.
 
 def run( aTarget ) :
   RH.ourTarget = aTarget
@@ -220,6 +228,7 @@ def run( aTarget ) :
   server.timeout = 2.0 #handle_request times out after 2 seconds.
 #  print("Staring server")
 
+  #Loop as long as target clock is running or forever if we have none.
   while RH.ourTarget == None or aTarget._running :
     server.handle_request()
     time.sleep(1.0)

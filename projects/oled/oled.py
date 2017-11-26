@@ -92,6 +92,7 @@ class oled(object) :
     self.bytes = self.size[0] * self.pages
     self.buffer = bytearray(self.bytes)
 
+    #Send the initialization commands.
     self._command(oled._DISPLAYOFF,
       oled._SETDISPLAYCLOCKDIV, 0x80, #suggested ratio.
       oled._SETMULTIPLEX, 0x3F,
@@ -142,12 +143,12 @@ class oled(object) :
       self._command(oled._INVERTDISPLAY if aTF else oled._NORMALDISPLAY)
 
   def _data( self, aValue ) :
-    """
+    '''
     Sends a data byte or sequence of data bytes through to the
     device - maximum allowed in one transaction is 32 bytes, so if
     data is larger than this it is sent in chunks.
     In our library, only data operation used is 128x64 long, ie whole canvas.
-    """
+    '''
 
     for i in range(0, len(aValue), 32):
       self.i2c.write_i2c_block_data(oled.ADDRESS, oled._DATAMODE, list(aValue[i:i+32]))
@@ -300,6 +301,7 @@ class oled(object) :
       start, 0x00, stop, 0x01, oled._ACTIVATE_SCROLL)
 
   def scroll( self, adir, start=0, stop=7 ) :
+    '''Scroll in given direction.  Display is split in 8 vertical segments.'''
     if adir == oled.STOP :
       self._command(oled._DEACTIVATE_SCROLL)
     elif adir == oled.LEFT :
