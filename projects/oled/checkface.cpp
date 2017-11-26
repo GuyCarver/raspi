@@ -41,13 +41,14 @@
 static PyObject *Create( PyObject *apSelf, PyObject *apArgs );
 static PyObject *CheckFace( PyObject *apSelf, PyObject *apArg );
 static PyObject *SetProp( PyObject *apSelf, PyObject *apArgs );
-static PyObject *SetBrightness( PyObject *apSelf, PyObject *apArgs );
-static PyObject *SetContrast( PyObject *apSelf, PyObject *apArgs );
-static PyObject *SetSaturation( PyObject *apSelf, PyObject *apArgs );
-static PyObject *SetGain( PyObject *apSelf, PyObject *apArgs );
-static PyObject *SetExposure( PyObject *apSelf, PyObject *apArgs );
+static PyObject *GetProp( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetHorizontalFlip( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetVerticalFlip( PyObject *apSelf, PyObject *apArgs );
+//static PyObject *SetBrightness( PyObject *apSelf, PyObject *apArgs );
+//static PyObject *SetContrast( PyObject *apSelf, PyObject *apArgs );
+//static PyObject *SetSaturation( PyObject *apSelf, PyObject *apArgs );
+//static PyObject *SetGain( PyObject *apSelf, PyObject *apArgs );
+//static PyObject *SetExposure( PyObject *apSelf, PyObject *apArgs );
 
 static const double DefaultScale = 0.25;
 
@@ -55,13 +56,14 @@ static PyMethodDef module_methods[] = {
 	{"Create", Create, METH_VARARGS, "Create a CheckFaceCamera object and return it in a PyCapsules object."},
 	{"Check", CheckFace, METH_O, "(CheckFaceCamera).\nTake a still from camera module with RaspiCam and detect faces using OpenCV."},
 	{"SetProp", SetProp, METH_VARARGS, "(CheckFaceCamera, prop, value).\nSet CV_CAP_PROP_??? value."},
-	{"SetBrightness", SetBrightness, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera brightness."},
-	{"SetExposure", SetExposure, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera exposure."},
-	{"SetGain", SetGain, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera gain."},
-	{"SetSaturation", SetSaturation, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera saturation."},
-	{"SetContrast", SetContrast, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera contrast."},
+	{"GetProp", GetProp, METH_VARARGS, "Value (CheckFaceCamera, prop).\nGet CV_CAP_PROP_??? value."},
 	{"SetHorizontalFlip", SetHorizontalFlip, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera horizontal flip."},
 	{"SetVerticalFlip", SetVerticalFlip, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera vertical flip."},
+//	{"SetBrightness", SetBrightness, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera brightness."},
+//	{"SetExposure", SetExposure, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera exposure."},
+//	{"SetGain", SetGain, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera gain."},
+//	{"SetSaturation", SetSaturation, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera saturation."},
+//	{"SetContrast", SetContrast, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera contrast."},
 	{NULL, NULL, 0, NULL}
 };
 
@@ -146,7 +148,7 @@ public:
 
 	bool CheckFace(  )
 	{
-		bool bres = false;
+		bool bres = true;
 		if (QOk()) {
 			cv::Mat image;
 
@@ -170,11 +172,7 @@ public:
 
 			std::vector<cv::Rect> faces;
 			HeadCascade.detectMultiScale(smallImg, faces, 1.1, 2, cv::CASCADE_SCALE_IMAGE, cv::Size(30, 30));
-
-			if (faces.size()) {
-				//TODO: Check for eyes.
-				bres = true;
-			}
+			bres = (faces.size() != 0);
 		}
 		return bres;
 	}
@@ -186,6 +184,11 @@ public:
 	void set( int32_t aPropID, double aValue )
 	{
 		Camera.set(aPropID, aValue);
+	}
+
+	double get( int32_t aPropID )
+	{
+		return Camera.get(aPropID);
 	}
 
 	void setHorizontalFlip( bool aValue )
@@ -220,7 +223,7 @@ static PyObject *Create( PyObject */*apSelf*/, PyObject */*apArgs*/ )
 static PyObject *CheckFace( PyObject *apSelf , PyObject *apArg )
 {
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(apArg, CheckFaceCamera::Name));
-	bool bres = pcheck ? pcheck->CheckFace() : false;
+	bool bres = pcheck ? pcheck->CheckFace() : true;
 	return PyBool_FromLong(bres);
 }
 
@@ -246,84 +249,20 @@ static PyObject *SetProp( PyObject *apSelf , PyObject *apArgs )
 	Py_RETURN_NONE;
 }
 
-static PyObject *SetContrast( PyObject *apSelf , PyObject *apArgs )
+static PyObject *GetProp( PyObject *apSelf , PyObject *apArgs )
 {
 	PyObject *pobj;
-	double value;
-	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
-		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
+	int32_t prop;
+	if (!PyArg_ParseTuple(apArgs, "Oi", &pobj, &prop))
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, int, float.");
 
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
+	double value = 0.0;
 	if (pcheck) {
-		value = clamp(value, 0.0, 100.0);
-		pcheck->set(CV_CAP_PROP_CONTRAST, value);
+		value = pcheck->get(prop);
 	}
 
-	Py_RETURN_NONE;
-}
-
-static PyObject *SetBrightness( PyObject *apSelf , PyObject *apArgs )
-{
-	PyObject *pobj;
-	double value;
-	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
-		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
-
-	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
-	if (pcheck) {
-		value = clamp(value, 0.0, 100.0);
-		pcheck->set(CV_CAP_PROP_BRIGHTNESS, value);
-	}
-
-	Py_RETURN_NONE;
-}
-
-static PyObject *SetSaturation( PyObject *apSelf , PyObject *apArgs )
-{
-	PyObject *pobj;
-	double value;
-	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
-		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
-
-	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
-	if (pcheck) {
-		value = clamp(value, 0.0, 100.0);
-		pcheck->set(CV_CAP_PROP_SATURATION, value);
-	}
-
-	Py_RETURN_NONE;
-}
-
-static PyObject *SetGain( PyObject *apSelf , PyObject *apArgs )
-{
-	PyObject *pobj;
-	double value;
-	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
-		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
-
-	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
-	if (pcheck) {
-		value = clamp(value, 0.0, 100.0);
-		pcheck->set(CV_CAP_PROP_GAIN, value);
-	}
-
-	Py_RETURN_NONE;
-}
-
-static PyObject *SetExposure( PyObject *apSelf , PyObject *apArgs )
-{
-	PyObject *pobj;
-	double value;
-	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
-		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
-
-	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
-	if (pcheck) {
-		value = clamp(value, -1.0, 100.0);
-		pcheck->set(CV_CAP_PROP_EXPOSURE, value);
-	}
-
-	Py_RETURN_NONE;
+	return Py_BuildValue("d", value);
 }
 
 static PyObject *SetHorizontalFlip( PyObject *apSelf , PyObject *apArgs )
@@ -356,3 +295,83 @@ static PyObject *SetVerticalFlip( PyObject *apSelf , PyObject *apArgs )
 	Py_RETURN_NONE;
 }
 
+
+//static PyObject *SetContrast( PyObject *apSelf , PyObject *apArgs )
+//{
+//	PyObject *pobj;
+//	double value;
+//	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
+//		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
+//
+//	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
+//	if (pcheck) {
+//		value = clamp(value, 0.0, 100.0);
+//		pcheck->set(CV_CAP_PROP_CONTRAST, value);
+//	}
+//
+//	Py_RETURN_NONE;
+//}
+//
+//static PyObject *SetBrightness( PyObject *apSelf , PyObject *apArgs )
+//{
+//	PyObject *pobj;
+//	double value;
+//	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
+//		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
+//
+//	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
+//	if (pcheck) {
+//		value = clamp(value, 0.0, 100.0);
+//		pcheck->set(CV_CAP_PROP_BRIGHTNESS, value);
+//	}
+//
+//	Py_RETURN_NONE;
+//}
+//
+//static PyObject *SetSaturation( PyObject *apSelf , PyObject *apArgs )
+//{
+//	PyObject *pobj;
+//	double value;
+//	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
+//		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
+//
+//	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
+//	if (pcheck) {
+//		value = clamp(value, 0.0, 100.0);
+//		pcheck->set(CV_CAP_PROP_SATURATION, value);
+//	}
+//
+//	Py_RETURN_NONE;
+//}
+//
+//static PyObject *SetGain( PyObject *apSelf , PyObject *apArgs )
+//{
+//	PyObject *pobj;
+//	double value;
+//	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
+//		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
+//
+//	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
+//	if (pcheck) {
+//		value = clamp(value, 0.0, 100.0);
+//		pcheck->set(CV_CAP_PROP_GAIN, value);
+//	}
+//
+//	Py_RETURN_NONE;
+//}
+//
+//static PyObject *SetExposure( PyObject *apSelf , PyObject *apArgs )
+//{
+//	PyObject *pobj;
+//	double value;
+//	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
+//		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, float.");
+//
+//	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
+//	if (pcheck) {
+//		value = clamp(value, -1.0, 100.0);
+//		pcheck->set(CV_CAP_PROP_EXPOSURE, value);
+//	}
+//
+//	Py_RETURN_NONE;
+//}

@@ -7,13 +7,17 @@ from oled import *
 import time, datetime
 from urllib.request import urlopen
 from json import loads, dump, load
-from threading import Thread, Lock
+from threading import Thread #,Lock
 import keyboard
 import checkface
 import settings
 
+#todo: Handle event where keyboard isn't available.  Currently throws exceptions.
+#todo: Handle if camera isn't available and just always display.
+#todo: Handle different I2C addresses (0 or 1).
 #todo: camera controls for gain, saturation, contrast, brightness, exposure.
 #todo: Need to speed up the checkface system.  It takes way too long at the moment.  May need to go with a better raspi.
+# switched to haarcascade_frontalface_default.xml and reduced image scale to .25 and this sped things up as well as improved accuracy.
 #todo: Try checkface from the main thread to see if it's more efficient.  It's messing with display at the moment.
 #  Did this and it definitely worked better so I'm staying with it.
 
@@ -48,6 +52,7 @@ class Clock:
   defaulttempdur = 3          #Duration of main temp display.
   defaulttempupdate = 5.0     #Time between tempurature querries.
   defaultdisplaydur = 5.0     #Default time in seconds display stays on after face detection.
+  defaultfacecheck = 2.0
 
   def __init__( self ) :
 #    self._onlock = Lock()
@@ -75,16 +80,17 @@ class Clock:
     self.on = True
     self._dirtydisplay = False
     self._prevtime = time.time()
-    self._checktime = 2.0
-    self._checker = checkface.Create();
-    checkface.SetVerticalFlip(self._checker, True)
-#    checkface.SetBrightness(self._checker, 20.0)
+    self._checktime = Clock.defaultfacecheck
+    self._checker = checkface.Create()
+    self.vflip = True
+
+#   self.brightness = 20.0
 
 #    self._sthread = Thread(target=self.seethread)
 #    self._sthread.start()
 
-    self._ldthread = Thread(target=self.loadthread)
-    self._ldthread.start()
+    self._wtthread = Thread(target=self.weatherthread)
+    self._wtthread.start()
 
     self._settingsthread = Thread(target=self.startsettings)
     self._settingsthread.start()
@@ -180,6 +186,58 @@ class Clock:
     self._location = aLoc
     self._url = 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%3D' + str(aLoc) + '&format=json'
 
+#Camera properties.
+  @property
+  def vflip( self ) :
+    return self._vflip
+
+  @vflip.setter
+  def vflip( self, aValue ) :
+    self._vflip = aValue
+    checkface.SetVerticalFlip(self._checker, aValue)
+
+  @property
+  def brightness( self ) :
+    return checkface.GetProp(self._checker, checkface.CV_CAP_PROP_BRIGHTNESS)
+
+  @brightness.setter
+  def brightness( self, aValue ) :
+    checkface.SetProp(self._checker, checkface.CV_CAP_PROP_BRIGHTNESS, aValue)
+
+  @property
+  def contrast( self ) :
+    return checkface.GetProp(self._checker, checkface.CV_CAP_PROP_CONTRAST)
+
+  @contrast.setter
+  def contrast( self, aValue ) :
+    checkface.SetProp(self._checker, checkface.CV_CAP_PROP_CONTRAST, aValue)
+
+  @property
+  def saturation( self ) :
+    return checkface.GetProp(self._checker, checkface.CV_CAP_PROP_SATURATION)
+
+  @saturation.setter
+  def saturation( self, aValue ) :
+    checkface.SetProp(self._checker, checkface.CV_CAP_PROP_SATURATION, aValue)
+
+  @property
+  def gain( self ) :
+    return checkface.GetProp(self._checker, checkface.CV_CAP_PROP_GAIN)
+
+  @gain.setter
+  def gain( self, aValue ) :
+    checkface.SetProp(self._checker, checkface.CV_CAP_PROP_GAIN, aValue)
+
+  @property
+  def exposure( self ) :
+    return checkface.GetProp(self._checker, checkface.CV_CAP_PROP_EXPOSURE)
+
+  @exposure.setter
+  def exposure( self, aValue ) :
+    checkface.SetProp(self._checker, checkface.CV_CAP_PROP_EXPOSURE, aValue)
+
+#END Camera properties.
+
   def startsettings( self ) :
 #    print("Starting settings server")
     settings.run(self)
@@ -203,13 +261,15 @@ class Clock:
       if delay > 0.0 :
         time.sleep(delay)
 
-  def loadthread(self):
+  def weatherthread(self):
     while self._running:
       self.UpdateWeather()
       elapse = self.tempupdateinterval
       while (elapse > 0.0) and self._running:
         elapse -= 1.0
         time.sleep(1.0)
+
+    print("Weather update thread exit.")
 
   def save( self ) :
       with open(Clock.savename, 'w+') as f:
@@ -221,6 +281,12 @@ class Clock:
         data['update'] = self.tempupdateinterval
         data['location'] = self.location
         data['color'] = self.colorstr
+        data['vflip'] = self.vflip
+        data['brightness'] = self.brightness
+        data['contrast'] = self.contrast
+        data['saturation'] = self.saturation
+        data['gain'] = self.gain
+        data['exposure'] = self.exposure
 
         dump(data, f)
 
@@ -235,6 +301,12 @@ class Clock:
         self.tempupdateinterval = data['update']
         self.location = data['location']
         self.colorstr = data['color']
+        self.vflip = data['vflip']
+        self.brightness = data['brightness']
+        self.contrast = data['contrast']
+        self.saturation = data['saturation']
+        self.gain = data['gain']
+        self.exposure = data['exposure']
     except:
       pass
 
@@ -381,10 +453,10 @@ class Clock:
   def run( self ) :
     try:
       while self._running:
-        if keyboard.is_pressed('q') :
-          self._running = False
-          print("quitting.")
-        else:
+#        if keyboard.is_pressed('q') :
+#          self._running = False
+#          print("quitting.")
+#        else:
           ct = time.time()
           dt = min(1.0, ct - self._prevtime) #clamp max elapsed time to 1 second.
           self._prevtime = ct
@@ -401,7 +473,7 @@ class Clock:
 
     self.save()                                 #Save current settings.
 #    self._sthread.join()
-    self._ldthread.join()
+    self._wtthread.join()
     self._settingsthread.join()
 
 def run(  ) :

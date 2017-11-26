@@ -56,7 +56,22 @@ HTML = Template('<html><head><style type="text/css">' +
   '<span><input type="color" name="color" value=${thecolor} '
   'oninput="form.submit()"></span>' +
 
-  '<h3>Date/Time:</h3>'
+  '<h3>Camera:</h3>'
+  '<span>Vertical Flip <input type="checkbox" name="vflip" value="on" ' +
+  'onclick="form.submit()" ${vf_on}><br/> ' +
+  '<datalist id="ticks"><option value="0" label="0"><option value="25">' +
+  '<option value="50" label="50"><option value="75"><option value="100" label="100"></datalist> ' +
+  '<span>Brightness:</span><input type="range" min="0" max="100" value="${bright}" name="bright" ' +
+  'onchange="form.submit()" list="ticks">  ${bright}<br/>' +
+  '<span>Contrast:&nbsp;&nbsp;</span><input type="range" min="0" max="100" value="${contrast}" name="contrast" ' +
+  'onchange="form.submit()" list="ticks">  ${contrast}<br/>' +
+  '<span>Saturation:</span><input type="range" min="0" max="100" value="${sat}" name="sat" ' +
+  'onchange="form.submit()" list="ticks">  ${sat}<br/>' +
+  '<span>Gain:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><input type="range" min="0" max="100" value="${gain}" name="gain" ' +
+  'onchange="form.submit()" list="ticks">  ${gain}<br/>' +
+  '<span>Exposure:&nbsp;&nbsp;</span><input type="range" min="-1" max="100" value="${exp}" name="exp" ' +
+  'onchange="form.submit()" list="ticks"> ${exp}<br/></span>' +
+  '<h3>Date/Time:</h3>' +
   '<span><input id="date" name="date" type="date" value=${thedate} ' +
   'oninput="form.submit()"></span>' +
   '<span><input id="time" name="time" type="time" value=${thetime} ' +
@@ -114,17 +129,25 @@ class RH(BaseHTTPRequestHandler):
       RH.determineinterval(): 'selected', RH.determineupdate(): 'selected',
       'woeid': RH.determineloc() }
 
-    if RH.ourTarget.tempdisplay :
-      subs['t_on'] = 'checked'
-
-    cond = ''
     if RH.ourTarget != None:
       cond = RH.ourTarget.text + ' and ' + str(RH.ourTarget.temp) + ' degrees.'
+      subs['conditions'] = cond
 
-    subs['thetime'] = RH.ourTarget.hhmm
-    subs['thedate'] = RH.ourTarget.date
-    subs['thecolor'] = RH.ourTarget.colorstr
-    subs['conditions'] = cond
+      if RH.ourTarget.tempdisplay :
+        subs['t_on'] = 'checked'
+
+      if RH.ourTarget.vflip :
+        subs['vf_on'] = 'checked'
+
+      subs['bright'] = str(RH.ourTarget.brightness)
+      subs['contrast'] = str(RH.ourTarget.contrast)
+      subs['sat'] = str(RH.ourTarget.saturation)
+      subs['gain'] = str(RH.ourTarget.gain)
+      subs['exp'] = str(RH.ourTarget.exposure)
+
+      subs['thetime'] = RH.ourTarget.hhmm
+      subs['thedate'] = RH.ourTarget.date
+      subs['thecolor'] = RH.ourTarget.colorstr
 
     self.send_response(200)
     self.send_header('Content-Type', 'text/html')
@@ -149,6 +172,12 @@ class RH(BaseHTTPRequestHandler):
     tm = form.getfirst('time')
     clr = form.getfirst('color')
     sv = form.getfirst('Save')
+    vflip = form.getfirst('vflip')
+    bright = form.getfirst('bright')
+    contrast = form.getfirst('contrast')
+    sat = form.getfirst('sat')
+    gain = form.getfirst('gain')
+    exp = form.getfirst('exp')
 
 #    print('time = ' + str(tm))
 #    print('t = ' + str(t))
@@ -171,6 +200,12 @@ class RH(BaseHTTPRequestHandler):
       RH.ourTarget.tempdisplayinterval = int(dis)
       RH.ourTarget.tempupdateinterval = float(ud) #Convert from minutes to seconds.
       RH.ourTarget.colorstr = clr
+      RH.ourTarget.vflip = vflip == 'on'
+      RH.ourTarget.brightness = float(bright)
+      RH.ourTarget.contrast = float(contrast)
+      RH.ourTarget.saturation = float(sat)
+      RH.ourTarget.gain = float(gain)
+      RH.ourTarget.exposure = float(exp)
 
       if sv != None :
 #        print('saving')
@@ -185,13 +220,11 @@ def run( aTarget ) :
   server.timeout = 2.0 #handle_request times out after 2 seconds.
 #  print("Staring server")
 
-  if RH.ourTarget != None:
-    while aTarget._running :
-      server.handle_request()
-      time.sleep(1.0)
-#      print("handle_request")
+  while RH.ourTarget == None or aTarget._running :
+    server.handle_request()
+    time.sleep(1.0)
 
-#    print('Server thread Done')
+  print('HTTP Server thread exit.')
 
 if __name__ == '__main__':  #start server and open browser
   run(None)
