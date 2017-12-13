@@ -14,6 +14,20 @@ Add aliases to: ~/.bash_aliases
 ls -a will show this file. if in ~/
 Edit /etc/dphys-swapfile and change CONF_SWAPSIZE to 1024 in order for make -j4 to work well.  Put back after use though.
 
+Linux commands:
+df = storage space
+ls -all = shows system files too.
+mv = move or rename
+rm -r = remove recursive
+pushd . and popd
+created topi and frompi in /usr/local/bin.  These use scp to copy files to/from pis.
+added pi1-?? aliases to ~/.bash_aliases.  These use ssh to connect to the pis.
+
+TightVNCServer:
+Used instructions located here to install and autorun on startup.  Warning! There are multiple methods out there but some of them do not work at all.
+[[https://www.raspberrypi.org/forums/viewtopic.php?t=123457]]
+Note: on the systemctl enable call I get an error about run levels but I ignore and it seems to work.
+
 Cross Compiling:
 Ok, this is much more difficult than it should be.  There are multiple ways of doing this but I went with one that keeps all of the toolchain files separate in the ~/raspi directory.
   Follow the instructions here:
@@ -26,9 +40,9 @@ I kind of found that at
   Install what you need on the pi then
   Make a ~/raspi/rootfs directory on the pc
   cd to the ~/raspi/rootfs directory
-  rsync -rlv --delete-after --safe-links pi@192.168.2.61:/lib .
-  rsync -rlv --delete-after --safe-links pi@192.168.2.61:/usr .
-  rsync -rlv --delete-after --safe-links pi@192.168.2.61:/opt .
+  rsync -rlvt --delete-after --safe-links pi@192.168.2.61:/lib .
+  rsync -rlvt --delete-after --safe-links pi@192.168.2.61:/usr .
+  rsync -rlvt --delete-after --safe-links pi@192.168.2.61:/opt .
 }
 After all of this we should have the following path
 {
@@ -120,13 +134,11 @@ Add this to /etc/dhcpcd.conf
   static routers=192.168.2.1
   static domain_name_servers=8.8.8.8 8.8.4.4
 
-Can do the same for eth0 instead of wlan0.
+Do the same for eth0.
 
 Add this to the bottom of your /etc/network/interfaces file, as it prevents power-save modes in the wifi dongles.
 
 wireless-power off
-
-Use WinSCP to transfer files.
 
 Can copy from ubunto bash directly to raspi with the following command:
 scp file pi@192.168.2.61:[destdir/filename]
@@ -161,18 +173,44 @@ Copying files to here from windows will not be visible in ubuntu bash unless you
 From bash you can access the windows files from /mnt/c or d.  But can't see usb drives.
 
 Auto ssh login:
-ssh-keygen -t rsa
-(When prompted for a password, leave it blank)
-cat ~/.ssh/id_rsa.pub | ssh pi@192.168.2.62 'cat >> .ssh/authorized_keys'
+Note, all pi's use the same key.  To use multiple key's you'd have to create a .ssh/config file.
+On pi -
+  cd ~/.ssh
+  ssh-keygen -t rsa  (hit return through prompts)
+  cat id_rsa.pub >> authorized_keys
+  chmod 600 authorized_keys
+  rm id_rsa.pub
+  pi1 - pi4 have this key so you can just scp it from one of these.
+On client:
+  scp pi@pi ip:~/.ssh/id_rsa ~/.ssh
+  done
 
 ST7735:
 sudo modprobe fbtft_device name=sainsmart18 speed=16000000 rotate=270
 
 Hardware clock:
-I followed the instructions here.
+Adding a battery backup clock to the pi, I followed the instructions here.
 [[https://www.raspberrypi.org/forums/viewtopic.php?f=63&t=161133]]
 
 Clock:
 Had to run pip install requests and pip install bs4 to run clock.py
 
-
+#!/bin/sh
+# /etc/init.d/tightvncserver
+# Set the VNCUSER variable to the name of the user to start tightvncserver under
+VNCUSER='pi'
+case "$1" in
+  start)
+    su $VNCUSER -c '/usr/bin/tightvncserver :1'
+    echo "Starting TightVNC server for $VNCUSER"
+    ;;
+  stop)
+    pkill Xtightvnc
+    echo "Tightvncserver stopped"
+    ;;
+  *)
+    echo "Usage: /etc/init.d/tightvncserver {start|stop}"
+    exit 1
+    ;;
+esac
+exit 0

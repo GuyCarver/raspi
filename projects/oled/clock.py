@@ -1,9 +1,11 @@
+#!/usr/bin/env python3
 #oled display of clock with temperature.
 #Display on/off is controlled by face detection.
 #also web hosted settings IE: 192.168.2.62 in a browser will pull up the settings page.
 #This module must be run under sudo or the settings server will fail from permission exception.
 
 import os, sys
+import RPi.GPIO as GPIO
 from oled import *
 import time, datetime
 from urllib.request import urlopen
@@ -13,7 +15,6 @@ import keyboard
 import checkface
 import settings
 
-#todo: Handle different I2C addresses (0 or 1).
 #done: Need to speed up the checkface system.  It takes way too long at the moment.  May need to go with a better raspi.
 # switched to haarcascade_frontalface_default.xml and reduced image scale to .25 and this sped things up as well as improved accuracy.
 #done: Try checkface from the main thread to see if it's more efficient.  It's messing with display at the moment.
@@ -46,26 +47,34 @@ class Clock:
   tmconvert = '{:02d}:{:02d}'
   dtconvert = '{}-{:02d}-{:02d}'
   colorconvert = '#{:06x}'
-  savename = 'clock.json'
+  savename = '/home/pi/projects/oled/clock.json'
 
   defaulttempinterval = 30    #seconds to wait before tempurature update.
   defaulttempdur = 3          #Duration of main temp display.
   defaulttempupdate = 5.0     #Time between tempurature querries.
   defaultdisplaydur = 5.0     #Default time in seconds display stays on after face detection.
   defaultfacecheck = 2.0      #Check for face every n seconds.
+  ledcontrolpin = 24           #GPIO24 pin controls IR LEDs.
 
   def __init__( self ) :
+    print("Init")
     #Put the lock stuff in if running face detection in bg thread.
 #    self._onlock = Lock()
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(Clock.ledcontrolpin, GPIO.OUT)
     self._tempdisplayinterval = Clock.defaulttempinterval
     #set properties
     self.tempdisplaytime = Clock.defaulttempdur
     self.tempupdateinterval = Clock.defaulttempupdate
     self.displayduration = Clock.defaultdisplaydur
-    self.wh = 15  #Size of half of the segment (0-3).  IE: 6 is drawn at 30 if wh is 15.
+    self.wh = 15  #Size of half of the segment (0-3).  IE: segment 6 is drawn at y of 30 if wh is 15.
     self.pos = (5, 10)
     self.size = (128, 64)
-    self._oled = oled(0)
+    try:
+      self._oled = oled(1)  #1st try later versions of the pi.
+    except:
+      self._oled = oled(0)  #if those fail we're using the 1st gen maybe?
+
     self.digits = (0, 0, 0, 0, 0, 0)
     self._tempdisplay = True
     self._h = 0
@@ -82,25 +91,47 @@ class Clock:
     self._dirtydisplay = False
     self._prevtime = time.time()
     self._checktime = Clock.defaultfacecheck
-    self._checker = checkface.Create()
-    self.vflip = True
+    try:
+      print("creating clock.")
+      self._checker = checkface.Create()
+    except:
+      print("Error with clock.")
 
+    self._iron = False
+    self.vflip = True
+    self.contrast = 75.0
+    self.saturation = 100.0
+
+    print("testing for keyboard")
     #If no keyboard we'll get an exception here so turn off keyboard flag.
     try:
       bres = keyboard.is_pressed('q')
       self._haskeyboard = True
     except:
-      seld._haskeyboard = False
+      self._haskeyboard = False
 
 #This is the system to look for face in the bg thread.  Don't need it though.
 #    self._sthread = Thread(target=self.seethread)
 #    self._sthread.start()
 
+    print("starting threads.")
     self._wtthread = Thread(target=self.weatherthread)
-    self._wtthread.start()
 
     self._settingsthread = Thread(target=self.startsettings)
-    self._settingsthread.start()
+
+  def __del__( self ) :
+    self.iron = False
+
+  @property
+  def iron( self ) :
+    '''Return true if IR LEDs are currently on.'''
+    return self._iron
+
+  @iron.setter
+  def iron( self, aTF ) :
+    '''Set IR LEDs on/off.'''
+    self._iron = aTF
+    GPIO.output(Clock.ledcontrolpin, GPIO.HIGH if aTF else GPIO.LOW)
 
   @property
   def on( self ) :
@@ -314,23 +345,23 @@ class Clock:
 
   def save( self ) :
     '''Save options to json file.'''
-      with open(Clock.savename, 'w+') as f:
-        data = {}
-        data['tempon'] = self.tempdisplay
-        data['duration'] = self.displayduration
-        data['tempduration'] = self.tempdisplaytime
-        data['interval'] = self.tempdisplayinterval
-        data['update'] = self.tempupdateinterval
-        data['location'] = self.location
-        data['color'] = self.colorstr
-        data['vflip'] = self.vflip
-        data['brightness'] = self.brightness
-        data['contrast'] = self.contrast
-        data['saturation'] = self.saturation
-        data['gain'] = self.gain
-        data['exposure'] = self.exposure
+    with open(Clock.savename, 'w+') as f:
+      data = {}
+      data['tempon'] = self.tempdisplay
+      data['duration'] = self.displayduration
+      data['tempduration'] = self.tempdisplaytime
+      data['interval'] = self.tempdisplayinterval
+      data['update'] = self.tempupdateinterval
+      data['location'] = self.location
+      data['color'] = self.colorstr
+      data['vflip'] = self.vflip
+      data['brightness'] = self.brightness
+      data['contrast'] = self.contrast
+      data['saturation'] = self.saturation
+      data['gain'] = self.gain
+      data['exposure'] = self.exposure
 
-        dump(data, f)
+      dump(data, f)
 
   def load( self ) :
     '''Load options from json file.'''
@@ -516,6 +547,10 @@ class Clock:
   def run( self ) :
     '''Run the clock.'''
     try:
+      self.iron = True
+      self._wtthread.start()
+      self._settingsthread.start()
+
       while self._running:
         if self._haskeyboard and keyboard.is_pressed('q') :
           self._running = False
@@ -538,11 +573,15 @@ class Clock:
     self.save()                                 #Save current settings.
 #    self._sthread.join()
     #Wait the background threads to end.
+    print("Shutting down threads.")
     self._wtthread.join()
     self._settingsthread.join()
+    self.iron = False
 
 def run(  ) :
+    print("Running")
     c = Clock()
     c.run()
 
 run()
+print("Clock done.")
