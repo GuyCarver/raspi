@@ -39,6 +39,7 @@
 #include <opencv2/imgproc.hpp>
 
 static PyObject *Create( PyObject *apSelf, PyObject *apArgs );
+static PyObject *Ok( PyObject *apSelf, PyObject *apArg );
 static PyObject *CheckFace( PyObject *apSelf, PyObject *apArg );
 static PyObject *SetProp( PyObject *apSelf, PyObject *apArgs );
 static PyObject *GetProp( PyObject *apSelf, PyObject *apArgs );
@@ -54,6 +55,7 @@ static const double DefaultScale = 0.25;
 
 static PyMethodDef module_methods[] = {
 	{"Create", Create, METH_VARARGS, "Create a CheckFaceCamera object and return it in a PyCapsules object."},
+	{"Ok", Ok, METH_O, "(CheckFaceCamera).\nReturn True if camera is ok."},
 	{"Check", CheckFace, METH_O, "(CheckFaceCamera).\nTake a still from camera module with RaspiCam and detect faces using OpenCV."},
 	{"SetProp", SetProp, METH_VARARGS, "(CheckFaceCamera, prop, value).\nSet CV_CAP_PROP_??? value."},
 	{"GetProp", GetProp, METH_VARARGS, "Value (CheckFaceCamera, prop).\nGet CV_CAP_PROP_??? value."},
@@ -252,13 +254,23 @@ static PyObject *Create( PyObject */*apSelf*/, PyObject */*apArgs*/ )
 }
 
 ///
+/// <returns> true if given camera is ok. </returns>
+///
+static PyObject *Ok( PyObject *apSelf , PyObject *apArg )
+{
+	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(apArg, CheckFaceCamera::Name));
+	bool bres = pcheck && pcheck->QOk();
+	return PyBool_FromLong(bres);
+}
+
+///
 ///<summary> Check for face using the given CheckFaceCamera.</summary>
 /// <returns> true if found or camera isn't ok. </returns>
 ///
 static PyObject *CheckFace( PyObject *apSelf , PyObject *apArg )
 {
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(apArg, CheckFaceCamera::Name));
-	bool bres = pcheck ? pcheck->CheckFace() : true;
+	bool bres = pcheck ? pcheck->CheckFace() : false;
 	return PyBool_FromLong(bres);
 }
 

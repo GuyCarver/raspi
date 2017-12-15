@@ -54,14 +54,27 @@ class Clock:
   defaulttempupdate = 5.0     #Time between tempurature querries.
   defaultdisplaydur = 5.0     #Default time in seconds display stays on after face detection.
   defaultfacecheck = 2.0      #Check for face every n seconds.
-  ledcontrolpin = 24           #GPIO24 pin controls IR LEDs.
+  ledcontrolpin = 24          #GPIO24 pin controls IR LEDs.
+  alarmpin = 18               #GPIO18 pin is PWM for alarm buzzer.
+  alarmfreq = 700             #Just play with this # til you get something nice.
+  alarmdutycycle = 75         #Between 0-100 but 0 and 100 are silent.
+  beepfreq = 1.0              #Frequency in seconds for beep.
 
   def __init__( self ) :
     print("Init")
     #Put the lock stuff in if running face detection in bg thread.
 #    self._onlock = Lock()
+    GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(Clock.ledcontrolpin, GPIO.OUT)
+    GPIO.setup(Clock.alarmpin, GPIO.OUT)
+    self._alarm = GPIO.PWM(Clock.alarmpin, Clock.alarmfreq)
+    self._alarmtime = (0, 0)
+    self._alarmcheckminute = -1
+    self._alarmenabled = False
+    self._beep = False
+    self._triggered = False
+    self._beeptime = Clock.beepfreq
     self._tempdisplayinterval = Clock.defaulttempinterval
     #set properties
     self.tempdisplaytime = Clock.defaulttempdur
@@ -95,6 +108,7 @@ class Clock:
       print("creating clock.")
       self._checker = checkface.Create()
     except:
+      self._checker = None
       print("Error with clock.")
 
     self._iron = False
@@ -121,6 +135,72 @@ class Clock:
 
   def __del__( self ) :
     self.iron = False
+    self._oled.clear()
+
+  @property
+  def cameraok( self ) :
+    '''Return true if camera is ok.'''
+    return checkface.Ok(self._checker)
+
+  @property
+  def beep( self ) :
+    '''Return true if alarm sound can currently be heard.'''
+    return self._beep
+
+  @beep.setter
+  def beep( self, aTF ) :
+    '''Set alarm beep on/off.'''
+    if self._beep != aTF :
+      self._beep = aTF
+      if self._beep:
+        self._alarm.start(Clock.alarmdutycycle)
+      else:
+        self._alarm.stop()
+
+  @property
+  def triggered( self ) :
+    '''Return true if alarm is currently triggered (beeping).'''
+    return self._triggered
+
+  @triggered.setter
+  def triggered( self, aTF ) :
+    '''Set alarm trigger on/off.'''
+    if self._triggered != aTF :
+      self._triggered = aTF
+      self.beep = aTF
+
+  @property
+  def alarmenabled( self ) :
+    '''Return true if alarm is set to go off.'''
+    return self._alarmenabled
+
+  @alarmenabled.setter
+  def alarmenabled( self, aTF ) :
+    '''Set alarm on/off.'''
+    self._alarmenabled = aTF
+
+  @property
+  def alarmtime( self ) :
+    '''Return (hh,mm) tuple.'''
+    return self._alarmtime
+
+  @alarmtime.setter
+  def alarmtime( self, aValue ) :
+    '''Set alarm time (hh,mm) tuple.'''
+    self._alarmtime = aValue
+
+  @property
+  def alarmhhmm( self ) :
+    '''Get "hh:mm" in string format (for the settings http server).'''
+    return Clock.tmconvert.format(*self._alarmtime)
+
+  @alarmhhmm.setter
+  def alarmhhmm( self, aValue ) :
+    try:
+      hh, mm = aValue.split(':')
+      self.alarmtime = (int(hh), int(mm))
+    except:
+      self.alarmtime = (0,0)
 
   @property
   def iron( self ) :
@@ -500,6 +580,26 @@ class Clock:
     except Exception as e:
       print(e)
 
+  def UpdateAlarm( self, dt ) :
+    '''Update the alarm state.'''
+    ah, am = self.alarmtime
+    #If alarm is currently triggered then update it.
+    if self.triggered :
+      #Turn alarm off as soon as hour or minute change.
+      if self._h != ah or self._m != am :
+        self.triggered = False
+      else:
+        self._beeptime -= dt
+        if self._beeptime <= 0 :
+          self.beep = not self.beep  #toggle sound on/off at beepfreq.
+          self._beeptime = Clock.beepfreq
+    #If alarm is set then once we hit the hour and minute start triggered.
+    #But only check on every new minute.
+    elif self.alarmenabled and self._m != self._alarmcheckminute :
+      self._alarmcheckminute = self._m
+      if self._h == ah and self._m == am :
+        self.triggered = True
+
   def Update( self, dt ) :
     '''Run update of face check, time and display state.'''
     #Only check for a face every so often.  If found turn display on.
@@ -509,7 +609,8 @@ class Clock:
 #      print("Checking Face")
       if checkface.Check(self._checker) :
         print("  face found!")
-        self.on = True #Turn display on.
+        self.on = True        #Turn display on.
+        self.triggered = False  #Make sure alarm is off.
 
     #Read time and save in digits.
     t = time.localtime()
@@ -533,8 +634,8 @@ class Clock:
     self.digits = (h // 10, h % 10, m // 10, m % 10, apm, s)
 
     if self.on :
-      #if display on the update the on time and display.
-#      self._onlock.acquire()
+      #if display on then update the on time and display.
+#      self._onlock.acquire()  #The lock is used when display is updated in background.
       self._ontime -= dt
       rem = self._ontime
 #      self._onlock.release()
@@ -543,6 +644,8 @@ class Clock:
       if rem <= 0 :
         self._oled.clear()
         self._oled.display()
+
+    self.UpdateAlarm(dt)
 
   def run( self ) :
     '''Run the clock.'''
@@ -577,6 +680,8 @@ class Clock:
     self._wtthread.join()
     self._settingsthread.join()
     self.iron = False
+    self._oled.clear()
+    self._oled.display()
 
 def run(  ) :
     print("Running")

@@ -71,6 +71,13 @@ HTML = Template('<html><head><style type="text/css">' +
 #  'onchange="form.submit()" list="ticks">  ${gain}' +
 #  'Exposure:  <input type="range" min="-1" max="100" value="${exp}" name="exp" ' +
 #  'onchange="form.submit()" list="ticks"> ${exp}' +
+
+  '<h3>Alarm</h3>' +
+  '<span>On: <input type="checkbox" name="alarmon" value="on" ' +
+  'onclick="form.submit()" ${alarmon}><br/> ' +
+  '<span><input id="alarm" name="alarm" type="time" value=${alarmtime} ' +
+  'oninput="form.submit()"></span>' +
+
   '<h3>Date/Time:</h3>' +
   '<span><input id="date" name="date" type="date" value=${thedate} ' +
   'oninput="form.submit()"></span>' +
@@ -163,6 +170,9 @@ class RH(BaseHTTPRequestHandler):
     tm = form.getfirst('time')
     clr = form.getfirst('color')
     sv = form.getfirst('Save')
+
+    print(RH.aon)
+    print(RH.at)
 
 #    print('time = ' + str(tm))
 #    print('t = ' + str(t))

@@ -56,7 +56,8 @@ HTML = Template('<html><head><style type="text/css">' +
   '<span><input type="color" name="color" value=${thecolor} '
   'oninput="form.submit()"></span>' +
 
-  '<h3>Camera:</h3>'
+  '<h3>Camera:</h3> ' +
+  'Condition: ${camera_ok}<br/><br/> ' +
   '<span>Vertical Flip <input type="checkbox" name="vflip" value="on" ' +
   'onclick="form.submit()" ${vf_on}><br/> ' +
   '<datalist id="ticks"><option value="0" label="0"><option value="25">' +
@@ -71,6 +72,11 @@ HTML = Template('<html><head><style type="text/css">' +
   'onchange="form.submit()" list="ticks">  ${gain}<br/>' +
   '<span>Exposure:&nbsp;&nbsp;</span><input type="range" min="-1" max="100" value="${exp}" name="exp" ' +
   'onchange="form.submit()" list="ticks"> ${exp}<br/></span>' +
+  '<h3>Alarm</h3>' +
+  '<span>Alarm: <input type="checkbox" name="alarmon" value="on" ' +
+  'onclick="form.submit()" ${alarmon}><br/> ' +
+  '<span><input id="alarm" name="alarm" type="time" value=${alarmtime} ' +
+  'oninput="form.submit()"></span>' +
   '<h3>Date/Time:</h3>' +
   '<span><input id="date" name="date" type="date" value=${thedate} ' +
   'oninput="form.submit()"></span>' +
@@ -139,11 +145,18 @@ class RH(BaseHTTPRequestHandler):
       cond = RH.ourTarget.text + ' and ' + str(RH.ourTarget.temp) + ' degrees.'
       subs['conditions'] = cond
 
+      subs['camera_ok'] = 'ok' if RH.ourTarget.cameraok else 'malfunction'
+
       if RH.ourTarget.tempdisplay :
         subs['t_on'] = 'checked'
 
       if RH.ourTarget.vflip :
         subs['vf_on'] = 'checked'
+
+      if RH.ourTarget.alarmenabled :
+        subs['alarmon'] = 'checked'
+
+      subs['alarmtime'] = RH.ourTarget.alarmhhmm
 
       subs['bright'] = str(RH.ourTarget.brightness)
       subs['contrast'] = str(RH.ourTarget.contrast)
@@ -183,6 +196,8 @@ class RH(BaseHTTPRequestHandler):
     sat = form.getfirst('sat')
     gain = form.getfirst('gain')
     exp = form.getfirst('exp')
+    aenabled = form.getfirst('alarmon') != None
+    atime = form.getfirst('alarm')
 
 #    print('time = ' + str(tm))
 #    print('t = ' + str(t))
@@ -213,6 +228,8 @@ class RH(BaseHTTPRequestHandler):
       RH.ourTarget.saturation = float(sat)
       RH.ourTarget.gain = float(gain)
       RH.ourTarget.exposure = float(exp)
+      RH.ourTarget.alarmenabled = aenabled
+      RH.ourTarget.alarmhhmm = atime
 
       #If save button pressed then save settings to json file.
       if sv != None :
