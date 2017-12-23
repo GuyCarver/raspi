@@ -229,7 +229,8 @@ class RH(BaseHTTPRequestHandler):
       RH.ourTarget.gain = float(gain)
       RH.ourTarget.exposure = float(exp)
       RH.ourTarget.alarmenabled = aenabled
-      RH.ourTarget.alarmhhmm = atime
+      if atime != None:
+        RH.ourTarget.alarmhhmm = atime
 
       #If save button pressed then save settings to json file.
       if sv != None :

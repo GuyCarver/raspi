@@ -14,11 +14,19 @@ from threading import Thread #,Lock
 import keyboard
 import checkface
 import settings
+from seriffont import seriffont
+from buttons import button
 
 #done: Need to speed up the checkface system.  It takes way too long at the moment.  May need to go with a better raspi.
 # switched to haarcascade_frontalface_default.xml and reduced image scale to .25 and this sped things up as well as improved accuracy.
 #done: Try checkface from the main thread to see if it's more efficient.  It's messing with display at the moment.
 #  Did this and it definitely worked better so I'm staying with it.
+
+#todo: Add alarm icon to display.
+#todo: Add alarm display and set.
+#todo: Add display turn on with button
+#todo: Add alarm stop with button.
+#todo: What is the time button going to do?  We don't need it for setting the time.
 
 class Clock:
 
@@ -38,6 +46,20 @@ class Clock:
 
   #apm and deg symbol
   apm = [(0,1,2,3,4,5), (0,1,2,3,4), (0,1,2,4,5,7,8,10), (0,1,2,3)]
+
+  #Snooze, Alarm On/Off Switch, Alarm Set, Minute, Hour, Time Set (Update temp)
+  buttonids = [12, 5, 6, 13, 19, 26]
+  snooze = 0
+  alarmonoff = 1
+  alarmset = 2
+  minuteset = 3
+  hourset = 4
+  timeset = 5
+  #Seconds for different rates of increment.
+  incratem = [(8.0, .2), (5.0, .3), (2.0, .5), (0.0, 0.75)]
+  incrateh = [(1.0, .2), (0.0, 1.0)]
+  fiverate = 7
+  fifteenrate = 10
 
   #Position x mulipliers of the clock digits and am/pm.
   digitpos = [0.0, 1.3, 3.1, 4.4, 6.0]
@@ -62,19 +84,22 @@ class Clock:
 
   def __init__( self ) :
     print("Init")
-    #Put the lock stuff in if running face detection in bg thread.
-#    self._onlock = Lock()
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(Clock.ledcontrolpin, GPIO.OUT)
     GPIO.setup(Clock.alarmpin, GPIO.OUT)
+    self._buttons = [ button(i) for i in Clock.buttonids ]
+    self._pressedtime = 0                         #Used to track amount of time the hour/minute set buttons are pressed.
+    self._repeattime = 0                          #Used to auto repeat button toggle when held down.
+
     self._alarm = GPIO.PWM(Clock.alarmpin, Clock.alarmfreq)
-    self._alarmtime = (0, 0)
+    self._alarmtime = (0, 0) #Hour, Minute.
     self._alarmcheckminute = -1
     self._alarmenabled = False
     self._beep = False
     self._triggered = False
     self._beeptime = Clock.beepfreq
+
     self._tempdisplayinterval = Clock.defaulttempinterval
     #set properties
     self.tempdisplaytime = Clock.defaulttempdur
@@ -83,6 +108,7 @@ class Clock:
     self.wh = 15  #Size of half of the segment (0-3).  IE: segment 6 is drawn at y of 30 if wh is 15.
     self.pos = (5, 10)
     self.size = (128, 64)
+
     try:
       self._oled = oled(1)  #1st try later versions of the pi.
     except:
@@ -90,8 +116,7 @@ class Clock:
 
     self.digits = (0, 0, 0, 0, 0, 0)
     self._tempdisplay = True
-    self._h = 0
-    self._m = 0
+    self._curtime = (0, 0)
     self.temp = 0
     self.text = 'Sunny'
     self._color = 0x00FFFF
@@ -101,22 +126,22 @@ class Clock:
     self._running = True
     self._ontime = 0.0
     self.on = True
+    self._weathertimer = 0.0
     self._dirtydisplay = False
     self._prevtime = time.time()
     self._checktime = Clock.defaultfacecheck
+
     try:
-      print("creating clock.")
       self._checker = checkface.Create()
     except:
       self._checker = None
-      print("Error with clock.")
+      print("Camera setup error.")
 
     self._iron = False
     self.vflip = True
     self.contrast = 75.0
     self.saturation = 100.0
 
-    print("testing for keyboard")
     #If no keyboard we'll get an exception here so turn off keyboard flag.
     try:
       bres = keyboard.is_pressed('q')
@@ -124,24 +149,20 @@ class Clock:
     except:
       self._haskeyboard = False
 
-#This is the system to look for face in the bg thread.  Don't need it though.
-#    self._sthread = Thread(target=self.seethread)
-#    self._sthread.start()
-
-    print("starting threads.")
     self._wtthread = Thread(target=self.weatherthread)
-
     self._settingsthread = Thread(target=self.startsettings)
 
   def __del__( self ) :
     self.iron = False
     self._oled.clear()
+    GPIO.cleanup()
 
   @property
   def cameraok( self ) :
     '''Return true if camera is ok.'''
     return checkface.Ok(self._checker)
 
+#Alarm properties.
   @property
   def beep( self ) :
     '''Return true if alarm sound can currently be heard.'''
@@ -201,6 +222,7 @@ class Clock:
       self.alarmtime = (int(hh), int(mm))
     except:
       self.alarmtime = (0,0)
+#END Alarm properties.
 
   @property
   def iron( self ) :
@@ -221,9 +243,7 @@ class Clock:
   @on.setter
   def on( self, aTF ) :
     '''Set display time to displayduration if on or 0 if off.'''
-#    self._onlock.acquire()
     self._ontime = self.displayduration if aTF else 0.0
-#    self._onlock.release()
 
   @property
   def tempdisplay( self ) :
@@ -279,7 +299,7 @@ class Clock:
   @property
   def hhmm( self ) :
     '''Get "hh:mm" in string format (for the settings http server).'''
-    return Clock.tmconvert.format(self._h, self._m)
+    return Clock.tmconvert.format(*self._curtime)
 
   @hhmm.setter
   def hhmm( self, aValue ) :
@@ -393,33 +413,23 @@ class Clock:
 
 #END Camera properties.
 
+  def triggerweatherupdate( self ) :
+    self._weathertimer = 0.0
+
   def startsettings( self ) :
 #    print("Starting settings server")
     settings.run(self)
 
-  def seethread( self ) :
-    '''Not currently used.  Run checkface in the background.'''
-    while self._running:
-#      elapse = time.time()
-      if checkface.Check(self._checker) :
-        print("  face found!")
-        self.on = True
-
-      #delay for n seconds - time it took to check for face.
-      delay = Clock.defaultfacecheck - (time.time() - elapse)
-      #only delay if time left to delay for.
-      if delay > 0.0 :
-        time.sleep(delay)
-
   def weatherthread(self):
     '''Update the weather every n minutes.'''
+    waittime = 1.0
     while self._running:
       self.UpdateWeather()
-      elapse = self.tempupdateinterval
+      self._weathertimer = self.tempupdateinterval
       #Check _running flag every second.
-      while (elapse > 0.0) and self._running:
-        elapse -= 1.0
-        time.sleep(1.0)
+      while (self._weathertimer > 0.0) and self._running:
+        self._weathertimer -= waittime
+        time.sleep(waittime)
 
     print("Weather update thread exit.")
 
@@ -537,6 +547,10 @@ class Clock:
       drawdig(3)
       drawapm(4)
 
+      if self._alarmenabled :
+        p = (x + int(self.wh * Clock.digitpos[4]), y + 4 + self.wh)
+        self._oled.char(p, '\x1F', True, seriffont, (1, 1))
+
       #If we want to display the temperature then do so at the bottom right.
       if self.tempdisplay :
         p = (x + int(self.wh * Clock.digitpos[4]), y + 3 + (self.wh * 2))
@@ -584,9 +598,11 @@ class Clock:
     '''Update the alarm state.'''
     ah, am = self.alarmtime
     #If alarm is currently triggered then update it.
+    h, m = self._curtime
+
     if self.triggered :
       #Turn alarm off as soon as hour or minute change.
-      if self._h != ah or self._m != am :
+      if h != ah or m != am :
         self.triggered = False
       else:
         self._beeptime -= dt
@@ -595,57 +611,129 @@ class Clock:
           self._beeptime = Clock.beepfreq
     #If alarm is set then once we hit the hour and minute start triggered.
     #But only check on every new minute.
-    elif self.alarmenabled and self._m != self._alarmcheckminute :
-      self._alarmcheckminute = self._m
-      if self._h == ah and self._m == am :
+    elif self.alarmenabled and m != self._alarmcheckminute :
+      self._alarmcheckminute = m
+      if h == ah and m == am :
         self.triggered = True
+
+  def checkinc( self, aState, rates, dt ) :
+    '''Determine if it's time to increment a value based on button state and time depressed.'''
+    if button.ischanged(aState) :
+      self._pressedtime = 0.0
+      self._repeattime = 0.0
+      return 1.0
+
+    self._pressedtime += dt
+    self._repeattime += dt
+
+    rate = 0.0
+
+    for v in rates :
+      if self._pressedtime >= v[0] :
+        rate = v[1]
+        break
+
+    if self._repeattime > rate :
+      self._repeattime -= rate
+      return 1
+
+    return 0
 
   def Update( self, dt ) :
     '''Run update of face check, time and display state.'''
     #Only check for a face every so often.  If found turn display on.
-    self._checktime -= dt
-    if self._checktime <= 0.0 :
-      self._checktime = 2.0
-#      print("Checking Face")
-      if checkface.Check(self._checker) :
-        print("  face found!")
-        self.on = True        #Turn display on.
-        self.triggered = False  #Make sure alarm is off.
+    state = self._buttons[Clock.alarmonoff].update()
+    self._alarmenabled = button.ison(state)
+
+    state = self._buttons[Clock.alarmset].update()
+    settingalarm = button.ison(state)
 
     #Read time and save in digits.
     t = time.localtime()
-    h = t.tm_hour
-    m = t.tm_min
+    self._curtime = (t.tm_hour, t.tm_min)
     s = t.tm_sec
-    self._h = h
-    self._m = m
 
     apm = 0
-    #display temp in main display if it's time.
-    if self.tempdisplay and ((s % self.tempdisplayinterval) < self.tempdisplaytime) :
-      h = self.temp // 100                      #Clear hours to 0.
-      m = self.temp % 100                       #Set minutes to the temperature (only works for positive temps).
-      apm = 3                                   #Set am/pm to deg symbol.
-    elif h >= 12: #if pm then set to pm.
+    apmadjust = True
+
+    #Don't bother looking for face if we are setting the alarm
+    if settingalarm :
+      self.on = True;                           #Turn display on so we can see alarm time setting.
+      h, m = self._alarmtime
+      state = self._buttons[Clock.minuteset].update()
+      change = False
+      if button.ison(state) : #If minuteset pressed then increase minutes.
+        if self.checkinc(state, Clock.incratem, dt) :
+          m += 1
+          if m > 59 :
+            m = m % 60
+            h = (h + 1) % 24
+            change = True
+      else:
+        state = self._buttons[Clock.hourset].update()
+        #If hourset pressed then increase hour.
+        if button.ison(state) and self.checkinc(state, Clock.incrateh, dt) :
+          h = (h + 1) % 24
+          change = True
+        else:
+          #timeset button is used to decrement hour.
+          state = self._buttons[Clock.timeset].update()
+          if button.ison(state) and self.checkinc(state, Clock.incrateh, dt) :
+            h = (h - 1) % 24
+            change = True
+      self._alarmtime = (h, m)
+    else:
+      h, m = self._curtime                      #Display current time.
+
+      #If snooze button pressed just enable the display.
+      if button.ison(self._buttons[Clock.snooze].update()) :
+        self.on = True;                         #Turn display on.
+        self.triggered = False                  #Turn alarm off if it was triggered.
+      #else check for a face for display enable.
+      else:
+        self._checktime -= dt
+        if self._checktime <= 0.0 :
+          self._checktime = 2.0
+#         print("Checking Face")
+          if checkface.Check(self._checker) :
+            print("  face found!")
+            self.on = True        #Turn display on.
+            self.triggered = False  #Make sure alarm is off.
+
+      #Update temp and display temp in main display if it's time.
+      if self.tempdisplay :
+        #If timeset button is pressed during regular display we trigger temp update.
+        self._buttons[Clock.timeset].update()
+        if self._buttons[Clock.timeset].pressed :
+          self.triggerweatherupdate()
+
+        #If time to display then do so.
+        if ((s % self.tempdisplayinterval) < self.tempdisplaytime) :
+          apmadjust = False
+          h = self.temp // 100                      #Clear hours to 0.
+          m = self.temp % 100                       #Set minutes to the temperature (only works for positive temps).
+          apm = 3                                   #Set am/pm to deg symbol.
+
+    if apmadjust and h >= 12 : #if pm then set to pm.
       apm = 1
-      if h > 12:
+      if h > 12 :
         h -= 12                                 #12 hour display.
 
     self.digits = (h // 10, h % 10, m // 10, m % 10, apm, s)
 
     if self.on :
       #if display on then update the on time and display.
-#      self._onlock.acquire()  #The lock is used when display is updated in background.
       self._ontime -= dt
       rem = self._ontime
-#      self._onlock.release()
 
       #if time's up then clear the display.
       if rem <= 0 :
         self._oled.clear()
         self._oled.display()
 
-    self.UpdateAlarm(dt)
+    #Don't update alarm while we are settnig it.
+    if not settingalarm :
+      self.UpdateAlarm(dt)
 
   def run( self ) :
     '''Run the clock.'''
@@ -690,3 +778,4 @@ def run(  ) :
 
 run()
 print("Clock done.")
+
