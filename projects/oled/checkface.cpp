@@ -45,13 +45,21 @@ static PyObject *SetProp( PyObject *apSelf, PyObject *apArgs );
 static PyObject *GetProp( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetHorizontalFlip( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetVerticalFlip( PyObject *apSelf, PyObject *apArgs );
+static PyObject *SetScale( PyObject *apSelf, PyObject *apArgs );
+static PyObject *GetScale( PyObject *apSelf, PyObject *apArgs );
 //static PyObject *SetBrightness( PyObject *apSelf, PyObject *apArgs );
 //static PyObject *SetContrast( PyObject *apSelf, PyObject *apArgs );
 //static PyObject *SetSaturation( PyObject *apSelf, PyObject *apArgs );
 //static PyObject *SetGain( PyObject *apSelf, PyObject *apArgs );
 //static PyObject *SetExposure( PyObject *apSelf, PyObject *apArgs );
 
-static const double DefaultScale = 0.25;
+static const double DefaultScale = 0.5;
+
+//Clamp a value between min and max.
+template<typename T> T clamp( T aValue, T aMin, T aMax )
+{
+	return std::min(aMax, std::max(aMin, aValue));
+}
 
 static PyMethodDef module_methods[] = {
 	{"Create", Create, METH_VARARGS, "Create a CheckFaceCamera object and return it in a PyCapsules object."},
@@ -61,6 +69,8 @@ static PyMethodDef module_methods[] = {
 	{"GetProp", GetProp, METH_VARARGS, "Value (CheckFaceCamera, prop).\nGet CV_CAP_PROP_??? value."},
 	{"SetHorizontalFlip", SetHorizontalFlip, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera horizontal flip."},
 	{"SetVerticalFlip", SetVerticalFlip, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera vertical flip."},
+	{"SetScale", SetScale, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera scale 0.1 - 1.0"},
+	{"GetScale", GetScale, METH_VARARGS, "(CheckFaceCamera, value).\nGet camera scale."},
 //	{"SetBrightness", SetBrightness, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera brightness."},
 //	{"SetExposure", SetExposure, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera exposure."},
 //	{"SetGain", SetGain, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera gain."},
@@ -179,16 +189,21 @@ public:
 			cv::Mat smallImg;
 
 			try {
-				//Resize image for smaller face check so it's quicker.
-				cv::resize(image, smallImg, cv::Size(), DefaultScale, DefaultScale, cv::INTER_LINEAR);
-//				cv::equalizeHist(smallImg, smallImg);
+				if (Scale < 1.0) {
+					//Resize image for smaller face check so it's quicker.
+					cv::resize(image, smallImg, cv::Size(), Scale, Scale, cv::INTER_LINEAR);
+//					cv::equalizeHist(smallImg, smallImg);
+				}
+				else {
+					smallImg = image;
+				}
 			}
 			catch(...) {
 				PyErr_SetString(PyExc_RuntimeError, "opencv image resize error.");
 			}
 
 			std::vector<cv::Rect> faces;
-			HeadCascade.detectMultiScale(smallImg, faces, 1.1, 2, cv::CASCADE_SCALE_IMAGE, cv::Size(30, 30));
+			HeadCascade.detectMultiScale(smallImg, faces, 1.1, 2, cv::CASCADE_SCALE_IMAGE); //, cv::Size(30, 30));
 			bres = (faces.size() != 0);
 		}
 		return bres;
@@ -234,9 +249,20 @@ public:
 		Camera.setVerticalFlip(aValue);
 	}
 
+	///
+	///<summary> Set scale. </summary>
+	///
+	void SetScale( double aValue )
+	{
+		Scale = clamp(aValue, 0.1, 1.0);
+	}
+
+	double QScale(  ) const { return Scale; }
+
 private:
 	raspicam::RaspiCam_Cv Camera;				//Camera.
 	cv::CascadeClassifier HeadCascade;			//Cascade for scanning for head.
+	double Scale = DefaultScale;				//Scale of the image.
 	bool bOk = false;							//State of camera.
 };
 
@@ -272,12 +298,6 @@ static PyObject *CheckFace( PyObject *apSelf , PyObject *apArg )
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(apArg, CheckFaceCamera::Name));
 	bool bres = pcheck ? pcheck->CheckFace() : false;
 	return PyBool_FromLong(bres);
-}
-
-//Clamp a value between min and max.
-template<typename T> T clamp( T aValue, T aMin, T aMax )
-{
-	return std::min(aMax, std::max(aMin, aValue));
 }
 
 ///
@@ -352,6 +372,42 @@ static PyObject *SetVerticalFlip( PyObject *apSelf , PyObject *apArgs )
 	}
 
 	Py_RETURN_NONE;
+}
+
+///
+///<summary> Set scale of camera capture image. </summary>
+///
+static PyObject *SetScale( PyObject *apSelf , PyObject *apArgs )
+{
+	PyObject *pobj;
+	double value;
+	if (!PyArg_ParseTuple(apArgs, "Od", &pobj, &value))
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, double");
+
+	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
+	if (pcheck) {
+		pcheck->SetScale(value);
+	}
+
+	Py_RETURN_NONE;
+}
+
+///
+///<summary> Get scale of camera capture image. </summary>
+///
+static PyObject *GetScale( PyObject *apSelf , PyObject *apArgs )
+{
+	PyObject *pobj;
+	if (!PyArg_ParseTuple(apArgs, "O", &pobj))
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object");
+
+	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
+	double value = 0.0;
+	if (pcheck) {
+		value = pcheck->QScale();
+	}
+
+	return Py_BuildValue("d", value);
 }
 
 //NOTE: These are currently removed because SetProp() is more generic.

@@ -14,6 +14,7 @@ from threading import Thread #,Lock
 import keyboard
 import checkface
 import settings
+import woeid
 from seriffont import seriffont
 from buttons import button
 
@@ -22,10 +23,6 @@ from buttons import button
 #done: Try checkface from the main thread to see if it's more efficient.  It's messing with display at the moment.
 #  Did this and it definitely worked better so I'm staying with it.
 
-#todo: Add alarm icon to display.
-#todo: Add alarm display and set.
-#todo: Add display turn on with button
-#todo: Add alarm stop with button.
 #todo: What is the time button going to do?  We don't need it for setting the time.
 
 class Clock:
@@ -71,6 +68,16 @@ class Clock:
   colorconvert = '#{:06x}'
   savename = '/home/pi/projects/oled/clock.json'
 
+  #Camera defaults.
+  defaultcontrast = 75.0
+  defaultsaturation = 100.0
+  defaultbrightness = 50.0
+  defaultgain = 65.0
+  defaultexposure = -1.0
+  defaultvflip = True
+  defaultscale = 0.5
+
+  #Clock defaults.
   defaulttempinterval = 30    #seconds to wait before tempurature update.
   defaulttempdur = 3          #Duration of main temp display.
   defaulttempupdate = 5.0     #Time between tempurature querries.
@@ -114,6 +121,7 @@ class Clock:
     except:
       self._oled = oled(0)  #if those fail we're using the 1st gen maybe?
 
+    self._oled.rotation = 2
     self.digits = (0, 0, 0, 0, 0, 0)
     self._tempdisplay = True
     self._curtime = (0, 0)
@@ -121,7 +129,8 @@ class Clock:
     self.text = 'Sunny'
     self._color = 0x00FFFF
     self._url = ''
-    self.location = '2458710'   #Rockville = 2483553, Frederick = 2458710
+#    self._woeid = '2458710'   #Rockville = 2483553, Frederick = 2458710
+    self.location = '21774' #zipcode.
     self.load()
     self._running = True
     self._ontime = 0.0
@@ -138,9 +147,7 @@ class Clock:
       print("Camera setup error.")
 
     self._iron = False
-    self.vflip = True
-    self.contrast = 75.0
-    self.saturation = 100.0
+    self.cameradefaults()
 
     #If no keyboard we'll get an exception here so turn off keyboard flag.
     try:
@@ -340,14 +347,15 @@ class Clock:
 
   @property
   def location( self ) :
-    '''Get the location WOEID.'''
+    '''Get the location zip.'''
     return self._location
 
   @location.setter
   def location( self, aLoc ) :
-    '''Set the location WOEID and setup the querry url for the weather update thread.'''
+    '''Set the location zip and setup the querry url for the weather update thread.'''
     self._location = aLoc
-    self._url = 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%3D' + str(aLoc) + '&format=json'
+    wid = woeid.woeidfromzip(aLoc)
+    self._url = 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%3D' + str(wid) + '&format=json'
 
 #Camera properties.
   @property
@@ -360,6 +368,16 @@ class Clock:
     '''Set camera virtical flip state.'''
     self._vflip = aValue
     checkface.SetVerticalFlip(self._checker, aValue)
+
+  @property
+  def scale( self ) :
+    '''Get camera scale.'''
+    return checkface.GetScale(self._checker)
+
+  @scale.setter
+  def scale( self, aValue ) :
+    '''Set camera scale.'''
+    checkface.SetScale(self._checker, aValue)
 
   @property
   def brightness( self ) :
@@ -411,6 +429,14 @@ class Clock:
     '''Set camera brightness -1.0-100.0. -1.0 equals automatic.'''
     checkface.SetProp(self._checker, checkface.CV_CAP_PROP_EXPOSURE, aValue)
 
+  def cameradefaults( self ) :
+    self.scale = Clock.defaultscale
+    self.vflip = Clock.defaultvflip
+    self.contrast = Clock.defaultcontrast
+    self.saturation = Clock.defaultsaturation
+    self.gain = Clock.defaultgain
+    self.exposure = Clock.defaultexposure
+    self.brightness = Clock.defaultbrightness
 #END Camera properties.
 
   def triggerweatherupdate( self ) :
@@ -433,6 +459,7 @@ class Clock:
 
     print("Weather update thread exit.")
 
+
   def save( self ) :
     '''Save options to json file.'''
     with open(Clock.savename, 'w+') as f:
@@ -450,6 +477,7 @@ class Clock:
       data['saturation'] = self.saturation
       data['gain'] = self.gain
       data['exposure'] = self.exposure
+      data['scale'] = self.scale
 
       dump(data, f)
 
@@ -463,7 +491,6 @@ class Clock:
         self.displayduration = data['duration']
         self.tempdisplaytime = data['tempduration']
         self.tempupdateinterval = data['update']
-        self.location = data['location']
         self.colorstr = data['color']
         self.vflip = data['vflip']
         self.brightness = data['brightness']
@@ -471,6 +498,8 @@ class Clock:
         self.saturation = data['saturation']
         self.gain = data['gain']
         self.exposure = data['exposure']
+        self.scale = data['scale']
+        self.location = data['location']
     except:
       pass
 
@@ -623,18 +652,20 @@ class Clock:
       self._repeattime = 0.0
       return 1.0
 
-    self._pressedtime += dt
-    self._repeattime += dt
+    self._pressedtime += dt                     #Update amount of time the button has been pressed.
+    self._repeattime += dt                      #Update amount of time until repeat of button press.
 
     rate = 0.0
 
+    #Look up repeat rate based on pressed time.
     for v in rates :
       if self._pressedtime >= v[0] :
         rate = v[1]
         break
 
+    #If repeat time is > repeate rate then do a repeat.
     if self._repeattime > rate :
-      self._repeattime -= rate
+      self._repeattime = 0
       return 1
 
     return 0
@@ -709,15 +740,19 @@ class Clock:
 
         #If time to display then do so.
         if ((s % self.tempdisplayinterval) < self.tempdisplaytime) :
-          apmadjust = False
-          h = self.temp // 100                      #Clear hours to 0.
-          m = self.temp % 100                       #Set minutes to the temperature (only works for positive temps).
-          apm = 3                                   #Set am/pm to deg symbol.
+          apmadjust = False                     #Not a time we are displaying so don't do 24 hour adjustment.
+          h = self.temp // 100                  #Clear hours to 0.
+          m = self.temp % 100                   #Set minutes to the temperature (only works for positive temps).
+          apm = 3                               #Set am/pm to deg symbol.
 
-    if apmadjust and h >= 12 : #if pm then set to pm.
-      apm = 1
-      if h > 12 :
-        h -= 12                                 #12 hour display.
+    #If we want to adjust time from 24 to 12 hour then do so.
+    if apmadjust :
+      if h >= 12 : #if pm then set to pm.
+        apm = 1
+        if h > 12 :
+          h -= 12                               #12 hour display.
+      elif h == 0:
+        h = 12
 
     self.digits = (h // 10, h % 10, m // 10, m % 10, apm, s)
 

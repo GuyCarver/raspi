@@ -32,8 +32,8 @@ HTML = Template('<html><head><style type="text/css">' +
   '<input type="checkbox" name="tempon" value="on" ' +
   'onclick="form.submit()" ${t_on}></h4>' + #<br/> ' +
 
-  '<span>WOEID:</span>' +
-  '<input type="text" name="woeid" value="${woeid}"></input>' +
+  '<span>zip code:</span>' +
+  '<input type="text" name="zipcode" value="${zipcode}"></input>' +
   '<input type="submit" name="gps" value="gps"><br/>' +
 
   '<span>Temp Display Duration:</span>' +
@@ -52,14 +52,18 @@ HTML = Template('<html><head><style type="text/css">' +
 
   '<h3>Current Conditions:</h3>${conditions}' +
 
-  '<h3>Color:</h3>'
-  '<span><input type="color" name="color" value=${thecolor} '
-  'oninput="form.submit()"></span>' +
+#  '<h3>Color:</h3>'
+#  '<span><input type="color" name="color" value=${thecolor} '
+#  'oninput="form.submit()"></span>' +
 
   '<h3>Camera:</h3> ' +
   'Condition: ${camera_ok}<br/><br/> ' +
   '<span>Vertical Flip <input type="checkbox" name="vflip" value="on" ' +
-  'onclick="form.submit()" ${vf_on}><br/> ' +
+  'onclick="form.submit()" ${vf_on}><br/><br/> ' +
+  '<span>Image scale: ' +
+  '<select name="camerascale" style="width:50px" onchange="form.submit()">' +
+  '<option ${s_1}>0.125<option ${s_2}>0.25<option ${s_4}>0.5<option ${s_6}>0.75' +
+  '<option ${s_8}>1.0</select></span><br/>' +
   '<datalist id="ticks"><option value="0" label="0"><option value="25">' +
   '<option value="50" label="50"><option value="75"><option value="100" label="100"></datalist> ' +
   '<span>Brightness:</span><input type="range" min="0" max="100" value="${bright}" name="bright" ' +
@@ -71,7 +75,8 @@ HTML = Template('<html><head><style type="text/css">' +
   '<span>Gain:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><input type="range" min="0" max="100" value="${gain}" name="gain" ' +
   'onchange="form.submit()" list="ticks">  ${gain}<br/>' +
   '<span>Exposure:&nbsp;&nbsp;</span><input type="range" min="-1" max="100" value="${exp}" name="exp" ' +
-  'onchange="form.submit()" list="ticks"> ${exp}<br/></span>' +
+  'onchange="form.submit()" list="ticks"> ${exp}<br/><br/></span>' +
+  '<input type="submit" name="Defaults" value="Defaults"><br/>'
   '<h3>Alarm</h3>' +
   '<span>Alarm: <input type="checkbox" name="alarmon" value="on" ' +
   'onclick="form.submit()" ${alarmon}><br/> ' +
@@ -91,7 +96,7 @@ class RH(BaseHTTPRequestHandler):
 
   def determineloc(  ) :
     '''Get a location from the Clock.'''
-    return '2483553' if RH.ourTarget == None else RH.ourTarget.location
+    return '21774' if RH.ourTarget == None else RH.ourTarget.location
 
   def determinedur(  ) :
     '''Get a duration as z_??.'''
@@ -106,14 +111,31 @@ class RH(BaseHTTPRequestHandler):
   def determineinterval(  ) :
     '''Get a interval or i_10, 15 or 30.'''
     inter = 30 if RH.ourTarget == None else RH.ourTarget.tempdisplayinterval
+    inters = ''
     if inter >= 30:
-      inter = 30
+      inters = '30'
     elif inter >= 15:
-      inter = 15
+      inters = '15'
     else:
-      inter = 10
+      inters = '10'
 
-    return 'i_' + str(inter)
+    return 'i_' + inters
+
+  def determinescale(  ) :
+    sc = 0.5 if RH.ourTarget == None else RH.ourTarget.scale
+    scs = ''
+    if sc  >= 1.0 :
+      scs = '8'
+    elif sc >= .75 :
+      scs = '6'
+    elif sc >= .5 :
+      scs = '4'
+    elif sc >= .25 :
+      scs = '2'
+    else:
+      scs = '1'
+
+    return 's_' + scs
 
   def determineupdate(  ) :
     '''Get update time of u_5, 10, 15, 30, 45 or 60.'''
@@ -138,7 +160,7 @@ class RH(BaseHTTPRequestHandler):
 #    print('getting ' + self.path)
     subs = {RH.determinedur() : 'selected', RH.determinetempdur() : 'selected',
       RH.determineinterval(): 'selected', RH.determineupdate(): 'selected',
-      'woeid': RH.determineloc() }
+      'zipcode': RH.determineloc(), RH.determinescale() : 'selected' }
 
     #If we have a target read data from it.
     if RH.ourTarget != None:
@@ -166,7 +188,7 @@ class RH(BaseHTTPRequestHandler):
 
       subs['thetime'] = RH.ourTarget.hhmm
       subs['thedate'] = RH.ourTarget.date
-      subs['thecolor'] = RH.ourTarget.colorstr
+#      subs['thecolor'] = RH.ourTarget.colorstr
 
     self.send_response(200)
     self.send_header('Content-Type', 'text/html')
@@ -186,11 +208,12 @@ class RH(BaseHTTPRequestHandler):
     ud = form.getfirst('update')
     t = form.getfirst('tempon')
     g = form.getfirst('gps')
-    w = form.getfirst('woeid')
+    zc = form.getfirst('zipcode')
     tm = form.getfirst('time')
-    clr = form.getfirst('color')
+#    clr = form.getfirst('color')
     sv = form.getfirst('Save')
     vflip = form.getfirst('vflip')
+    cscale = form.getfirst('camerascale')
     bright = form.getfirst('bright')
     contrast = form.getfirst('contrast')
     sat = form.getfirst('sat')
@@ -199,6 +222,7 @@ class RH(BaseHTTPRequestHandler):
     aenabled = form.getfirst('alarmon') != None
     atime = form.getfirst('alarm')
 
+#    print('scale = ' + cscale)
 #    print('time = ' + str(tm))
 #    print('t = ' + str(t))
 #    print('dur = ' + str(dur))
@@ -207,22 +231,24 @@ class RH(BaseHTTPRequestHandler):
 #    print('ud = ' + str(ud))
 #    print('vars {}, {}'.format(c, s))
 
-    #If gps button pressed then get the woeid from our IP address.
+    #If gps button pressed then get the zipcode from our IP address.
     if g != None :
 #      print('doing gps')
-      w = woeid.get()
-#      print(w)
+      zc = woeid.zipfromip()
+
+#    print(zc)
 
     #if have a target clock write data to it.
     if RH.ourTarget != None:
-      RH.ourTarget.location = w
+      RH.ourTarget.location = zc
       RH.ourTarget.tempdisplay = t == 'on'
       RH.ourTarget.displayduration = float(dur)
       RH.ourTarget.tempdisplaytime = int(tdur)
       RH.ourTarget.tempdisplayinterval = int(dis)
       RH.ourTarget.tempupdateinterval = float(ud) #Convert from minutes to seconds.
-      RH.ourTarget.colorstr = clr
+#      RH.ourTarget.colorstr = clr
       RH.ourTarget.vflip = vflip == 'on'
+      RH.ourTarget.scale = float(cscale)
       RH.ourTarget.brightness = float(bright)
       RH.ourTarget.contrast = float(contrast)
       RH.ourTarget.saturation = float(sat)
@@ -237,12 +263,15 @@ class RH(BaseHTTPRequestHandler):
 #        print('saving')
         RH.ourTarget.save()
 
+      if defaults != None :
+        RH.ourTarget.cameradefaults()
+
     self.do_GET()                               #Re-read the data.
 
 def run( aTarget ) :
   RH.ourTarget = aTarget
 
-  server = HTTPServer(('', 80), RH)
+  server = HTTPServer(('', 8080), RH)
   server.timeout = 2.0 #handle_request times out after 2 seconds.
 #  print("Staring server")
 
