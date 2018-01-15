@@ -49,7 +49,6 @@ HTML = Template('<html><head><style type="text/css">' +
   '<select name="update" style="width:50px" onchange="form.submit()">' +
   '<option ${u_5}>5<option ${u_10}>10<option ${u_15}>15' +
   '<option ${u_30}>30<option ${u_45}>45<option ${u_60}>60</select> minutes' +
-
   '<h3>Current Conditions:</h3>${conditions}' +
 
 #  '<h3>Color:</h3>'
@@ -221,6 +220,7 @@ class RH(BaseHTTPRequestHandler):
     exp = form.getfirst('exp')
     aenabled = form.getfirst('alarmon') != None
     atime = form.getfirst('alarm')
+    defaults = form.getfirst('Defaults')
 
 #    print('scale = ' + cscale)
 #    print('time = ' + str(tm))
@@ -282,7 +282,7 @@ def run( aTarget ) :
 
   print('HTTP Server thread exit.')
 
-if __name__ == '__main__':  #start server and open browser
+if __name__ == '__main__':  #start server
   run(None)
   print('done')
 
