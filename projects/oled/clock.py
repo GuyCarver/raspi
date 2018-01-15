@@ -451,7 +451,7 @@ class Clock:
     waittime = 1.0
     while self._running:
       self.UpdateWeather()
-      self._weathertimer = self.tempupdateinterval
+      self._weathertimer = self.tempupdateinterval * 60.0  #Convert minutes to seconds.
       #Check _running flag every second.
       while (self._weathertimer > 0.0) and self._running:
         self._weathertimer -= waittime
