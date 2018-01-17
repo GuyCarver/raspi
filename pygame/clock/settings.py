@@ -11,8 +11,6 @@ import woeid
 
 #http://woeid.rosselliot.co.nz/lookup/21774
 
-#todo: Handle time setting. C vs F?
-
 HTML = Template('<html><head><style type="text/css">' +
   ' body {margin: 30px; font-family: sans-serif; background: #ddd;}' +
   ' span {font-style: italic; padding: 0 .5em 0 1em;}' +
@@ -22,18 +20,13 @@ HTML = Template('<html><head><style type="text/css">' +
 
   '<h2>Clock Settings</h2>' +
   '<form action="/" method="POST" enctype="multipart/form-data">' +
-  '<span>Display Duration:</span>' +
-  '<select name="duration" style="width:50px" onchange="form.submit()">' +
-  '<option ${z_2}>2<option ${z_5}>5<option ${z_10}>10<option ${z_30}>30' +
-  '</select> seconds<br/>' +
-
   '<h4>Temperature:' +
 #  '<span>On </span>' +
   '<input type="checkbox" name="tempon" value="on" ' +
   'onclick="form.submit()" ${t_on}></h4>' + #<br/> ' +
 
-  '<span>WOEID:</span>' +
-  '<input type="text" name="woeid" value="${woeid}"></input>' +
+  '<span>Zip Code:</span>' +
+  '<input type="number" name="zipcode" value="${zipcode}"></input>' +
   '<input type="submit" name="gps" value="gps"><br/>' +
 
   '<span>Temp Display Duration:</span>' +
@@ -49,70 +42,48 @@ HTML = Template('<html><head><style type="text/css">' +
   '<select name="update" style="width:50px" onchange="form.submit()">' +
   '<option ${u_5}>5<option ${u_10}>10<option ${u_15}>15' +
   '<option ${u_30}>30<option ${u_45}>45<option ${u_60}>60</select> minutes' +
-
   '<h3>Current Conditions:</h3>${conditions}' +
 
   '<h3>Color:</h3>'
   '<span><input type="color" name="color" value=${thecolor} '
   'oninput="form.submit()"></span>' +
 
-  '<h3>Camera:</h3>'
-  '<span>Vertical Flip </span><input type="checkbox" name="vflip" value="on" ' +
-  'onclick="form.submit()" ${vf_on}></h4>' + #<br/> ' +
-#  '<datalist id="ticks"><option value="0" label="0"><option value="25">' +
-#  '<option value="50" label="50"><option value="75"><option value="100" label="100"></datalist> ' +
-#  'Brightness:  <input type="range" min="0" max="100" value="${bright}" name="bright" ' +
-#  'onchange="form.submit()" list="ticks">  ${bright}' +
-#  'Contrast:  <input type="range" min="0" max="100" value="${contrast}" name="contrast" ' +
-#  'onchange="form.submit()" list="ticks">  ${contrast}' +
-#  'Saturation:  <input type="range" min="0" max="100" value="${sat}" name="sat" ' +
-#  'onchange="form.submit()" list="ticks">  ${sat}' +
-#  'Gain:  <input type="range" min="0" max="100" value="${gain}" name="gain" ' +
-#  'onchange="form.submit()" list="ticks">  ${gain}' +
-#  'Exposure:  <input type="range" min="-1" max="100" value="${exp}" name="exp" ' +
-#  'onchange="form.submit()" list="ticks"> ${exp}' +
-
   '<h3>Alarm</h3>' +
-  '<span>On: <input type="checkbox" name="alarmon" value="on" ' +
+  '<span>Alarm: <input type="checkbox" name="alarmon" value="on" ' +
   'onclick="form.submit()" ${alarmon}><br/> ' +
   '<span><input id="alarm" name="alarm" type="time" value=${alarmtime} ' +
-  'oninput="form.submit()"></span>' +
-
-  '<h3>Date/Time:</h3>' +
-  '<span><input id="date" name="date" type="date" value=${thedate} ' +
-  'oninput="form.submit()"></span>' +
-  '<span><input id="time" name="time" type="time" value=${thetime} ' +
-  'oninput="form.submit()"></span>' +
+  'onchange="form.submit()"></span>' +
   '<br/><br/><input type="submit" name="Save" value="Save"><br/>' +
   '</form></body></html>')
 
 class RH(BaseHTTPRequestHandler):
 
-  ourTarget = None
+  ourTarget = None                                #Target Clock class.
 
   def determineloc(  ) :
-    return '2483553' if RH.ourTarget == None else RH.ourTarget.location
-
-  def determinedur(  ) :
-    dur = 5 if RH.ourTarget == None else int(RH.ourTarget.displayduration)
-    return 'z_' + str(dur)
+    '''Get a location from the Clock.'''
+    return '21774' if RH.ourTarget == None else RH.ourTarget.location
 
   def determinetempdur(  ) :
+    '''Get a duration as t_??.'''
     dur = 0 if RH.ourTarget == None else int(RH.ourTarget.tempdisplaytime)
     return 't_' + str(dur)
 
   def determineinterval(  ) :
+    '''Get a interval or i_10, 15 or 30.'''
     inter = 30 if RH.ourTarget == None else RH.ourTarget.tempdisplayinterval
+    inters = ''
     if inter >= 30:
-      inter = 30
+      inters = '30'
     elif inter >= 15:
-      inter = 15
+      inters = '15'
     else:
-      inter = 10
+      inters = '10'
 
-    return 'i_' + str(inter)
+    return 'i_' + inters
 
   def determineupdate(  ) :
+    '''Get update time of u_5, 10, 15, 30, 45 or 60.'''
     upd = 15.0 if RH.ourTarget == None else RH.ourTarget.tempupdateinterval
     upds = ''
     if upd >= 60.0:
@@ -132,10 +103,11 @@ class RH(BaseHTTPRequestHandler):
 
   def do_GET( self ) :  #load initial page
 #    print('getting ' + self.path)
-    subs = {RH.determinedur() : 'selected', RH.determinetempdur() : 'selected',
+    subs = { RH.determinetempdur() : 'selected',
       RH.determineinterval(): 'selected', RH.determineupdate(): 'selected',
-      'woeid': RH.determineloc() }
+      'zipcode': RH.determineloc() }
 
+    #If we have a target read data from it.
     if RH.ourTarget != None:
       cond = RH.ourTarget.text + ' and ' + str(RH.ourTarget.temp) + ' degrees.'
       subs['conditions'] = cond
@@ -143,8 +115,10 @@ class RH(BaseHTTPRequestHandler):
       if RH.ourTarget.tempdisplay :
         subs['t_on'] = 'checked'
 
-      subs['thetime'] = RH.ourTarget.hhmm
-      subs['thedate'] = RH.ourTarget.date
+      if RH.ourTarget.alarmenabled :
+        subs['alarmon'] = 'checked'
+
+      subs['alarmtime'] = RH.ourTarget.alarmhhmm
       subs['thecolor'] = RH.ourTarget.colorstr
 
     self.send_response(200)
@@ -154,69 +128,69 @@ class RH(BaseHTTPRequestHandler):
 
   def do_POST( self ) :  #process requests
     #read form data
-#    print('posting ' + self.path)
     form = cgi.FieldStorage(fp = self.rfile, headers = self.headers,
                             environ = {'REQUEST_METHOD':'POST',
                            'CONTENT_TYPE':self.headers['Content-Type']})
 #    print(form)
-    #assign variables
-    dur = form.getfirst('duration')
+    #Read data from forms into variables.
     tdur = form.getfirst('tempduration')
     dis = form.getfirst('display')
     ud = form.getfirst('update')
     t = form.getfirst('tempon')
     g = form.getfirst('gps')
-    w = form.getfirst('woeid')
-    tm = form.getfirst('time')
+    zc = form.getfirst('zipcode')
     clr = form.getfirst('color')
     sv = form.getfirst('Save')
-
-    print(RH.aon)
-    print(RH.at)
+    aenabled = form.getfirst('alarmon') != None
+    atime = form.getfirst('alarm')
 
 #    print('time = ' + str(tm))
 #    print('t = ' + str(t))
-#    print('dur = ' + str(dur))
 #    print('tempdur = ' + str(tdur))
 #    print('dis = ' + str(dis))
 #    print('ud = ' + str(ud))
-#    print('vars {}, {}'.format(c, s))
 
+    #If gps button pressed then get the zipcode from our IP address.
     if g != None :
 #      print('doing gps')
-      w = woeid.get()
-#      print(w)
+      zc = woeid.zipfromip()
 
+#    print(zc)
+
+    #if have a target clock write data to it.
     if RH.ourTarget != None:
-      RH.ourTarget.location = w
+      RH.ourTarget.location = zc
       RH.ourTarget.tempdisplay = t == 'on'
-      RH.ourTarget.displayduration = float(dur)
       RH.ourTarget.tempdisplaytime = int(tdur)
       RH.ourTarget.tempdisplayinterval = int(dis)
       RH.ourTarget.tempupdateinterval = float(ud) #Convert from minutes to seconds.
       RH.ourTarget.colorstr = clr
+      RH.ourTarget.alarmenabled = aenabled
+      if atime != None:
+        RH.ourTarget.alarmhhmm = atime
 
+      #If save button pressed then save settings to json file.
       if sv != None :
 #        print('saving')
         RH.ourTarget.save()
 
-    self.do_GET()
+    self.do_GET()                               #Re-read the data.
 
 def run( aTarget ) :
   RH.ourTarget = aTarget
 
-  server = HTTPServer(('', 80), RH)
+  server = HTTPServer(('', 8080), RH)
   server.timeout = 2.0 #handle_request times out after 2 seconds.
 #  print("Staring server")
 
+  #Loop as long as target clock is running or forever if we have none.
   while RH.ourTarget == None or aTarget._running :
     server.handle_request()
     time.sleep(1.0)
-#      print("handle_request")
 
-#    print('Server thread Done')
+  print('HTTP Server thread exit.')
 
-if __name__ == '__main__':  #start server and open browser
+if __name__ == '__main__':  #start server
   run(None)
   print('done')
 
