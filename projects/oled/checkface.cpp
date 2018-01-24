@@ -32,7 +32,12 @@
 //----------------------------------------------------------------------
 
 #include <memory>
+
+//Take out once debugging is done.
 //#include <iostream>
+#include <fstream>
+//END
+
 #include <python3.5/Python.h>
 #include <raspicam/raspicam_cv.h>
 #include <opencv2/objdetect.hpp>
@@ -47,6 +52,8 @@ static PyObject *SetHorizontalFlip( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetVerticalFlip( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetScale( PyObject *apSelf, PyObject *apArgs );
 static PyObject *GetScale( PyObject *apSelf, PyObject *apArgs );
+static PyObject *SetDisplay( PyObject *apSelf, PyObject *apArgs );
+static PyObject *SetCapture( PyObject *apSelf, PyObject *apArgs );
 //static PyObject *SetBrightness( PyObject *apSelf, PyObject *apArgs );
 //static PyObject *SetContrast( PyObject *apSelf, PyObject *apArgs );
 //static PyObject *SetSaturation( PyObject *apSelf, PyObject *apArgs );
@@ -71,6 +78,8 @@ static PyMethodDef module_methods[] = {
 	{"SetVerticalFlip", SetVerticalFlip, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera vertical flip."},
 	{"SetScale", SetScale, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera scale 0.1 - 1.0"},
 	{"GetScale", GetScale, METH_VARARGS, "(CheckFaceCamera, value).\nGet camera scale."},
+	{"SetDisplay", SetDisplay, METH_VARARGS, "(CheckFaceCamera, T/F).\nSet camera display output of results True/False."},
+	{"SetCapture", SetCapture, METH_O, "(CheckFaceCamera, T/F).\nSet camera 1 frame save to facecap.jpg file."},
 //	{"SetBrightness", SetBrightness, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera brightness."},
 //	{"SetExposure", SetExposure, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera exposure."},
 //	{"SetGain", SetGain, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera gain."},
@@ -134,7 +143,7 @@ public:
 			//set camera params
 			Camera.set(CV_CAP_PROP_FRAME_WIDTH, 640);
 			Camera.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
-			Camera.set(CV_CAP_PROP_FORMAT, CV_8UC1);
+			Camera.set(CV_CAP_PROP_FORMAT, CV_8UC4);
 			Camera.set(CV_CAP_PROP_EXPOSURE, -1);
 //			Camera.set(CV_CAP_PROP_EXPOSURE, 50);
 		}
@@ -187,24 +196,45 @@ public:
 			}
 
 			cv::Mat smallImg;
+			cv::Mat grayImg;
 
 			try {
 				if (Scale < 1.0) {
 					//Resize image for smaller face check so it's quicker.
 					cv::resize(image, smallImg, cv::Size(), Scale, Scale, cv::INTER_LINEAR);
-//					cv::equalizeHist(smallImg, smallImg);
 				}
 				else {
-					smallImg = image;
+					smallImg = image.clone();
 				}
+				cv::cvtColor(smallImg, grayImg, cv::COLOR_BGR2GRAY);
+				cv::equalizeHist(grayImg, grayImg);
 			}
 			catch(...) {
 				PyErr_SetString(PyExc_RuntimeError, "opencv image resize error.");
 			}
 
 			std::vector<cv::Rect> faces;
-			HeadCascade.detectMultiScale(smallImg, faces, 1.1, 2, cv::CASCADE_SCALE_IMAGE); //, cv::Size(30, 30));
+			HeadCascade.detectMultiScale(grayImg, faces, 1.1, 2, cv::CASCADE_SCALE_IMAGE); //, cv::Size(30, 30));
 			bres = (faces.size() != 0);
+
+			//If debug display is enabled then show the image with rectanbles drawn around the faces.
+			if (bDisplay || bCapture) {
+				for ( uint32_t i = 0; i < faces.size(); ++i) {
+					cv::Rect r = faces[i];
+					cv::rectangle(grayImg, cv::Point(r.x, r.y),
+						cv::Point((r.x + r.width - 1), (r.y + r.height - 1)),
+						cv::Scalar(255, 255, 255), 3, 8, 0);
+				}
+
+				if (bCapture) {
+					cv::imwrite("facecap.jpg", grayImg);
+					bCapture = false;
+				}
+
+				if (bDisplay) {
+					cv::imshow( "Face Detection", smallImg );
+				}
+			}
 		}
 		return bres;
 	}
@@ -259,11 +289,22 @@ public:
 
 	double QScale(  ) const { return Scale; }
 
+	///
+	///<summary> Set debug display on/off. </summary>
+	///
+	void SetDisplay( uint32_t aValue ) { bDisplay = aValue; }
+	uint32_t QDisplay(  ) const { return bDisplay; }
+
+	void SetCapture( bool abTF ) { bCapture = abTF; }
+	bool QCapture(  ) const { return bCapture; }
+
 private:
 	raspicam::RaspiCam_Cv Camera;				//Camera.
 	cv::CascadeClassifier HeadCascade;			//Cascade for scanning for head.
 	double Scale = DefaultScale;				//Scale of the image.
 	bool bOk = false;							//State of camera.
+	bool bDisplay = false;						//Debug display of face check results.
+	bool bCapture = false;						//Save camera frame to file.
 };
 
 const char *CheckFaceCamera::Name = "CheckFaceCamera";
@@ -408,6 +449,37 @@ static PyObject *GetScale( PyObject *apSelf , PyObject *apArgs )
 	}
 
 	return Py_BuildValue("d", value);
+}
+
+///
+///<summary> Set debug display of face check results. </summary>
+///
+static PyObject *SetDisplay( PyObject *apSelf , PyObject *apArgs )
+{
+	PyObject *pobj;
+	bool value;
+	if (!PyArg_ParseTuple(apArgs, "Ob", &pobj, &value))
+		PyErr_SetString(PyExc_RuntimeError, "Incorrect params.  Expect Object, bool");
+
+	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(pobj, CheckFaceCamera::Name));
+	if (pcheck) {
+		pcheck->SetDisplay(value);
+	}
+
+	Py_RETURN_NONE;
+}
+
+///
+///<summary> Set frame capture to file. </summary>
+///
+static PyObject *SetCapture( PyObject *apSelf , PyObject *apArg )
+{
+	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(apArg, CheckFaceCamera::Name));
+	if (pcheck) {
+		pcheck->SetCapture(true);
+	}
+
+	Py_RETURN_NONE;
 }
 
 //NOTE: These are currently removed because SetProp() is more generic.

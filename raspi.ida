@@ -194,7 +194,11 @@ Adding a battery backup clock to the pi, I followed the instructions here.
 
 Clock:
 Had to run pip install requests and pip install bs4 to run clock.py
+Auto start using Crontab.  Added the following line with
+crontab -e (to edit the crontab file)
+@reboot sudo /home/pi/projects/oled/clock.py > /home/pi/projects/oled/clock.log
 
+TightVNC:
 #!/bin/sh
 # /etc/init.d/tightvncserver
 # Set the VNCUSER variable to the name of the user to start tightvncserver under

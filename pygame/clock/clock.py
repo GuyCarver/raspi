@@ -33,6 +33,7 @@ class Clock:
   twoline = 7
   threeline = 10
   tempsize = 6
+  alarmconvert = '\x1F {:02d}:{:02d}'
   tmconvert = '{:02d}:{:02d}'
   dtconvert = '{}-{:02d}-{:02d}'
   colorconvert = '#{:06x}'
@@ -84,8 +85,8 @@ class Clock:
     self._prevtime = time.time()
 
     self._sounds = []
-    self._sounds.append(pygame.mixer.Sound('womp.ogg'))
-    self._sounds.append(pygame.mixer.Sound('womp2.ogg'))
+    self._sounds.append(pygame.mixer.Sound('womp.wav'))
+    self._sounds.append(pygame.mixer.Sound('womp2.wav'))
 
     self._wtthread = Thread(target=self.weatherthread)
     self._settingsthread = Thread(target=self.startsettings)
@@ -127,6 +128,8 @@ class Clock:
   def alarmenabled( self, aTF ) :
     '''Set alarm on/off.'''
     self._alarmenabled = aTF
+    if aTF == False :
+      self.triggered = False
 
   @property
   def alarmtime( self ) :
@@ -269,6 +272,8 @@ class Clock:
       data['update'] = self.tempupdateinterval
       data['location'] = self.location
       data['color'] = self.colorstr
+      data['alarmtime'] = self.alarmhhmm
+      data['alarmon'] = self.alarmenabled
       dump(data, f)
 
   def load( self ) :
@@ -282,6 +287,8 @@ class Clock:
         self.tempupdateinterval = data['update']
         self.colorstr = data['color']
         self.location = data['location']
+        self.alarmhhmm = data['alarmtime']
+        self.alarmenabled = data['alarmon']
     except:
       pass
 
@@ -312,6 +319,26 @@ class Clock:
           py += 1
           c >>= 1
         px += 1
+
+  def drawtext( self, aPos, aString, aOn, aFont ) :
+    '''Draw a text at the given position.  If the string reaches the end of the
+       display it is wrapped to aPos[0] on the next line.  aSize may be an integer
+       which will size the font uniformly on w,h or a or any type that may be
+       indexed with [0] or [1].'''
+
+    if aFont == None:
+      return
+
+    px, py = aPos
+    width = aFont["Width"] + 1
+    for c in aString:
+      self.char((px, py), c, aOn, aFont)
+      px += width
+      #We check > rather than >= to let the right (blank) edge of the
+      # character print off the right of the screen.
+      if px + width > self.size[0]:
+        py += aFont["Height"] + 1
+        px = aPos[0]
 
   def iline( self, sx, sy, ex, ey ):
     '''Draw a line from sx,sy to ex,ey.'''
@@ -384,8 +411,10 @@ class Clock:
     drawapm(4)
 
     if self._alarmenabled :
-      p = (x + int(self.wh * Clock.digitpos[4]), y + 4 + self.wh)
-      self.char(p, '\x1F', True, seriffont)
+      p = (x + 10, y + 7 + (self.wh * 2))
+#      p = (x + int(self.wh * Clock.digitpos[4]), y + 4 + self.wh)
+      atm = Clock.alarmconvert.format(*self._alarmtime)
+      self.drawtext(p, atm, True, seriffont)
 
     #If we want to display the temperature then do so at the bottom right.
     if self.tempdisplay :
@@ -452,7 +481,7 @@ class Clock:
 
   def Update( self, dt ):
     '''Run update of face check, time and display state.'''
-    #Only check for a face every so often.  If found turn display on.
+
     t = time.localtime()
     self._curtime = (t.tm_hour, t.tm_min)
     s = t.tm_sec

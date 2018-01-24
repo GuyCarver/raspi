@@ -3,6 +3,9 @@
 #Display on/off is controlled by face detection.
 #also web hosted settings IE: 192.168.2.62 in a browser will pull up the settings page.
 #This module must be run under sudo or the settings server will fail from permission exception.
+#Auto start using Crontab.  Added the following line with the command:
+# crontab -e (to edit the crontab file)
+# @reboot sudo /home/pi/projects/oled/clock.py > /home/pi/projects/oled/clock.log
 
 import os, sys
 import RPi.GPIO as GPIO
@@ -24,6 +27,9 @@ from buttons import button
 #  Did this and it definitely worked better so I'm staying with it.
 
 #todo: What is the time button going to do?  We don't need it for setting the time.
+#todo: The scale should be from .25 to 1.0.  The optimal so far is .5.  But anything below .25 is useless.
+#todo: For testing purposes it would be nice if we could take a picture from the camera using the "time" button.
+#  Then if we could see it on the web page I could help debug some issues.
 
 class Clock:
 
@@ -44,6 +50,16 @@ class Clock:
   #apm and deg symbol
   apm = [(0,1,2,3,4,5), (0,1,2,3,4), (0,1,2,4,5,7,8,10), (0,1,2,3)]
 
+  #Position x mulipliers of the clock digits and am/pm.
+  digitpos = [0.0, 1.3, 3.1, 4.4, 6.0]
+  twoline = 7     #minimum size for 2 line width of segment.
+  threeline = 10  #minimum size for 3 line width of segment.
+  tempsize = 6    #Size in pixels of temp half segment.
+  tmconvert = '{:02d}:{:02d}'
+  dtconvert = '{}-{:02d}-{:02d}'
+  colorconvert = '#{:06x}'
+  savename = '/home/pi/projects/oled/clock.json'
+
   #Snooze, Alarm On/Off Switch, Alarm Set, Minute, Hour, Time Set (Update temp)
   buttonids = [12, 5, 6, 13, 19, 26]
   snooze = 0
@@ -58,31 +74,21 @@ class Clock:
   fiverate = 7
   fifteenrate = 10
 
-  #Position x mulipliers of the clock digits and am/pm.
-  digitpos = [0.0, 1.3, 3.1, 4.4, 6.0]
-  twoline = 7     #minimum size for 2 line width of segment.
-  threeline = 10  #minimum size for 3 line width of segment.
-  tempsize = 6    #Size in pixels of temp half segment.
-  tmconvert = '{:02d}:{:02d}'
-  dtconvert = '{}-{:02d}-{:02d}'
-  colorconvert = '#{:06x}'
-  savename = '/home/pi/projects/oled/clock.json'
-
   #Camera defaults.
-  defaultcontrast = 75.0
+  defaultcontrast = 100.0
   defaultsaturation = 100.0
   defaultbrightness = 50.0
-  defaultgain = 65.0
+  defaultgain = 25.0
   defaultexposure = -1.0
-  defaultvflip = True
-  defaultscale = 0.5
+  defaultvflip = False
+  defaultscale = 0.25
+  defaultfacecheck = 0.75      #Check for face every n seconds.
+  defaultdisplaydur = 10.0     #Default time in seconds display stays on after face detection.
 
   #Clock defaults.
   defaulttempinterval = 30    #seconds to wait before tempurature update.
   defaulttempdur = 3          #Duration of main temp display.
   defaulttempupdate = 5.0     #Time between tempurature querries.
-  defaultdisplaydur = 5.0     #Default time in seconds display stays on after face detection.
-  defaultfacecheck = 2.0      #Check for face every n seconds.
   ledcontrolpin = 24          #GPIO24 pin controls IR LEDs.
   alarmpin = 18               #GPIO18 pin is PWM for alarm buzzer.
   alarmfreq = 700             #Just play with this # til you get something nice.
@@ -112,6 +118,7 @@ class Clock:
     self.tempdisplaytime = Clock.defaulttempdur
     self.tempupdateinterval = Clock.defaulttempupdate
     self.displayduration = Clock.defaultdisplaydur
+    self.checkinterval = Clock.defaultfacecheck
     self.wh = 15  #Size of half of the segment (0-3).  IE: segment 6 is drawn at y of 30 if wh is 15.
     self.pos = (5, 10)
     self.size = (128, 64)
@@ -129,19 +136,20 @@ class Clock:
     self.text = 'Sunny'
     self._color = 0x00FFFF
     self._url = ''
-#    self._woeid = '2458710'   #Rockville = 2483553, Frederick = 2458710
     self.location = '21774' #zipcode.
     self.load()
     self._running = True
     self._ontime = 0.0
     self.on = True
-    self._weathertimer = 0.0
     self._dirtydisplay = False
-    self._prevtime = time.time()
     self._checktime = Clock.defaultfacecheck
+
+    self._weathertimer = 0.0
+    self._prevtime = time.time()
 
     try:
       self._checker = checkface.Create()
+#      checkface.SetDisplay(self._checker, True)
     except:
       self._checker = None
       print("Camera setup error.")
@@ -163,11 +171,6 @@ class Clock:
     self.iron = False
     self._oled.clear()
     GPIO.cleanup()
-
-  @property
-  def cameraok( self ) :
-    '''Return true if camera is ok.'''
-    return checkface.Ok(self._checker)
 
 #Alarm properties.
   @property
@@ -304,6 +307,16 @@ class Clock:
     self._displayduration = aValue
 
   @property
+  def checkinterval( self ) :
+    return self._checkinterval
+
+  @checkinterval.setter
+  def checkinterval( self, aValue ) :
+    '''Set interval in seconds for face check.
+       Clamped between 0.25 and 3.0.'''
+    self._checkinterval = max(0.25, min(3.0, aValue))
+
+  @property
   def hhmm( self ) :
     '''Get "hh:mm" in string format (for the settings http server).'''
     return Clock.tmconvert.format(*self._curtime)
@@ -354,10 +367,20 @@ class Clock:
   def location( self, aLoc ) :
     '''Set the location zip and setup the querry url for the weather update thread.'''
     self._location = aLoc
-    wid = woeid.woeidfromzip(aLoc)
+    try:
+      wid = woeid.woeidfromzip(aLoc)
+    except:
+      wid = 2458710 #Set to Frederick MD on error.
+      print('error reading woeid from internet.')
+
     self._url = 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%3D' + str(wid) + '&format=json'
 
 #Camera properties.
+  @property
+  def cameraok( self ) :
+    '''Return true if camera is ok.'''
+    return checkface.Ok(self._checker)
+
   @property
   def vflip( self ) :
     '''Get camera vertical flip state.'''
@@ -468,6 +491,7 @@ class Clock:
       data['duration'] = self.displayduration
       data['tempduration'] = self.tempdisplaytime
       data['interval'] = self.tempdisplayinterval
+      data['facecheck'] = self.checkinterval
       data['update'] = self.tempupdateinterval
       data['location'] = self.location
       data['color'] = self.colorstr
@@ -500,6 +524,7 @@ class Clock:
         self.exposure = data['exposure']
         self.scale = data['scale']
         self.location = data['location']
+        self.checkinterval = data['facecheck']
     except:
       pass
 
@@ -557,7 +582,7 @@ class Clock:
       #Draw an hour or minute digit.
       def drawdig( anum ) :
         p = (x + int(self.wh * Clock.digitpos[anum]), y)
-        self.drawsegs(p, Clock.nums[self.digits[anum]], self.wh )
+        self.drawsegs(p, Clock.nums[self.digits[anum]], self.wh)
 
       #Draw am or pm depending on the hour.
       def drawapm( anum ) :
@@ -687,6 +712,8 @@ class Clock:
     apm = 0
     apmadjust = True
 
+    self._buttons[Clock.timeset].update()
+
     #Don't bother looking for face if we are setting the alarm
     if settingalarm :
       self.on = True;                           #Turn display on so we can see alarm time setting.
@@ -708,12 +735,17 @@ class Clock:
           change = True
         else:
           #timeset button is used to decrement hour.
-          state = self._buttons[Clock.timeset].update()
+          state = self._buttons[Clock.timeset].state
           if button.ison(state) and self.checkinc(state, Clock.incrateh, dt) :
             h = (h - 1) % 24
             change = True
       self._alarmtime = (h, m)
     else:
+      #If time set button pressed then set checkface to save an image.
+      if self._buttons[Clock.timeset].pressed :
+        print("Capturing Image")
+        checkface.SetCapture(self._checker)
+
       h, m = self._curtime                      #Display current time.
 
       #If snooze button pressed just enable the display.
@@ -724,10 +756,10 @@ class Clock:
       else:
         self._checktime -= dt
         if self._checktime <= 0.0 :
-          self._checktime = 2.0
+          self._checktime = self.checkinterval
 #         print("Checking Face")
           if checkface.Check(self._checker) :
-            print("  face found!")
+#            print("  face found!")
             self.on = True        #Turn display on.
             self.triggered = False  #Make sure alarm is off.
 

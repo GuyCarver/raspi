@@ -4,8 +4,8 @@
 		"selected_items":
 		[
 			[
-				"face",
-				"facecheck"
+				"try",
+				"try\tTry/Except"
 			],
 			[
 				"check",
@@ -58,10 +58,6 @@
 			[
 				"alar",
 				"alarmdutycycle"
-			],
-			[
-				"try",
-				"try\tTry/Except"
 			],
 			[
 				"get",
@@ -183,16 +179,25 @@
 			"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/clock.py",
 			"settings":
 			{
-				"buffer_size": 26587,
+				"buffer_size": 26955,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "projects/oled/buzzer.py",
+			"settings":
+			{
+				"buffer_size": 599,
+				"encoding": "UTF-8",
+				"line_ending": "Windows"
 			}
 		},
 		{
 			"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/settings.py",
 			"settings":
 			{
-				"buffer_size": 10922,
+				"buffer_size": 10930,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -210,8 +215,16 @@
 			"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/checkface.cpp",
 			"settings":
 			{
-				"buffer_size": 17104,
+				"buffer_size": 17050,
 				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/seeface/CMakeLists.txt",
+			"settings":
+			{
+				"buffer_size": 447,
 				"line_ending": "Unix"
 			}
 		},
@@ -228,42 +241,7 @@
 			"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/raspi.ida",
 			"settings":
 			{
-				"buffer_size": 10046,
-				"encoding": "UTF-8",
-				"line_ending": "Windows"
-			}
-		},
-		{
-			"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/opencv/samples/cpp/facedetect.cpp",
-			"settings":
-			{
-				"buffer_size": 8460,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "pygame/clock/clock.py",
-			"settings":
-			{
-				"buffer_size": 15891,
-				"encoding": "UTF-8",
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "pygame/clock/settings.py",
-			"settings":
-			{
-				"buffer_size": 6322,
-				"encoding": "UTF-8",
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "projects/oled/buttons.py",
-			"settings":
-			{
-				"buffer_size": 2388,
+				"buffer_size": 10231,
 				"encoding": "UTF-8",
 				"line_ending": "Windows"
 			}
@@ -371,8 +349,6 @@
 		"height": 153.0,
 		"history":
 		[
-			"max(0, 10)",
-			"min(0, 10)",
 			".125 * 8",
 			".125 * 6",
 			".125 * 5",
@@ -421,17 +397,14 @@
 	"expanded_folders":
 	[
 		"/c/Users/gcarver/OneDrive/Projects/Raspi",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/opencv",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/opencv/samples",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/opencv/samples/cpp",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/projects",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/projects/raspicamtest",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/raspicam",
+		"/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled",
 		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi"
 	],
 	"file_history":
 	[
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/C++/property.sublime-snippet",
+		"/C/Users/gcarver/Downloads/boot.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/oled/buttons.py",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/seriffont.py",
 		"/E/Projects/Python/Guy/checkinqueue.py",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/settings.py",
@@ -557,8 +530,7 @@
 		"/C/Users/gcarver/AppData/Local/Temp/scp18947/home/gcarver/penguinspuzzle/global.h",
 		"/C/Users/gcarver/AppData/Local/Temp/scp19262/home/gcarver/penguinspuzzle/embed_file.c",
 		"/C/Users/gcarver/AppData/Local/Temp/scp42202/home/gcarver/penguinspuzzle/global.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp16684/home/gcarver/penguinspuzzle/buffer.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp49363/home/gcarver/penguinspuzzle/embed_file.c"
+		"/C/Users/gcarver/AppData/Local/Temp/scp16684/home/gcarver/penguinspuzzle/buffer.c"
 	],
 	"find":
 	{
@@ -587,15 +559,16 @@
 		"case_sensitive": false,
 		"find_history":
 		[
-			"defaults",
-			"_running",
-			"tempupdateinterval",
+			"location",
+			"tempdisplaytime",
+			"BSUInt",
+			"defaultcheckin",
+			"checkinterval",
 			"scale",
-			"detectAndDraw",
-			"max",
-			"clamp",
-			"zc",
-			"zipcode",
+			"tempupdateinterval",
+			"sleep",
+			"_alarm",
+			"alarmpin",
 			"color",
 			"determineloc",
 			"location",
@@ -713,8 +686,7 @@
 			"bytearray",
 			"pyb",
 			"_draw",
-			"_write",
-			"_draw"
+			"_write"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -748,7 +720,7 @@
 	"groups":
 	[
 		{
-			"selected": 2,
+			"selected": 0,
 			"sheets":
 			[
 				{
@@ -757,15 +729,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 26587,
+						"buffer_size": 26955,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								24051,
-								24051
+								11292,
+								11292
 							]
 						],
 						"settings":
@@ -773,27 +745,27 @@
 							"syntax": "Packages/Python/Python.sublime-syntax"
 						},
 						"translation.x": 0.0,
-						"translation.y": 12151.0,
+						"translation.y": 6562.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 2,
+					"stack_index": 0,
 					"type": "text"
 				},
 				{
 					"buffer": 1,
-					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/settings.py",
+					"file": "projects/oled/buzzer.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 10922,
+						"buffer_size": 599,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								10083,
-								10083
+								201,
+								201
 							]
 						],
 						"settings":
@@ -801,7 +773,7 @@
 							"syntax": "Packages/Python/Python.sublime-syntax"
 						},
 						"translation.x": 0.0,
-						"translation.y": 3838.0,
+						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 6,
@@ -809,6 +781,34 @@
 				},
 				{
 					"buffer": 2,
+					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/settings.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 10930,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								2545,
+								2545
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 1280.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 3,
 					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/oled.py",
 					"semi_transient": false,
 					"settings":
@@ -820,8 +820,8 @@
 						"selection":
 						[
 							[
-								7441,
-								7441
+								1412,
+								1412
 							]
 						],
 						"settings":
@@ -829,35 +829,7 @@
 							"syntax": "Packages/Python/Python.sublime-syntax"
 						},
 						"translation.x": 0.0,
-						"translation.y": 4313.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 1,
-					"type": "text"
-				},
-				{
-					"buffer": 3,
-					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/checkface.cpp",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 17104,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								7667,
-								7667
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/C++/C++.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 91.0,
+						"translation.y": 756.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 7,
@@ -865,81 +837,19 @@
 				},
 				{
 					"buffer": 4,
-					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/woeid.py",
+					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/checkface.cpp",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 649,
+						"buffer_size": 17050,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								631,
-								631
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Python/Python.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 8,
-					"type": "text"
-				}
-			]
-		},
-		{
-			"selected": 2,
-			"sheets":
-			[
-				{
-					"buffer": 5,
-					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/raspi.ida",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 10046,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								7361,
-								7361
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/ida/ida.tmLanguage"
-						},
-						"translation.x": 0.0,
-						"translation.y": 486.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 3,
-					"type": "text"
-				},
-				{
-					"buffer": 6,
-					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/opencv/samples/cpp/facedetect.cpp",
-					"semi_transient": true,
-					"settings":
-					{
-						"buffer_size": 8460,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								2018,
-								2018
+								1869,
+								1869
 							]
 						],
 						"settings":
@@ -947,88 +857,47 @@
 							"syntax": "Packages/C++/C++.sublime-syntax"
 						},
 						"translation.x": 0.0,
-						"translation.y": 324.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 4,
-					"type": "text"
-				},
-				{
-					"buffer": 7,
-					"file": "pygame/clock/clock.py",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 15891,
-						"regions":
-						{
-							"bookmarks":
-							{
-								"flags": 144,
-								"icon": "bookmark",
-								"regions":
-								[
-									[
-										9181,
-										9181
-									]
-								],
-								"scope": "bookmarks"
-							}
-						},
-						"selection":
-						[
-							[
-								11503,
-								11503
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Python/Python.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 5995.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 0,
-					"type": "text"
-				},
-				{
-					"buffer": 8,
-					"file": "pygame/clock/settings.py",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 6322,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								1858,
-								1858
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Python/Python.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 486.0,
+						"translation.y": 180.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 5,
 					"type": "text"
 				},
 				{
-					"buffer": 9,
-					"file": "projects/oled/buttons.py",
+					"buffer": 5,
+					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/seeface/CMakeLists.txt",
+					"semi_transient": true,
+					"settings":
+					{
+						"buffer_size": 447,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/CMakeEditor/CMakeEditor.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 4,
+					"type": "text"
+				},
+				{
+					"buffer": 6,
+					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/woeid.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 2388,
+						"buffer_size": 649,
 						"regions":
 						{
 						},
@@ -1047,11 +916,45 @@
 						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 9,
+					"stack_index": 2,
+					"type": "text"
+				}
+			]
+		},
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 7,
+					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/raspi.ida",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 10231,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								9625,
+								9800
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/ida/ida.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 3288.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 3,
 					"type": "text"
 				},
 				{
-					"buffer": 10,
+					"buffer": 8,
 					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/raspicam/src/raspicam_cv.h",
 					"semi_transient": false,
 					"settings":
@@ -1075,11 +978,11 @@
 						"translation.y": 835.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 13,
+					"stack_index": 11,
 					"type": "text"
 				},
 				{
-					"buffer": 11,
+					"buffer": 9,
 					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/raspicam/src/raspicam_cv.cpp",
 					"semi_transient": false,
 					"settings":
@@ -1103,11 +1006,11 @@
 						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 10,
+					"stack_index": 8,
 					"type": "text"
 				},
 				{
-					"buffer": 12,
+					"buffer": 10,
 					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/raspicam/src/private/private_impl.cpp",
 					"semi_transient": false,
 					"settings":
@@ -1131,11 +1034,11 @@
 						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 11,
+					"stack_index": 9,
 					"type": "text"
 				},
 				{
-					"buffer": 13,
+					"buffer": 11,
 					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/raspicam/src/private/private_impl.h",
 					"semi_transient": false,
 					"settings":
@@ -1159,7 +1062,7 @@
 						"translation.y": 399.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 12,
+					"stack_index": 10,
 					"type": "text"
 				}
 			]
@@ -1167,7 +1070,7 @@
 	],
 	"incremental_find":
 	{
-		"height": 40.0
+		"height": 41.0
 	},
 	"input":
 	{
@@ -1356,8 +1259,8 @@
 	"show_minimap": true,
 	"show_open_files": true,
 	"show_tabs": true,
-	"side_bar_visible": false,
-	"side_bar_width": 275.0,
+	"side_bar_visible": true,
+	"side_bar_width": 191.0,
 	"status_bar_visible": true,
 	"template_settings":
 	{

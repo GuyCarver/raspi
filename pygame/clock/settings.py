@@ -51,8 +51,8 @@ HTML = Template('<html><head><style type="text/css">' +
   '<h3>Alarm</h3>' +
   '<span>Alarm: <input type="checkbox" name="alarmon" value="on" ' +
   'onclick="form.submit()" ${alarmon}><br/> ' +
-  '<span><input id="alarm" name="alarm" type="time" value=${alarmtime} ' +
-  'onchange="form.submit()"></span>' +
+  '<span><input id="alarm" name="alarm" type="time" value=${alarmtime}>' +
+  '  <input type="submit" name="Set" value="Set"></span>' +
   '<br/><br/><input type="submit" name="Save" value="Save"><br/>' +
   '</form></body></html>')
 
