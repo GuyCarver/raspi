@@ -77,7 +77,7 @@ class Clock:
   #Camera defaults.
   defaultcontrast = 100.0
   defaultsaturation = 100.0
-  defaultbrightness = 50.0
+  defaultbrightness = 75.0
   defaultgain = 25.0
   defaultexposure = -1.0
   defaultvflip = False
@@ -89,7 +89,7 @@ class Clock:
   defaulttempinterval = 30    #seconds to wait before tempurature update.
   defaulttempdur = 3          #Duration of main temp display.
   defaulttempupdate = 5.0     #Time between tempurature querries.
-  ledcontrolpin = 24          #GPIO24 pin controls IR LEDs.
+  ledcontrolpin = 4           #GPIO4 pin controls IR LEDs.
   alarmpin = 18               #GPIO18 pin is PWM for alarm buzzer.
   alarmfreq = 700             #Just play with this # til you get something nice.
   alarmdutycycle = 75         #Between 0-100 but 0 and 100 are silent.

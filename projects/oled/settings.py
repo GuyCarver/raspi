@@ -95,7 +95,7 @@ HTML = Template('<html><head><style type="text/css">' +
   '<span><input id="time" name="time" type="time" value=${thetime}></span>' +
   '<input type="submit" name="SetTime" value="Set"><br/>' +
   '<br/><br/><input type="submit" name="Save" value="Save"><br/>' +
-  '<img src="/home/pi/projects/oled/facecap.jpg" alt="Image" height="120" width="160">' +
+  '<img src="facecap.jpg" alt="Image" height="120" width="160">' +
   '</form></body></html>')
 
 class RH(BaseHTTPRequestHandler):
