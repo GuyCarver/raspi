@@ -89,7 +89,7 @@ class Clock:
   defaulttempinterval = 30    #seconds to wait before tempurature update.
   defaulttempdur = 3          #Duration of main temp display.
   defaulttempupdate = 5.0     #Time between tempurature querries.
-  ledcontrolpin = 4           #GPIO4 pin controls IR LEDs.
+  ledcontrolpin = 4           #GPIO4 pin controls secondary IR LEDs.
   alarmpin = 18               #GPIO18 pin is PWM for alarm buzzer.
   alarmfreq = 700             #Just play with this # til you get something nice.
   alarmdutycycle = 75         #Between 0-100 but 0 and 100 are silent.
@@ -241,9 +241,10 @@ class Clock:
 
   @iron.setter
   def iron( self, aTF ) :
-    '''Set IR LEDs on/off.'''
-    self._iron = aTF
-    GPIO.output(Clock.ledcontrolpin, GPIO.HIGH if aTF else GPIO.LOW)
+    '''Set secondary IR LEDs on/off.'''
+    if self._iron != aTF :
+      self._iron = aTF
+      GPIO.output(Clock.ledcontrolpin, GPIO.HIGH if aTF else GPIO.LOW)
 
   @property
   def on( self ) :
@@ -502,6 +503,7 @@ class Clock:
       data['gain'] = self.gain
       data['exposure'] = self.exposure
       data['scale'] = self.scale
+      data['alarm'] = self.alarmtime
 
       dump(data, f)
 
@@ -525,6 +527,7 @@ class Clock:
         self.scale = data['scale']
         self.location = data['location']
         self.checkinterval = data['facecheck']
+        self.alarmtime = data['alarm']
     except:
       pass
 
@@ -601,6 +604,7 @@ class Clock:
       drawdig(3)
       drawapm(4)
 
+      #If alarm enabled print the bell icon.
       if self._alarmenabled :
         p = (x + int(self.wh * Clock.digitpos[4]), y + 4 + self.wh)
         self._oled.char(p, '\x1F', True, seriffont, (1, 1))
@@ -672,6 +676,8 @@ class Clock:
 
   def checkinc( self, aState, rates, dt ) :
     '''Determine if it's time to increment a value based on button state and time depressed.'''
+
+    #We assume button is pressed if this function is called.  So this determines if it was just pressed.
     if button.ischanged(aState) :
       self._pressedtime = 0.0
       self._repeattime = 0.0
@@ -695,6 +701,12 @@ class Clock:
 
     return 0
 
+  def updateir( self ) :
+    '''If hour is within night time turn secondary IRs on, else turn off.'''
+    h = self._curtime[0]
+    onoff = h > 18 or h < 9
+    self.iron = onoff
+
   def Update( self, dt ) :
     '''Run update of face check, time and display state.'''
     #Only check for a face every so often.  If found turn display on.
@@ -712,6 +724,7 @@ class Clock:
     apm = 0
     apmadjust = True
 
+    #Update button pressed states.
     self._buttons[Clock.timeset].update()
 
     #Don't bother looking for face if we are setting the alarm
@@ -723,6 +736,7 @@ class Clock:
       if button.ison(state) : #If minuteset pressed then increase minutes.
         if self.checkinc(state, Clock.incratem, dt) :
           m += 1
+          #Wrap around at 60 and increase hour.
           if m > 59 :
             m = m % 60
             h = (h + 1) % 24
@@ -757,10 +771,11 @@ class Clock:
         self._checktime -= dt
         if self._checktime <= 0.0 :
           self._checktime = self.checkinterval
+          self.updateir()
 #         print("Checking Face")
           if checkface.Check(self._checker) :
 #            print("  face found!")
-            self.on = True        #Turn display on.
+            self.on = True          #Turn display on.
             self.triggered = False  #Make sure alarm is off.
 
       #Update temp and display temp in main display if it's time.
@@ -805,7 +820,6 @@ class Clock:
   def run( self ) :
     '''Run the clock.'''
     try:
-      self.iron = True
       self._wtthread.start()
       self._settingsthread.start()
 
@@ -834,7 +848,7 @@ class Clock:
     print("Shutting down threads.")
     self._wtthread.join()
     self._settingsthread.join()
-    self.iron = False
+    self.iron = False #Turn secondary IR LEDS off.
     self._oled.clear()
     self._oled.display()
 
