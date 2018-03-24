@@ -4,6 +4,34 @@
 		"selected_items":
 		[
 			[
+				"our",
+				"ourTarget"
+			],
+			[
+				"alwa",
+				"alwaysontimeshhmm"
+			],
+			[
+				"a",
+				"alwaysontimes"
+			],
+			[
+				"_pre",
+				"_prevtime"
+			],
+			[
+				"_al",
+				"_alwaysontimestart"
+			],
+			[
+				"_alw",
+				"_alwaysontimestop"
+			],
+			[
+				"defo",
+				"defaultofftime"
+			],
+			[
 				"TO",
 				"_TORSO_TURN_START"
 			],
@@ -116,38 +144,22 @@
 	"buffers":
 	[
 		{
-			"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/settings.py",
+			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/clock.py",
 			"settings":
 			{
-				"buffer_size": 11159,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "/C/Users/gcarver/OneDrive/Projects/Python/pygame/joystick.py",
-			"settings":
-			{
-				"buffer_size": 4459,
+				"buffer_size": 25776,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
 		},
 		{
-			"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/clock.py",
+			"file": "projects/clock/wifi.py",
 			"settings":
 			{
-				"buffer_size": 28064,
+				"buffer_size": 436,
 				"encoding": "UTF-8",
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "/C/Users/gcarver/OneDrive/notes.ida",
-			"settings":
-			{
-				"buffer_size": 17014,
-				"encoding": "UTF-8",
-				"line_ending": "Windows"
+				"line_ending": "Windows",
+				"name": "#read wifi signal strength."
 			}
 		},
 		{
@@ -160,36 +172,20 @@
 			}
 		},
 		{
-			"contents": "#PC version of the clock display.\n\nimport os, sys, pygame\nfrom pygame.locals import *\nimport time, datetime\nfrom urllib.request import urlopen\nfrom json import loads, dump, load\nfrom threading import Thread\nimport settings\nimport woeid\nfrom seriffont import seriffont\n\n#todo: Save settings on change?\n#todo: DST?  Probably, though the computer should usually handle it.\n\nclass Clock:\n\n  #x,y,dir x,y are mulipliers. Dir = (0=right, 1=down)\n  #  0\n  #1   2\n  #  3\n  #4   5\n  #  6\n  segs = [(0,0,0), (0,0,1), (1,0,1), (0,1,0), (0,1,1), (1,1,1), (0,2,0),\n          (1,0,0), (2,0,1), (1,1,0), (2,1,1), (2,2,0)]\n  segadjust  = 2\n  nums = [[0,1,2,4,5,6], [2,5], [0,2,3,4,6], [0,2,3,5,6], [1,2,3,5],\n          [0,1,3,5,6], [0,1,3,4,5,6], [0,2,5], [0,1,2,3,4,5,6], [0,1,2,3,5]]\n\n  apm = [(0,1,2,3,4,5), (0,1,2,3,4), (0,1,2,4,5,7,8,10), (0,1,2,3)]\n\n  digitpos = [0.0, 1.3, 3.1, 4.4, 6.0]\n  twoline = 7\n  threeline = 10\n  tempsize = 6\n  alarmconvert = '\\x1F {:02d}:{:02d}'\n  tmconvert = '{:02d}:{:02d}'\n  dtconvert = '{}-{:02d}-{:02d}'\n  colorconvert = '#{:06x}'\n  fname = 'clock.json'\n\n  #Clock defaults.\n  defaulttempinterval = 30                      #seconds to wait before tempurature update.\n  defaulttempdur = 3                            #Duration of main temp display.\n  defaulttempupdate = 5.0                       #Time between tempurature querries.\n  defaultdisplaydur = 5.0                       #Default time in seconds display stays on after face detection.\n  beepfreq = 1.0                                #Frequency in seconds for beep.\n\n  def __init__( self ):\n    #Frederick = 2458710\n    #Rockville = 2483553\n    os.environ['SDL_VIDEO_WINDOW_POS'] = '900,600'\n\n    self._alarmtime = (0, 0) #Hour, Minute.\n    self._alarmcheckminute = -1\n    self._alarmenabled = False\n    self._beep = False\n    self._triggered = False\n    self._beeptime = Clock.beepfreq\n\n    self._tempdisplayinterval = Clock.defaulttempinterval\n    self.tempupdateinterval = Clock.defaulttempupdate\n    self.tempdisplaytime = Clock.defaulttempdur\n    self.displayduration = Clock.defaultdisplaydur\n    self.wh = 15  #Size of half of the segment (0-3).  IE: segment 6 is drawn at y of 30 if wh is 15.\n    self.pos = (5, 10)\n    self.size = (128, 64)\n\n    pygame.init()\n    self.screen = pygame.display.set_mode(self.size)\n    self.clock = pygame.time.Clock()\n\n    self.digits = (0, 0, 0, 0, 0, 0)\n    self._tempdisplay = True\n    self._curtime = (0, 0)\n    self.temp = 0\n    self.text = 'Sunny'\n    self._color = 0x00FFFF\n    self._url = ''\n    self.location = '21774'\n    self.load()\n    self._running = True\n\n    self._weathertimer = 0.0\n    self._prevtime = time.time()\n\n    self._sounds = []\n    self._sounds.append(pygame.mixer.Sound('womp.wav'))\n    self._sounds.append(pygame.mixer.Sound('womp2.wav'))\n\n    self._wtthread = Thread(target=self.weatherthread)\n    self._settingsthread = Thread(target=self.startsettings)\n\n#Alarm properties.\n  @property\n  def beep( self ) :\n    '''Return true if alarm sound can currently be heard.'''\n    return self._beep\n\n  @beep.setter\n  def beep( self, aTF ) :\n    '''Set alarm beep on/off.'''\n    if self._beep != aTF :\n      self._beep = aTF\n      if self._beep:\n        self._sounds[0].play()\n      else:\n        self._sounds[1].play()\n\n  @property\n  def triggered( self ) :\n    '''Return true if alarm is currently triggered (beeping).'''\n    return self._triggered\n\n  @triggered.setter\n  def triggered( self, aTF ) :\n    '''Set alarm trigger on/off.'''\n    if self._triggered != aTF :\n      self._triggered = aTF\n      self.beep = aTF\n\n  @property\n  def alarmenabled( self ) :\n    '''Return true if alarm is set to go off.'''\n    return self._alarmenabled\n\n  @alarmenabled.setter\n  def alarmenabled( self, aTF ) :\n    '''Set alarm on/off.'''\n    self._alarmenabled = aTF\n    if aTF == False :\n      self.triggered = False\n\n  @property\n  def alarmtime( self ) :\n    '''Return (hh,mm) tuple.'''\n    return self._alarmtime\n\n  @alarmtime.setter\n  def alarmtime( self, aValue ) :\n    '''Set alarm time (hh,mm) tuple.'''\n    self._alarmtime = aValue\n\n  @property\n  def alarmhhmm( self ) :\n    '''Get \"hh:mm\" in string format (for the settings http server).'''\n    return Clock.tmconvert.format(*self._alarmtime)\n\n  @alarmhhmm.setter\n  def alarmhhmm( self, aValue ) :\n    try:\n      hh, mm = aValue.split(':')\n      self.alarmtime = (int(hh), int(mm))\n    except:\n      self.alarmtime = (0,0)\n#END Alarm properties.\n\n  @property\n  def tempdisplay( self ) :\n    '''Return if large temp display is enabled.'''\n    return self._tempdisplay\n\n  @tempdisplay.setter\n  def tempdisplay( self, aValue ) :\n    '''Enable/Disable large temperature display.'''\n    self._tempdisplay = aValue\n\n  @property\n  def tempdisplayinterval( self ) :\n    '''Get the interval in second for temperature display trigger.'''\n    return self._tempdisplayinterval\n\n  @tempdisplayinterval.setter\n  def tempdisplayinterval( self, aValue ) :\n    '''Set the interval in second for temperature display trigger.  Clamped to 60-tempdisplaytime.'''\n    self._tempdisplayinterval = min(aValue, 60 - self.tempdisplaytime)\n\n  @property\n  def tempdisplaytime( self ) :\n    '''Get the temperature display duration.'''\n    return self._tempdisplaytime\n\n  @tempdisplaytime.setter\n  def tempdisplaytime( self, aValue ) :\n    '''Set the temperature display duration and recalculate tempdisplayinterval.'''\n    self._tempdisplaytime = aValue\n    self.tempdisplayinterval = self.tempdisplayinterval #Recalculate the temp display interval.\n\n  @property\n  def tempupdateinterval( self ) :\n    '''Get the temperature update interval in minutes.'''\n    return self._tempupdateinterval\n\n  @tempupdateinterval.setter\n  def tempupdateinterval( self, aValue ) :\n    '''Set the temperature update interval in minutes.'''\n    self._tempupdateinterval = aValue\n\n  @property\n  def hhmm( self ) :\n    '''Get \"hh:mm\" in string format (for the settings http server).'''\n    return Clock.tmconvert.format(self._h, self._m)\n\n  @hhmm.setter\n  def hhmm( self, aValue ) :\n    '''todo: Convert \"hh:mm\" into hours/minutes and set the time.'''\n    pass\n\n  @property\n  def date( self ) :\n    '''Get \"yy-mm-dd\" in string format (for the settings http server).'''\n    t = datetime.date.today()\n    return Clock.dtconvert.format(t.year, t.month, t.day)\n\n  @property\n  def color( self ) :\n    '''Get the color in 0x00RRGGBB'''\n    return self._color\n\n  @color.setter\n  def color( self, aValue ) :\n    '''Set the color'''\n    self._color = aValue\n\n  @property\n  def colorstr( self ) :\n    '''Get the color as a string \"#RRGGBB\".'''\n    return Clock.colorconvert.format(self._color)\n\n  @colorstr.setter\n  def colorstr( self, aValue ) :\n    '''Set the color from a string format \"#RRGGBB\".'''\n    c = int(aValue[1:], 16) #skin the leading #\n    self._color = c\n\n  @property\n  def location( self ) :\n    '''Get the location zip.'''\n    return self._location\n\n  @location.setter\n  def location( self, aLoc ) :\n    '''Set the location zip and setup the querry url for the weather update thread.'''\n    self._location = aLoc\n    wid = woeid.woeidfromzip(aLoc)\n    self._url = 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%3D' + str(wid) + '&format=json'\n\n  def startsettings( self ) :\n#    print(\"Starting settings server\")\n    settings.run(self)\n\n  def weatherthread(self):\n    '''Update the weather every n minutes.'''\n    waittime = 1.0\n    while self._running:\n      self.UpdateWeather()\n      self._weathertimer = self.tempupdateinterval * 60.0  #Convert minutes to seconds.\n      #Check _running flag every second.\n      while (self._weathertimer > 0.0) and self._running:\n        self._weathertimer -= waittime\n        time.sleep(waittime)\n\n    print(\"Weather update thread exit.\")\n\n  def save( self ) :\n    '''Save options to json file.'''\n    with open(Clock.fname, 'w+') as f:\n      data = {}\n      data['tempon'] = self.tempdisplay\n      data['tempduration'] = self.tempdisplaytime\n      data['interval'] = self.tempdisplayinterval\n      data['update'] = self.tempupdateinterval\n      data['location'] = self.location\n      data['color'] = self.colorstr\n      data['alarmtime'] = self.alarmhhmm\n      data['alarmon'] = self.alarmenabled\n      dump(data, f)\n\n  def load( self ) :\n    '''Load options from json file.'''\n    try:\n      with open(Clock.fname, 'r') as f:\n        data = load(f)\n        self.tempdisplay = data['tempon']\n        self.tempdisplayinterval = data['interval']\n        self.tempdisplaytime = data['tempduration']\n        self.tempupdateinterval = data['update']\n        self.colorstr = data['color']\n        self.location = data['location']\n        self.alarmhhmm = data['alarmtime']\n        self.alarmenabled = data['alarmon']\n    except:\n      pass\n\n  def char( self, aPos, aChar, aOn, aFont ) :\n    '''Draw a character at the given position using the given font and color.\n       aSizes is a tuple with x, y as integer scales indicating the\n       # of pixels to draw for each pixel in the character.'''\n\n    if aFont == None:\n      return\n\n    startchar = aFont['Start']\n    endchar = aFont['End']\n\n    ci = ord(aChar)\n    if (startchar <= ci <= endchar):\n      fontw = aFont['Width']\n      fonth = aFont['Height']\n      ci = (ci - startchar) * fontw\n\n      charA = aFont[\"Data\"][ci:ci + fontw]\n      px = aPos[0]\n      for c in charA :\n        py = aPos[1]\n        for r in range(fonth) :\n          if c & 0x01 :\n            pygame.draw.line(self.screen, self._color, (px, py), (px, py))\n          py += 1\n          c >>= 1\n        px += 1\n\n  def drawtext( self, aPos, aString, aOn, aFont ) :\n    '''Draw a text at the given position.  If the string reaches the end of the\n       display it is wrapped to aPos[0] on the next line.  aSize may be an integer\n       which will size the font uniformly on w,h or a or any type that may be\n       indexed with [0] or [1].'''\n\n    if aFont == None:\n      return\n\n    px, py = aPos\n    width = aFont[\"Width\"] + 1\n    for c in aString:\n      self.char((px, py), c, aOn, aFont)\n      px += width\n      #We check > rather than >= to let the right (blank) edge of the\n      # character print off the right of the screen.\n      if px + width > self.size[0]:\n        py += aFont[\"Height\"] + 1\n        px = aPos[0]\n\n  def iline( self, sx, sy, ex, ey ):\n    '''Draw a line from sx,sy to ex,ey.'''\n    pygame.draw.line(self.screen, self._color, (sx, sy), (ex, ey))\n\n  def drawseg( self, pos, seg, wh ):\n    '''Draw given segment at pos with given size of wh (represents both width and height).\n       main line is drawn then if size is large enough 2 shorter lines are drawn on each side of it.'''\n    x,y,d = seg #Get position multiply and direction of 0 or 1.\n    x = x * wh + pos[0]\n    y = y * wh + pos[1]\n    #Horizontal line.\n    if d == 0:\n      sx = x + Clock.segadjust\n      ex = sx + wh - Clock.segadjust\n      self.iline(sx, y + 1, ex, y + 1)\n      #shorten line by 1 on each end.\n      sx += 1\n      ex -= 1\n      #If size is large enough for 2 lines then draw one.\n      if wh >= Clock.twoline:\n        self.iline(sx, y, ex, y)\n      #if large enough to 3 then draw the final line.\n      if wh >= Clock.threeline :\n        self.iline(sx, y + 2, ex, y + 2)\n    else:\n      #Vertical line.\n      sy = y + 1\n      ey = sy + wh - 1\n      self.iline(x + 1, sy, x + 1, ey)\n      #shorten line by 1 on each end.\n      sy += 1\n      ey -= 1\n      #if large enough to 3 then draw the final line.\n      if wh >= Clock.twoline:\n        self.iline(x, sy, x, ey)\n      #if large enough to 3 then draw the final line.\n      if wh >= Clock.threeline :\n        self.iline(x + 2, sy, x + 2, ey)\n\n  def drawsegs( self, pos, seglist, wh ):\n    for s in seglist:\n      self.drawseg(pos, Clock.segs[s], wh)\n\n  def draw( self ):\n    '''Draw the display.'''\n    self.screen.fill(0x000000)\n    x, y = self.pos\n\n    #Draw an hour or minute digit.\n    def drawdig( anum ):\n      p = (x + int(self.wh * Clock.digitpos[anum]), y)\n      self.drawsegs(p, Clock.nums[self.digits[anum]], self.wh)\n\n    #Draw am or pm depending on the hour.\n    def drawapm( anum ):\n      wh = self.wh // 2\n      p = (x + int(self.wh * Clock.digitpos[anum]), y)\n      d = self.digits[anum]\n      self.drawsegs(p, Clock.apm[d], wh)\n      if d < 2:\n        p = (p[0] + wh + (wh // 2) + 1, y)\n        self.drawsegs(p, Clock.apm[2], wh)\n\n    #Draw hh, mm and am/pm.\n    drawdig(0)\n    drawdig(1)\n    drawdig(2)\n    drawdig(3)\n    drawapm(4)\n\n    if self._alarmenabled :\n      p = (x + 10, y + 7 + (self.wh * 2))\n#      p = (x + int(self.wh * Clock.digitpos[4]), y + 4 + self.wh)\n      atm = Clock.alarmconvert.format(*self._alarmtime)\n      self.drawtext(p, atm, True, seriffont)\n\n    #If we want to display the temperature then do so at the bottom right.\n    if self.tempdisplay :\n      p = (x + int(self.wh * Clock.digitpos[4]), y + 3 + (self.wh * 2))\n      wh = Clock.tempsize\n      n1 = (self.temp // 10) % 10\n      n2 = self.temp % 10\n      self.drawsegs(p, Clock.nums[n1], wh)\n      p = (p[0] + wh + 2, p[1])\n      self.drawsegs(p, Clock.nums[n2], wh)\n      p = (p[0] + wh + 4, p[1])\n      self.drawsegs(p, Clock.apm[3], wh)\n\n    def drawrect(pos):\n      rect = (pos[0], pos[1], 3, 3)\n      pygame.draw.rect(self.screen, self._color, rect)\n\n    #Draw the colon in between hh and mm every second for a second.\n    #This will cause it to blink.\n    if (self.digits[5] & 1) == 1:\n      sx = (Clock.digitpos[1] + 1.0 + Clock.digitpos[2]) / 2\n      sy = (self.wh // 3) * 2\n      p = (int(sx * self.wh) + x, y + sy)\n      drawrect(p)\n      sy += sy\n      p = (p[0], y + sy)\n      drawrect(p)\n\n  def UpdateWeather( self ):\n    '''Update weather by reading the URL\n    \"https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%3D' + str(aLoc) + '&format=json'\n    '''\n    try:\n      req = urlopen(self._url, None, 2)\n      d = req.read()\n      j = loads(d.decode('utf-8'))\n      cond = j['query']['results']['channel']['item']['condition']\n      self.temp = int(cond['temp'])\n      self.text = cond['text']\n    except Exception as e:\n      print(e)\n\n  def UpdateAlarm( self, dt ) :\n    '''Update the alarm state.'''\n    ah, am = self.alarmtime\n    #If alarm is currently triggered then update it.\n    h, m = self._curtime\n\n    if self.triggered :\n      #Turn alarm off as soon as hour or minute change.\n      if h != ah or m != am :\n        self.triggered = False\n      else:\n        self._beeptime -= dt\n        if self._beeptime <= 0 :\n          self.beep = not self.beep  #toggle sound on/off at beepfreq.\n          self._beeptime = Clock.beepfreq\n    #If alarm is set then once we hit the hour and minute start triggered.\n    #But only check on every new minute.\n    elif self.alarmenabled and m != self._alarmcheckminute :\n      self._alarmcheckminute = m\n      if h == ah and m == am :\n        self.triggered = True\n\n  def Update( self, dt ):\n    '''Run update of face check, time and display state.'''\n\n    t = time.localtime()\n    self._curtime = (t.tm_hour, t.tm_min)\n    s = t.tm_sec\n\n    apm = 0\n    apmadjust = True\n\n    h, m = self._curtime                      #Display current time.\n\n    #Update temp and display temp in main display if it's time.\n    if self.tempdisplay :\n      #If time to display then do so.\n      if ((s % self.tempdisplayinterval) < self.tempdisplaytime) :\n        apmadjust = False                     #Not a time we are displaying so don't do 24 hour adjustment.\n        h = self.temp // 100                  #Clear hours to 0.\n        m = self.temp % 100                   #Set minutes to the temperature (only works for positive temps).\n        apm = 3                               #Set am/pm to deg symbol.\n\n    #If we want to adjust time from 24 to 12 hour then do so.\n    if apmadjust :\n      if h >= 12 : #if pm then set to pm.\n        apm = 1\n        if h > 12 :\n          h -= 12                               #12 hour display.\n      elif h == 0:\n        h = 12\n\n    self.digits = (h // 10, h % 10, m // 10, m % 10, apm, s)\n    self.UpdateAlarm(dt)\n\n  def run( self ):\n    '''Run the clock.'''\n    self._wtthread.start()\n    self._settingsthread.start()\n\n    while self._running:\n      ct = time.time()\n      dt = min(1.0, ct - self._prevtime) #clamp max elapsed time to 1 second.\n      self._prevtime = ct\n\n      self.Update(dt)\n      self.clock.tick(60)\n      self.draw()\n\n      for event in pygame.event.get():\n        if event.type == QUIT:\n          self._running = False\n          break\n        elif event.type == KEYDOWN:\n          if event.key == K_t:\n            self.wh += 1\n          elif event.key == K_r:\n            self.wh -= 1\n            if (self.wh < 0):\n              self.wh = 0\n\n      pygame.display.update()\n\n    self.save()                                 #Save current settings.\n    pygame.display.quit()\n    print(\"Shutting down threads.\")\n    self._wtthread.join()\n    self._settingsthread.join()\n\ndef run(  ):\n  clk = Clock()\n  clk.run()\n\nif __name__ == '__main__':\n  run()\n",
-			"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/clock.py",
-			"file_size": 17032,
-			"file_write_time": 131607705152564937,
+			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/mlx90614.py",
 			"settings":
 			{
-				"buffer_size": 17032,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"contents": "#Define out host system\nSET(CMAKE_SYSTEM_NAME Linux)\nSET(CMAKE_SYSTEM_VERSION 1)\n\nSET(DEVROOT /home/gcarver/raspi/)\nSET(PIROOT ${DEVROOT}rootfs/)\nSET(PITOOLS ${DEVROOT}tools/)\n\nSET(TOOLROOT ${PITOOLS}arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/)\n\n#Define the cross compiler locations\nSET(CMAKE_C_COMPILER ${TOOLROOT}bin/arm-linux-gnueabihf-gcc)\nSET(CMAKE_CXX_COMPILER ${TOOLROOT}bin/arm-linux-gnueabihf-g++)\n\n#Can't put this in cuz it causes the gcc compiler test to fail.\n#SET(CMAKE_SYSROOT ${PIROOT})\n#SET(CMAKE_FIND_ROOT_PATH ${PIROOT})\n\n#Define the sysroot path for the RaspberryPi distribution in our tools folder\n#SET(CMAKE_FIND_ROOT_PATH /home/gcarver/raspi/tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/arm-linux-gnueabihf/sysroot/)\nSET(CMAKE_MODULE_PATH ${PIROOT}usr/local/lib/cmake/)\nSET(CMAKE_PREFIX_PATH ${PIROOT})\n\n#python3 paths\n#SET(PYTHON2_INCLUDE_PATH ${PIROOT}usr/include/python2.7/)\n#SET(PYTHON2_LIBRARIES ${PIROOT}usr/lib/python2.7/)\n#SET(PYTHON2_NUMPY_INCLUDE_DIRS ${PIROOT}usr/lib/python2.7/dist-packages/numpy/core/include/numpy/)\n#SET(PYTHON3_INCLUDE_PATH ${PIROOT}usr/include/python3.5m/)\n#SET(PYTHON3_LIBRARIES ${PIROOT}usr/lib/python3.5/)\n#SET(PYTHON3_NUMPY_INCLUDE_DIRS ${PIROOT}usr/lib/python3/dist-packages/numpy/core/include/numpy/)\n\n#Use our definitions for compiler tools\nSET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)\n#Search for libraries and headers in the target directories only\nSET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)\nSET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)\n\nSET(FLAGS \"-Wl,-rpath-link,${PIROOT}opt/vc/lib -Wl,-rpath-link,${PIROOT}lib/arm-linux-gnueabihf -Wl,-rpath-link,${PIROOT}usr/lib/arm-linux-gnueabihf -Wl,-rpath-link,${PIROOT}usr/local/lib\")\n\nUNSET(CMAKE_C_FLAGS CACHE)\nUNSET(CMAKE_CXX_FLAGS CACHE)\n\nSET(CMAKE_CXX_FLAGS ${FLAGS} CACHE STRING \"\" FORCE)\nSET(CMAKE_C_FLAGS ${FLAGS} CACHE STRING \"\" FORCE)\n\nadd_definitions(-Wall)\n# -std=c11)\n\n",
-			"file": "/C/Users/gcarver/AppData/Local/Packages/CanonicalGroupLimited.UbuntuonWindows_79rhkp1fndgsc/LocalState/rootfs/home/gcarver/raspi/toolchain-rpi.cmake",
-			"file_size": 1891,
-			"file_write_time": 131555949723743045,
-			"settings":
-			{
-				"buffer_size": 1891,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"contents": "\nimport sys, pygame\nfrom pygame.locals import *\nimport time\n\n#pip install weather-api\n# Check this out for how to possibly read the data without weather-api\n#https://developer.yahoo.com/weather/documentation.html\nfrom weather import Weather\nweather = Weather()\n\n#  0\n#1   2\n#  3\n#4   5\n#  6\nsegs = [(0,0,0), (0,0,1), (1,0,1), (0,1,0), (0,1,1), (1,1,1), (0,2,0),\n        (1,0,0), (2,0,1), (1,1,0), (2,1,1), (2,2,0)]\nadj = 2\nnums = [[0,1,2,4,5,6], [2,5], [0,2,3,4,6], [0,2,3,5,6], [1,2,3,5],\n        [0,1,3,5,6], [0,1,3,4,5,6], [0,2,5], [0,1,2,3,4,5,6], [0,1,2,3,5]]\n\napm = [(0,1,2,3,4,5), (0,1,2,3,4), (0,1,2,4,5,7,8,10), (0,1,2,3)]\n\ndigitpos = [0.0, 1.3, 3.1, 4.4, 6.0]\ntwoline = 7\nthreeline = 10\ntempinterval = 30\ntempdur = 3\ntempsize = 6\n\nclass MyScene:\n  def __init__(self):\n    #Frederick = 2458710\n    #Rockville = 2483553\n    self.location = 2458710\n    self.wh = 15\n    self.x = 5.0\n    self.y = 10.0\n    self.size = (128, 64)\n    self.screen = pygame.display.set_mode(self.size)\n    self.clock = pygame.time.Clock()\n    self.digits = (0, 0, 0, 0, 0, 0)\n    self.temp = 0\n    self.tempset = False\n\n  def iline(self, sx, sy, ex, ey):\n    pygame.draw.line(self.screen, 0x00FFFF, (sx, sy), (ex, ey))\n\n  def drawseg(self, pos, seg, wh):\n    x,y,d = seg\n    x = x * wh + pos[0]\n    y = y * wh + pos[1]\n    if d == 0:\n      sx = x + adj\n      ex = sx + wh - adj\n      self.iline(sx, y+1, ex, y+1)\n      sx += 1\n      ex -= 1\n      if wh >= twoline:\n        self.iline(sx,y,ex,y)\n      if wh >= threeline :\n        self.iline(sx,y+2,ex,y+2)\n    else:\n      sy = y + 1\n      ey = sy + wh - 1\n      self.iline(x+1, sy, x+1, ey)\n      sy += 1\n      ey -= 1\n      if wh >= twoline:\n        self.iline(x,sy,x,ey)\n      if wh >= threeline :\n        self.iline(x+2,sy,x+2,ey)\n\n  def drawsegs(self, pos, seglist, wh):\n    for s in seglist:\n      self.drawseg(pos, segs[s], wh)\n\n  def draw(self):\n    self.screen.fill(0x000000)\n    x = int(self.x)\n    y = int(self.y)\n\n    def drawdig(anum):\n      p =  (x + (self.wh * digitpos[anum]), y)\n      self.drawsegs(p, nums[self.digits[anum]], self.wh )\n\n    def drawapm(anum):\n      wh = self.wh // 2\n      p = (x + (self.wh * digitpos[anum]), y)\n      d = self.digits[anum]\n      self.drawsegs(p, apm[d], wh)\n      if d < 2:\n        p = (p[0] + wh + (wh // 2) + 1, y)\n        self.drawsegs(p, apm[2], wh)\n\n    drawdig(0)\n    drawdig(1)\n    drawdig(2)\n    drawdig(3)\n    drawapm(4)\n\n    p = (x + (self.wh * digitpos[4]), y + 3 + (self.wh * 2))\n    wh = tempsize\n    n1 = (self.temp // 10) % 10\n    n2 = self.temp % 10\n    self.drawsegs(p, nums[n1], wh)\n    p = (p[0] + wh + 2, p[1])\n    self.drawsegs(p, nums[n2], wh)\n    p = (p[0] + wh + 4, p[1])\n    self.drawsegs(p, apm[3], wh)\n\n    def drawrect(pos):\n      rect = (pos[0], pos[1], 3, 3)\n      pygame.draw.rect(self.screen, 0x00FFFF, rect)\n\n    if (self.digits[5] & 1) == 1:\n      sx = (digitpos[1] + 1.0 + digitpos[2]) / 2\n      sy = (self.wh // 3) * 2\n      p = (int((sx * self.wh) + self.x), int(self.y + sy))\n      drawrect(p)\n      sy += sy\n      p = (p[0], int(self.y + sy))\n      drawrect(p)\n\n  def UpdateTime(self):\n    t = time.localtime()\n    h = t.tm_hour\n    m = t.tm_min\n    s = t.tm_sec\n    apm = 0\n    if h > 12:\n      h -= 12\n      apm = 1\n\n    if (s % tempinterval) < tempdur:\n      h = 0\n      if not self.tempset:\n        lookup = weather.lookup(self.location)\n        condition = lookup.condition()\n        self.temp = int(condition['temp'])\n        self.tempset = True\n      m = self.temp\n      apm = 3\n    else:\n      self.tempset = False\n\n    self.digits = (h // 10, h % 10, m // 10, m % 10, apm, s)\n\n  def run(self):\n    runit = True\n    while runit:\n      self.UpdateTime()\n      self.clock.tick(60)\n      self.draw()\n      for event in pygame.event.get():\n        if event.type == QUIT:\n          runit = False\n          break\n        elif event.type == KEYDOWN:\n          if event.key == K_t:\n            self.wh += 1\n          elif event.key == K_r:\n            self.wh -= 1\n            if (self.wh < 0):\n              self.wh = 0\n\n      pygame.display.update()\n#      self.x -= (100.0 / 1000.0) * self.clock.get_time()\n#      if self.x < -400.0:\n#        self.x = float(self.screen.get_size()[0])\n    pygame.display.quit()\n\ndef run():\n  size = 320, 240\n  scn = MyScene()\n  scn.run()\n\nif __name__ == '__main__':\n  run()\n",
-			"file": "clock/clock.py",
-			"file_size": 4516,
-			"file_write_time": 131548875833264535,
-			"settings":
-			{
-				"buffer_size": 4336,
+				"buffer_size": 1188,
 				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/settings.py",
+			"settings":
+			{
+				"buffer_size": 9152,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
 			}
 		}
 	],
@@ -312,11 +308,38 @@
 	},
 	"expanded_folders":
 	[
-		"/c/Users/gcarver/OneDrive/Projects/Raspi",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/projects"
+		"/c/Users/gcarver/OneDrive/projects/raspi",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/clock",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/oled"
 	],
 	"file_history":
 	[
+		"/C/Users/gcarver/OneDrive/Projects/raspi/opencv/platforms/linux/build/version_string.tmp",
+		"/c/Users/gcarver/OneDrive - ZeniMax Media, Inc-/projects/raspi/projects/clock/clock.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/raspi.sublime-project",
+		"/C/Users/gcarver/OneDrive - ZeniMax Media, Inc/Projects/raspi/projects/mlx90614/mlx90614.py",
+		"/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/settings.py",
+		"/C/Users/gcarver/OneDrive/notes.ida",
+		"/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/clock.py",
+		"/C/Users/gcarver/OneDrive/Projects/Python/pygame/joystick.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/clock/clock.py",
+		"/C/Users/gcarver/AppData/Local/Packages/CanonicalGroupLimited.UbuntuonWindows_79rhkp1fndgsc/LocalState/rootfs/home/gcarver/raspi/toolchain-rpi.cmake",
+		"/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/clock.py",
+		"/D/Projects/esp32-micropython-vagrant/micropython-1/ports/esp32/notes.ida",
+		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/backup/projects/oled/clock.py",
+		"/F/Projects/Project76/BSGraphics/Durango/BSGraphicsRenderer.cpp",
+		"/C/Users/gcarver/OneDrive - ZeniMax Media, Inc-/Projects/raspi/projects/pyglet/cube.py",
+		"/C/Users/gcarver/OneDrive - ZeniMax Media, Inc-/Projects/raspi/projects/pyglet/polygon.py",
+		"/D/Projects/esp32-micropython-vagrant/micropython-1/ports/esp32/modules/flashbdev.py",
+		"/D/Projects/esp32-micropython-vagrant/micropython-1/ports/esp32/modules/inisetup.py",
+		"/D/Projects/esp32-micropython-vagrant/micropython-1/ports/esp32/modules/_boot.py",
+		"/D/Projects/esp32-micropython-vagrant/micropython-1/ports/esp32/modules/apa106.py",
+		"/D/Projects/esp32-micropython-vagrant/micropython-1/ports/esp32/modules/urequests.py",
+		"/D/Projects/esp32-micropython-vagrant/micropython-1/ports/esp32/modules/upip.py",
+		"/D/Projects/esp32-micropython-vagrant/micropython-1/ports/esp32/modules/ntptime.py",
+		"/D/Projects/esp32-micropython-vagrant/micropython-1/ports/esp32/modules/ds18x20.py",
+		"/D/Projects/esp32-micropython-vagrant/micropython-1/ports/esp32/modules/dht.py",
 		"/C/Users/gcarver/OneDrive/Projects/raspi/tft/ST7735.py",
 		"/C/Users/gcarver/AppData/Local/Packages/CanonicalGroupLimited.UbuntuonWindows_79rhkp1fndgsc/LocalState/rootfs/home/gcarver/raspi/rpi.cmake",
 		"/D/Projects/raspi/notes.ida",
@@ -352,7 +375,6 @@
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/woeid.py",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/iploc.py",
 		"/C/Users/gcarver/OneDrive/Projects/raspi/pygame/clock/seeface.py",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/clock.py",
 		"/C/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/projects/seeface/seefaceold.cpp",
 		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/toolchain-rpi.cmake",
 		"/C/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/rootfs/usr/include/python2.7/pyconfig.h",
@@ -370,19 +392,16 @@
 		"/C/Users/gcarver/Dropbox/Apps/Guys app/Examples (previous beta)/HTTP Server/Server.py",
 		"/C/Users/gcarver/Dropbox/Apps/Guys app/guy/clock/settings.py",
 		"/C/Users/gcarver/OneDrive/Projects/Python/weathertest.py",
-		"/C/Users/gcarver/OneDrive/notes.ida",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/tft/ST77352.py",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/tft/shapes.py",
 		"/C/Users/gcarver/OneDrive/Projects/Python/clock/clock.py",
 		"/C/Users/gcarver/OneDrive/Projects/raspi/pygame/clock/iploc.py",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/oled/clock.py",
 		"/C/Users/gcarver/OneDrive/Projects/raspi/pygame/clock.py",
-		"/C/Users/gcarver/OneDrive/Projects/raspi/clock/clock.py",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/oled/oled.py",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/clock/clock.py",
 		"/C/Users/gcarver/OneDrive/Projects/MicroPython/lib/ST7735.py",
 		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/penguinspuzzle.c",
-		"/C/Users/gcarver/OneDrive/Projects/raspi/raspi.sublime-project",
 		"/C/Users/gcarver/AppData/Local/Temp/scp31059/home/pi/python_games/memorypuzzle.py",
 		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/penguinspuzzle.bin",
 		"/C/Users/gcarver/AppData/Local/Temp/scp11626/usr/include/EGL/egl.h",
@@ -423,28 +442,7 @@
 		"/C/Users/gcarver/AppData/Local/Temp/scp44996/usr/include/GLES2/gl2platform.h",
 		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/global.h",
 		"/C/Users/gcarver/AppData/Local/Temp/scp48909/home/gcarver/penguinspuzzle/keys.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp54218/home/gcarver/penguinspuzzle/embed_file.c",
-		"/C/Projects/raspi/peterderivaz-penguinspuzzle-818906c/audio.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp18947/home/gcarver/penguinspuzzle/global.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp19262/home/gcarver/penguinspuzzle/embed_file.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp42202/home/gcarver/penguinspuzzle/global.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp16684/home/gcarver/penguinspuzzle/buffer.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp49363/home/gcarver/penguinspuzzle/embed_file.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp49498/home/gcarver/penguinspuzzle/embed_file.c",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages.sublime-project",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/XDevkit/Main.sublime-menu",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/MailFile/MailFile.py",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Super Calculator/Main.sublime-menu",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Origami/Main.sublime-menu",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Origami/origami.py",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Function Name Display/Main.sublime-menu",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Diff/Context.sublime-menu",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Default/Syntax.sublime-menu",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Default/Main.sublime-menu",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Default/Find in Files.sublime-menu",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Color Highlighter/Main.sublime-menu",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/Automatic Backups/Main.sublime-menu",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 2/Packages/XDevkit/XDevkit.sublime-settings"
+		"/C/Users/gcarver/AppData/Local/Temp/scp54218/home/gcarver/penguinspuzzle/embed_file.c"
 	],
 	"find":
 	{
@@ -472,6 +470,22 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"iron",
+			"load",
+			"variance",
+			"tmconvert",
+			"alarmtime",
+			"_checktime",
+			"checkinterval",
+			"defaultobjectcheck",
+			"time\\.",
+			"_alwaysontimes",
+			"alwaysontime",
+			"ontime",
+			"minutes",
+			"alwayson",
+			"_curtime",
+			"_checker",
 			"iron",
 			"ledcontrolpin",
 			"    ",
@@ -583,23 +597,7 @@
 			"defined",
 			"endif",
 			"sets_path",
-			"GetHistory",
-			"print",
-			"on_query_context",
-			"edit",
-			"if",
-			"while",
-			"is_loading",
-			"WindowCommand",
-			"status",
-			"show_status",
-			"set_timeout",
-			"unsavedchanges",
-			"unsaved_changes",
-			"get_output_panel",
-			"incremental_find",
-			"show_input_panel",
-			"another"
+			"GetHistory"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -630,72 +628,16 @@
 	"groups":
 	[
 		{
-			"selected": 2,
+			"selected": 1,
 			"sheets":
 			[
 				{
 					"buffer": 0,
-					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/settings.py",
+					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/clock.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 11159,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								5868,
-								5868
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Python/Python.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 2100.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 3,
-					"type": "text"
-				},
-				{
-					"buffer": 1,
-					"file": "/C/Users/gcarver/OneDrive/Projects/Python/pygame/joystick.py",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 4459,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								1113,
-								1113
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Python/Python.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 705.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 1,
-					"type": "text"
-				},
-				{
-					"buffer": 2,
-					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/clock.py",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 28064,
+						"buffer_size": 25776,
 						"regions":
 						{
 							"bookmarks":
@@ -705,8 +647,16 @@
 								"regions":
 								[
 									[
-										22855,
-										22855
+										2439,
+										2439
+									],
+									[
+										12234,
+										12234
+									],
+									[
+										19969,
+										19969
 									]
 								],
 								"scope": "bookmarks"
@@ -715,8 +665,8 @@
 						"selection":
 						[
 							[
-								22883,
-								22883
+								5191,
+								5191
 							]
 						],
 						"settings":
@@ -724,48 +674,49 @@
 							"syntax": "Packages/Python/Python.sublime-syntax"
 						},
 						"translation.x": 0.0,
-						"translation.y": 10286.0,
+						"translation.y": 1640.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 0,
+					"stack_index": 1,
 					"type": "text"
 				},
 				{
-					"buffer": 3,
-					"file": "/C/Users/gcarver/OneDrive/notes.ida",
+					"buffer": 1,
+					"file": "projects/clock/wifi.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 17014,
+						"buffer_size": 436,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								17013,
-								17013
+								436,
+								436
 							]
 						],
 						"settings":
 						{
-							"syntax": "Packages/ida/ida.tmLanguage"
+							"auto_name": "#read wifi signal strength.",
+							"syntax": "Packages/Python/Python.sublime-syntax"
 						},
 						"translation.x": 0.0,
-						"translation.y": 7421.0,
+						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 4,
+					"stack_index": 0,
 					"type": "text"
 				}
 			]
 		},
 		{
-			"selected": 1,
+			"selected": 2,
 			"sheets":
 			[
 				{
-					"buffer": 4,
+					"buffer": 2,
 					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/raspi.ida",
 					"semi_transient": false,
 					"settings":
@@ -777,8 +728,8 @@
 						"selection":
 						[
 							[
-								2136,
-								2136
+								1389,
+								1389
 							]
 						],
 						"settings":
@@ -786,27 +737,27 @@
 							"syntax": "Packages/ida/ida.tmLanguage"
 						},
 						"translation.x": 0.0,
-						"translation.y": 540.0,
+						"translation.y": 2895.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 5,
+					"stack_index": 3,
 					"type": "text"
 				},
 				{
-					"buffer": 5,
-					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/clock.py",
+					"buffer": 3,
+					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/mlx90614.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 17032,
+						"buffer_size": 1188,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								2482,
-								2488
+								280,
+								280
 							]
 						],
 						"settings":
@@ -814,66 +765,38 @@
 							"syntax": "Packages/Python/Python.sublime-syntax"
 						},
 						"translation.x": 0.0,
-						"translation.y": 863.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 4,
+					"type": "text"
+				},
+				{
+					"buffer": 4,
+					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/settings.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 9152,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								3085,
+								3085
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 1080.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 2,
-					"type": "text"
-				},
-				{
-					"buffer": 6,
-					"file": "/C/Users/gcarver/AppData/Local/Packages/CanonicalGroupLimited.UbuntuonWindows_79rhkp1fndgsc/LocalState/rootfs/home/gcarver/raspi/toolchain-rpi.cmake",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 1891,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								81,
-								81
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Text/Plain text.tmLanguage"
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 6,
-					"type": "text"
-				},
-				{
-					"buffer": 7,
-					"file": "clock/clock.py",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 4336,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								0,
-								0
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Python/Python.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 7,
 					"type": "text"
 				}
 			]

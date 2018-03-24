@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 #oled display of clock with temperature.
-#Display on/off is controlled by face detection.
-#also web hosted settings IE: 192.168.2.62 in a browser will pull up the settings page.
+#Display on/off is controlled by mlx90614 IR temperature sensor.
+#also web hosted settings IE: 192.168.2.6?:8080 in a browser will pull up the settings page.
 #This module must be run under sudo or the settings server will fail from permission exception.
 #Auto start using Crontab.  Added the following line with the command:
 # crontab -e (to edit the crontab file)
-# @reboot sudo /home/pi/projects/oled/clock.py > /home/pi/projects/oled/clock.log
+# @reboot sudo /home/pi/projects/clock/clock.py > /home/pi/projects/clock/clock.log
 
 import os, sys
 import RPi.GPIO as GPIO
@@ -15,30 +15,24 @@ from urllib.request import urlopen
 from json import loads, dump, load
 from threading import Thread #,Lock
 import keyboard
-import checkface
 import settings
 import woeid
-from seriffont import seriffont
+from mlx90614 import mlx, c2f
+from seriffont import *
 from buttons import button
+import wifi
 
-#done: Need to speed up the checkface system.  It takes way too long at the moment.  May need to go with a better raspi.
-# switched to haarcascade_frontalface_default.xml and reduced image scale to .25 and this sped things up as well as improved accuracy.
-#done: Try checkface from the main thread to see if it's more efficient.  It's messing with display at the moment.
-#  Did this and it definitely worked better so I'm staying with it.
-
+#todo: Make clock stay on during day time and only turn off at night.  Maybe add a light sensor to control that?
 #todo: What is the time button going to do?  We don't need it for setting the time.
-#todo: The scale should be from .25 to 1.0.  The optimal so far is .5.  But anything below .25 is useless.
-#todo: For testing purposes it would be nice if we could take a picture from the camera using the "time" button.
-#  Then if we could see it on the web page I could help debug some issues.
 
-class Clock:
+class Clock :
 
   #x,y,dir x,y are mulipliers. Dir = (0=right, 1=down)
-  #  0
-  #1   2
-  #  3
-  #4   5
-  #  6
+  #  0    7
+  #1   2    8
+  #  3    9
+  #4   5    10
+  #  6   11
   segs = [(0,0,0), (0,0,1), (1,0,1), (0,1,0), (0,1,1), (1,1,1), (0,2,0),
           (1,0,0), (2,0,1), (1,1,0), (2,1,1), (2,2,0)]
   segadjust = 2 #pixels to adjust segment draw position by to simulate a segment display.
@@ -58,7 +52,7 @@ class Clock:
   tmconvert = '{:02d}:{:02d}'
   dtconvert = '{}-{:02d}-{:02d}'
   colorconvert = '#{:06x}'
-  savename = '/home/pi/projects/oled/clock.json'
+  savename = '/home/pi/projects/clock/clock.json'
 
   #Snooze, Alarm On/Off Switch, Alarm Set, Minute, Hour, Time Set (Update temp)
   buttonids = [12, 5, 6, 13, 19, 26]
@@ -74,18 +68,15 @@ class Clock:
   fiverate = 7
   fifteenrate = 10
 
-  #Camera defaults.
-  defaultcontrast = 100.0
-  defaultsaturation = 100.0
-  defaultbrightness = 75.0
-  defaultgain = 25.0
-  defaultexposure = -1.0
-  defaultvflip = False
-  defaultscale = 0.25
-  defaultfacecheck = 0.75      #Check for face every n seconds.
-  defaultdisplaydur = 10.0     #Default time in seconds display stays on after face detection.
+  #mlx90614 defaults.
+  defaultobjectcheck = 0.75   #Check for object every n seconds.
+  defaultdisplaydur = 10.0    #Default time in seconds display stays on after face detection.
+  defaultbasetemp = 70.0      #70 degrees F.
+  defaultvariance = 4         #N degrees F above ambient for display trigger.
+  objecttempsetdelay = 10.0   #Seconds before base temp is reset to current temperature.
 
   #Clock defaults.
+  defaultalwaysontimes = (7 * 60, 19 * 60) #Times between which the display is always on, and object detection isn't necessary.
   defaulttempinterval = 30    #seconds to wait before tempurature update.
   defaulttempdur = 3          #Duration of main temp display.
   defaulttempupdate = 5.0     #Time between tempurature querries.
@@ -118,14 +109,14 @@ class Clock:
     self.tempdisplaytime = Clock.defaulttempdur
     self.tempupdateinterval = Clock.defaulttempupdate
     self.displayduration = Clock.defaultdisplaydur
-    self.checkinterval = Clock.defaultfacecheck
+    self.checkinterval = Clock.defaultobjectcheck
     self.wh = 15  #Size of half of the segment (0-3).  IE: segment 6 is drawn at y of 30 if wh is 15.
     self.pos = (5, 10)
     self.size = (128, 64)
 
-    try:
+    try :
       self._oled = oled(1)  #1st try later versions of the pi.
-    except:
+    except :
       self._oled = oled(0)  #if those fail we're using the 1st gen maybe?
 
     self._oled.rotation = 2
@@ -137,38 +128,31 @@ class Clock:
     self._color = 0x00FFFF
     self._url = ''
     self.location = '21774' #zipcode.
-    self.load()
     self._running = True
     self._ontime = 0.0
     self.on = True
     self._dirtydisplay = False
-    self._checktime = Clock.defaultfacecheck
+    self._checktime = 0
 
     self._weathertimer = 0.0
     self._prevtime = time.time()
 
-    try:
-      self._checker = checkface.Create()
-#      checkface.SetDisplay(self._checker, True)
-    except:
-      self._checker = None
-      print("Camera setup error.")
+    self._checker = mlx()
 
-    self._iron = False
-    self.cameradefaults()
+    self.mlxdefaults()
+    self.load()
 
     #If no keyboard we'll get an exception here so turn off keyboard flag.
-    try:
+    try :
       bres = keyboard.is_pressed('q')
       self._haskeyboard = True
-    except:
+    except :
       self._haskeyboard = False
 
     self._wtthread = Thread(target=self.weatherthread)
     self._settingsthread = Thread(target=self.startsettings)
 
   def __del__( self ) :
-    self.iron = False
     self._oled.clear()
     GPIO.cleanup()
 
@@ -183,9 +167,9 @@ class Clock:
     '''Set alarm beep on/off.'''
     if self._beep != aTF :
       self._beep = aTF
-      if self._beep:
+      if self._beep :
         self._alarm.start(Clock.alarmdutycycle)
-      else:
+      else :
         self._alarm.stop()
 
   @property
@@ -227,24 +211,39 @@ class Clock:
 
   @alarmhhmm.setter
   def alarmhhmm( self, aValue ) :
-    try:
+    try :
       hh, mm = aValue.split(':')
       self.alarmtime = (int(hh), int(mm))
-    except:
+    except :
       self.alarmtime = (0,0)
 #END Alarm properties.
 
   @property
-  def iron( self ) :
-    '''Return true if IR LEDs are currently on.'''
-    return self._iron
+  def alwaysontimes( self ) :
+    return self._alwaysontimes
 
-  @iron.setter
-  def iron( self, aTF ) :
-    '''Set secondary IR LEDs on/off.'''
-    if self._iron != aTF :
-      self._iron = aTF
-      GPIO.output(Clock.ledcontrolpin, GPIO.HIGH if aTF else GPIO.LOW)
+  @alwaysontimes.setter
+  def alwaysontimes( self, aValue ) :
+    start, stop = aValue
+    start = min(stop, start)
+    self._alwaysontimes = (start, stop)
+
+  @property
+  def alwaysontimeshhmm( self ) :
+    start, stop = self.alwaysontimes
+    start = Clock.tmconvert.format(start // 60, start % 60)
+    stop = Clock.tmconvert.format(stop // 60, stop % 60)
+    return (start, stop)
+
+  @alwaysontimeshhmm.setter
+  def alwaysontimeshhmm( self, aValue ) :
+    try :
+      def cnvt( atime ) :
+        hh, mm = atime.split(':')
+        return (int(hh) * 60) + int(mm)
+      self.alwaysontimes = (cnvt(aValue[0]), cnvt(aValue[1]))
+    except :
+      self.alwaysontimes = (0,0)
 
   @property
   def on( self ) :
@@ -314,8 +313,8 @@ class Clock:
   @checkinterval.setter
   def checkinterval( self, aValue ) :
     '''Set interval in seconds for face check.
-       Clamped between 0.25 and 3.0.'''
-    self._checkinterval = max(0.25, min(3.0, aValue))
+       Clamped between 0.1 and 1.0.'''
+    self._checkinterval = max(0.1, min(1.0, aValue))
 
   @property
   def hhmm( self ) :
@@ -368,100 +367,31 @@ class Clock:
   def location( self, aLoc ) :
     '''Set the location zip and setup the querry url for the weather update thread.'''
     self._location = aLoc
-    try:
+    try :
       wid = woeid.woeidfromzip(aLoc)
-    except:
+    except :
       wid = 2458710 #Set to Frederick MD on error.
       print('error reading woeid from internet.')
 
     self._url = 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%3D' + str(wid) + '&format=json'
 
-#Camera properties.
   @property
-  def cameraok( self ) :
-    '''Return true if camera is ok.'''
-    return checkface.Ok(self._checker)
+  def variance( self ) :
+    return self._variance
 
-  @property
-  def vflip( self ) :
-    '''Get camera vertical flip state.'''
-    return self._vflip
+  @variance.setter
+  def variance( self, aValue ) :
+    self._variance = aValue
 
-  @vflip.setter
-  def vflip( self, aValue ) :
-    '''Set camera virtical flip state.'''
-    self._vflip = aValue
-    checkface.SetVerticalFlip(self._checker, aValue)
+  def mlxdefaults( self ) :
+    self._alwaysontimes = Clock.defaultalwaysontimes
+    self._basetemp = Clock.defaultbasetemp
+    self.variance = Clock.defaultvariance
 
   @property
-  def scale( self ) :
-    '''Get camera scale.'''
-    return checkface.GetScale(self._checker)
-
-  @scale.setter
-  def scale( self, aValue ) :
-    '''Set camera scale.'''
-    checkface.SetScale(self._checker, aValue)
-
-  @property
-  def brightness( self ) :
-    '''Get camera brightness 0.0-100.0.'''
-    return checkface.GetProp(self._checker, checkface.CV_CAP_PROP_BRIGHTNESS)
-
-  @brightness.setter
-  def brightness( self, aValue ) :
-    '''Set camera brightness 0.0-100.0.'''
-    checkface.SetProp(self._checker, checkface.CV_CAP_PROP_BRIGHTNESS, aValue)
-
-  @property
-  def contrast( self ) :
-    '''Get camera contrast 0.0-100.0.'''
-    return checkface.GetProp(self._checker, checkface.CV_CAP_PROP_CONTRAST)
-
-  @contrast.setter
-  def contrast( self, aValue ) :
-    '''Set camera contrast 0.0-100.0.'''
-    checkface.SetProp(self._checker, checkface.CV_CAP_PROP_CONTRAST, aValue)
-
-  @property
-  def saturation( self ) :
-    '''Get camera saturation 0.0-100.0.'''
-    return checkface.GetProp(self._checker, checkface.CV_CAP_PROP_SATURATION)
-
-  @saturation.setter
-  def saturation( self, aValue ) :
-    '''Set camera saturation 0.0-100.0.'''
-    checkface.SetProp(self._checker, checkface.CV_CAP_PROP_SATURATION, aValue)
-
-  @property
-  def gain( self ) :
-    '''Get camera gain 0.0-100.0.'''
-    return checkface.GetProp(self._checker, checkface.CV_CAP_PROP_GAIN)
-
-  @gain.setter
-  def gain( self, aValue ) :
-    '''Set camera gain 0.0-100.0.'''
-    checkface.SetProp(self._checker, checkface.CV_CAP_PROP_GAIN, aValue)
-
-  @property
-  def exposure( self ) :
-    '''Get camera exposure -1.0-100.0.'''
-    return checkface.GetProp(self._checker, checkface.CV_CAP_PROP_EXPOSURE)
-
-  @exposure.setter
-  def exposure( self, aValue ) :
-    '''Set camera brightness -1.0-100.0. -1.0 equals automatic.'''
-    checkface.SetProp(self._checker, checkface.CV_CAP_PROP_EXPOSURE, aValue)
-
-  def cameradefaults( self ) :
-    self.scale = Clock.defaultscale
-    self.vflip = Clock.defaultvflip
-    self.contrast = Clock.defaultcontrast
-    self.saturation = Clock.defaultsaturation
-    self.gain = Clock.defaultgain
-    self.exposure = Clock.defaultexposure
-    self.brightness = Clock.defaultbrightness
-#END Camera properties.
+  def alwayson( self ) :
+    minutes = (self._curtime[0] * 60) + self._curtime[1]
+    return self._alwaysontimes[0] <= minutes < self._alwaysontimes[1]
 
   def triggerweatherupdate( self ) :
     self._weathertimer = 0.0
@@ -470,47 +400,41 @@ class Clock:
 #    print("Starting settings server")
     settings.run(self)
 
-  def weatherthread(self):
+  def weatherthread(self) :
     '''Update the weather every n minutes.'''
     waittime = 1.0
-    while self._running:
+    while self._running :
       self.UpdateWeather()
       self._weathertimer = self.tempupdateinterval * 60.0  #Convert minutes to seconds.
       #Check _running flag every second.
-      while (self._weathertimer > 0.0) and self._running:
+      while (self._weathertimer > 0.0) and self._running :
         self._weathertimer -= waittime
         time.sleep(waittime)
 
     print("Weather update thread exit.")
 
-
   def save( self ) :
     '''Save options to json file.'''
-    with open(Clock.savename, 'w+') as f:
+    with open(Clock.savename, 'w+') as f :
       data = {}
       data['tempon'] = self.tempdisplay
       data['duration'] = self.displayduration
       data['tempduration'] = self.tempdisplaytime
       data['interval'] = self.tempdisplayinterval
-      data['facecheck'] = self.checkinterval
+      data['objectcheck'] = self.checkinterval
       data['update'] = self.tempupdateinterval
       data['location'] = self.location
       data['color'] = self.colorstr
-      data['vflip'] = self.vflip
-      data['brightness'] = self.brightness
-      data['contrast'] = self.contrast
-      data['saturation'] = self.saturation
-      data['gain'] = self.gain
-      data['exposure'] = self.exposure
-      data['scale'] = self.scale
       data['alarm'] = self.alarmtime
+      data['variance'] = self.variance
+      data['alwayson'] = self.alwaysontimes
 
       dump(data, f)
 
   def load( self ) :
     '''Load options from json file.'''
-    try:
-      with open(Clock.savename, 'r') as f:
+    try :
+      with open(Clock.savename, 'r') as f :
         data = load(f)
         self.tempdisplay = data['tempon']
         self.tempdisplayinterval = data['interval']
@@ -518,17 +442,12 @@ class Clock:
         self.tempdisplaytime = data['tempduration']
         self.tempupdateinterval = data['update']
         self.colorstr = data['color']
-        self.vflip = data['vflip']
-        self.brightness = data['brightness']
-        self.contrast = data['contrast']
-        self.saturation = data['saturation']
-        self.gain = data['gain']
-        self.exposure = data['exposure']
-        self.scale = data['scale']
         self.location = data['location']
-        self.checkinterval = data['facecheck']
+        self.checkinterval = data['objectcheck']
         self.alarmtime = data['alarm']
-    except:
+        self.variance = data['variance']
+        self.alwaysontimes = data['alwayson']
+    except :
       pass
 
   def iline( self, sx, sy, ex, ey ) :
@@ -543,7 +462,7 @@ class Clock:
     x = x * wh + pos[0]
     y = y * wh + pos[1]
     #Horizontal line.
-    if d == 0:
+    if d == 0 :
       sx = x + Clock.segadjust
       ex = sx + wh - Clock.segadjust
       self.iline(sx, y + 1, ex, y + 1)
@@ -551,12 +470,12 @@ class Clock:
       sx += 1
       ex -= 1
       #If size is large enough for 2 lines then draw one.
-      if wh >= Clock.twoline:
+      if wh >= Clock.twoline :
         self.iline(sx, y, ex, y)
       #if large enough to 3 then draw the final line.
       if wh >= Clock.threeline :
         self.iline(sx, y + 2, ex, y + 2)
-    else:
+    else :
       #Vertical line.
       sy = y + 1
       ey = sy + wh - 1
@@ -565,7 +484,7 @@ class Clock:
       sy += 1
       ey -= 1
       #if large enough to 3 then draw the final line.
-      if wh >= Clock.twoline:
+      if wh >= Clock.twoline :
         self.iline(x, sy, x, ey)
       #if large enough to 3 then draw the final line.
       if wh >= Clock.threeline :
@@ -573,7 +492,7 @@ class Clock:
 
   def drawsegs( self, pos, seglist, wh ) :
     '''Draw segments in seglist at pos with given size of wh.'''
-    for s in seglist:
+    for s in seglist :
       self.drawseg(pos, Clock.segs[s], wh)
 
   def draw( self ) :
@@ -593,7 +512,7 @@ class Clock:
         p = (x + int(self.wh * Clock.digitpos[anum]), y)
         d = self.digits[anum]
         self.drawsegs(p, Clock.apm[d], wh)
-        if d < 2:
+        if d < 2 :
           p = (p[0] + wh + (wh // 2) + 1, y)
           self.drawsegs(p, Clock.apm[2], wh)
 
@@ -608,6 +527,11 @@ class Clock:
       if self._alarmenabled :
         p = (x + int(self.wh * Clock.digitpos[4]), y + 4 + self.wh)
         self._oled.char(p, '\x1F', True, seriffont, (1, 1))
+
+      lvl = wifi.level()
+      if lvl > 0 :
+        p = (x + int(self.wh * Clock.digitpos[4]) + 18, y + 4 + self.wh)
+        self._oled.char(p, chr(lvl), True, wifi.font, (1, 1))
 
       #If we want to display the temperature then do so at the bottom right.
       if self.tempdisplay :
@@ -627,7 +551,7 @@ class Clock:
 
       #Draw the colon in between hh and mm every second for a second.
       #This will cause it to blink.
-      if (self.digits[5] & 1) == 1:
+      if (self.digits[5] & 1) == 1 :
         sx = (Clock.digitpos[1] + 1.0 + Clock.digitpos[2]) / 2
         sy = (self.wh // 3) * 2
         p = (int(sx * self.wh) + x, y + sy)
@@ -642,14 +566,14 @@ class Clock:
     '''Update weather by reading the URL
     "https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%3D' + str(aLoc) + '&format=json'
     '''
-    try:
+    try :
       req = urlopen(self._url, None, 2)
       d = req.read()
       j = loads(d.decode('utf-8'))
       cond = j['query']['results']['channel']['item']['condition']
       self.temp = int(cond['temp'])
       self.text = cond['text']
-    except Exception as e:
+    except Exception as e :
       print(e)
 
   def UpdateAlarm( self, dt ) :
@@ -662,7 +586,7 @@ class Clock:
       #Turn alarm off as soon as hour or minute change.
       if h != ah or m != am :
         self.triggered = False
-      else:
+      else :
         self._beeptime -= dt
         if self._beeptime <= 0 :
           self.beep = not self.beep  #toggle sound on/off at beepfreq.
@@ -701,11 +625,33 @@ class Clock:
 
     return 0
 
-  def updateir( self ) :
-    '''If hour is within night time turn secondary IRs on, else turn off.'''
-    h = self._curtime[0]
-    onoff = h > 18 or h < 9
-    self.iron = onoff
+  def checkforobject( self ) :
+    # Perhaps use the ambient temperature as the base?
+
+    res = False
+    #Get object temperature.
+    tmp = self._checker.objecttemp()
+
+    # If temperature varies by the expected amount above base temperature then display is on.
+    if tmp >= self._basetemp + self.variance :
+      res = True
+
+      if self._objectfoundtime == 0 :
+        self._objectfoundtime = self._prevtime
+      else :
+        dt = self._prevtime - self._objectfoundtime
+        if dt >= Clock.objecttempsetdelay :
+          self._objectfoundtime = 0
+          self._basetemp = tmp
+    else :
+      self._objectfoundtime = 0
+
+      # If temperature < base then immediately set new base.
+      if tmp < self._basetemp :
+        self._basetemp = tmp
+
+    # else if temperature > base for given amount of time, then set as new base.
+    return res
 
   def Update( self, dt ) :
     '''Run update of face check, time and display state.'''
@@ -741,25 +687,20 @@ class Clock:
             m = m % 60
             h = (h + 1) % 24
             change = True
-      else:
+      else :
         state = self._buttons[Clock.hourset].update()
         #If hourset pressed then increase hour.
         if button.ison(state) and self.checkinc(state, Clock.incrateh, dt) :
           h = (h + 1) % 24
           change = True
-        else:
+        else :
           #timeset button is used to decrement hour.
           state = self._buttons[Clock.timeset].state
           if button.ison(state) and self.checkinc(state, Clock.incrateh, dt) :
             h = (h - 1) % 24
             change = True
       self._alarmtime = (h, m)
-    else:
-      #If time set button pressed then set checkface to save an image.
-      if self._buttons[Clock.timeset].pressed :
-        print("Capturing Image")
-        checkface.SetCapture(self._checker)
-
+    else :
       h, m = self._curtime                      #Display current time.
 
       #If snooze button pressed just enable the display.
@@ -767,14 +708,14 @@ class Clock:
         self.on = True;                         #Turn display on.
         self.triggered = False                  #Turn alarm off if it was triggered.
       #else check for a face for display enable.
-      else:
+      elif self.alwayson :
+        self.on = True
+      else :
         self._checktime -= dt
         if self._checktime <= 0.0 :
           self._checktime = self.checkinterval
-          self.updateir()                       #Turn extra IR diodes on if needed.
-#         print("Checking Face")
-          if checkface.Check(self._checker) :
-#            print("  face found!")
+          #Check for object temperature change.
+          if self.checkforobject() :
             self.on = True          #Turn display on.
             self.triggered = False  #Make sure alarm is off.
 
@@ -798,7 +739,7 @@ class Clock:
         apm = 1
         if h > 12 :
           h -= 12                               #12 hour display.
-      elif h == 0:
+      elif h == 0 :
         h = 12
 
     self.digits = (h // 10, h % 10, m // 10, m % 10, apm, s)
@@ -819,15 +760,15 @@ class Clock:
 
   def run( self ) :
     '''Run the clock.'''
-    try:
+    try :
       self._wtthread.start()
       self._settingsthread.start()
 
-      while self._running:
+      while self._running :
         if self._haskeyboard and keyboard.is_pressed('q') :
           self._running = False
           print("quitting.")
-        else:
+        else :
           ct = time.time()
           dt = min(1.0, ct - self._prevtime) #clamp max elapsed time to 1 second.
           self._prevtime = ct
@@ -838,7 +779,7 @@ class Clock:
           delay = 0.2 - (time.time() - ct)
           if delay > 0.0 :
             time.sleep(delay)
-    except KeyboardInterrupt:
+    except KeyboardInterrupt :
       print("ctrl-c exit.")
       self._running = False
 
@@ -848,7 +789,6 @@ class Clock:
     print("Shutting down threads.")
     self._wtthread.join()
     self._settingsthread.join()
-    self.iron = False #Turn secondary IR LEDS off.
     self._oled.clear()
     self._oled.display()
 
