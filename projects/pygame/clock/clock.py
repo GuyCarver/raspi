@@ -11,6 +11,61 @@ import woeid
 from terminalfont import terminalfont
 from buttons import button
 
+#todo: display duration, temp update interval
+#Add weather icons
+
+#Weather codes
+#Code  Description
+#0 tornado
+#1 tpcl storm
+#2 hurricane
+#3 svr t-storm
+#4 t-storm
+#5 rain/snow
+#6 rain/sleet
+#7 snow/sleet
+#8 frzng drzl
+#9 drizzle
+#10  frzng rain
+#11  showers
+#12  showers
+#13  flurries
+#14  light snow
+#15  blwng snow
+#16  snow
+#17  hail
+#18  sleet
+#19  dust
+#20  foggy
+#21  haze
+#22  smoky
+#23  blustery
+#24  windy
+#25  cold
+#26  cloudy
+#27  mstly cldy
+#28  mstly cldy
+#29  ptly cldy
+#30  ptly cldy
+#31  clear
+#32  sunny
+#33  fair
+#34  fair
+#35  rain/hail
+#36  hot
+#37  istd t-storm
+#38  sctd t-storm
+#39  sctd t-storm
+#40  sctd showers
+#41  heavy snow
+#42  sctd snow
+#43  heavy snow
+#44  ptly cloudy
+#45  t-showers
+#46  snow
+#47  istd t-shwrs
+#3200  not available
+
 class Clock:
 
   #x,y,dir x,y are mulipliers. Dir = (0=right, 1=down)
@@ -37,13 +92,15 @@ class Clock:
   fname = 'clock.json'
 
   #Snooze, Alarm On/Off Switch, Alarm Set, Minute, Hour, Time Set (Update temp)
-  buttonids = [7, 6, 0, 2, 3, 1]
+  buttonids = [1, 7, 0, 2, 3, 6, 4, 5]
   snooze = 0
   alarmonoff = 1
   alarmset = 2
   minuteset = 3
   hourset = 4
   timeset = 5
+  extra1 = 6
+  extra2 = 7
   #Seconds for different rates of increment.
   incratem = [(8.0, .1), (5.0, .2), (1.0, .3), (0.0, 0.5)]
   incrateh = [(1.0, .2), (0.0, 1.0)]
@@ -51,7 +108,59 @@ class Clock:
   fifteenrate = 10
 
   defaultalwaysontimes = (7 * 60, 19 * 60) #Times between which the display is always on, and object detection isn't necessary.
-  _tabname = ['', 'ALARM', 'ALWAYS ON', 'ALWAYS OFF']
+
+  _weathertext = [
+    'tornado',
+    'tpcl storm',
+    'hurricane',
+    'svr t-storm',
+    't-storm',
+    'rain/snow',
+    'rain/sleet',
+    'snow/sleet',
+    'frzng drzzle',
+    'drizzle',
+    'frzng rain',
+    'showers',
+    'showers',
+    'flurries',
+    'light snow',
+    'blwng snow',
+    'snow',
+    'hail',
+    'sleet',
+    'dust',
+    'foggy',
+    'haze',
+    'smoky',
+    'blustery',
+    'windy',
+    'cold',
+    'cloudy',
+    'mstly cldy',
+    'mstly cldy',
+    'prtly cldy',
+    'prtly cldy',
+    'clear',
+    'sunny',
+    'fair',
+    'fair',
+    'rain/hail',
+    'hot',
+    'istd t-storm',
+    'sctd t-storm',
+    'sctd t-storm',
+    'sctd showers',
+    'heavy snow',
+    'sctd snow',
+    'heavy snow',
+    'prtly cldy',
+    't-showers',
+    'snow',
+    'istd t-shwrs',
+  ]
+
+  _tabname = ['', 'ALARM', 'ALWAYS ON', 'ALWAYS OFF', 'VARIANCE']
 
   #Clock defaults.
   defaulttempinterval = 30                      #seconds to wait before tempurature update.
@@ -94,6 +203,7 @@ class Clock:
     self._tempdisplay = True
     self._curtime = (0, 0)
     self.temp = 0
+    self.code = 3200
     self.text = 'Sunny'
     self._color = 0x00FFFF
     self._url = ''
@@ -102,6 +212,7 @@ class Clock:
 
     self._alwaysontimes = [0, 0]
     self.alwaysontimes = Clock.defaultalwaysontimes
+    self._variance = 2
 
     self._weathertimer = 0.0
     self._prevtime = time.time()
@@ -115,37 +226,43 @@ class Clock:
     self._wtthread = Thread(target=self.weatherthread)
     self._settingsthread = Thread(target=self.startsettings)
 
-
 ########### New stuff ###########.
     pygame.joystick.init()
-    if pygame.joystick.get_count() :
+    if pygame.joystick.get_count():
       joy = pygame.joystick.Joystick(0)
       joy.init()
       button.setjoy(joy)
 
     self._tab = 0 #0 = clock, 1 = alarm, 2 = start time, 3 = stop time
 
-  def __del__( self ) :
+  def __del__( self ):
     button.setjoy(None)
 
-  def processalarmbutton( self ) :
-    '''  '''
-    state = self._buttons[Clock.alarmset].update()
-    if state == button.CHANGE | button.DOWN :
-      self._tab += 1
-      if self._tab > 3 :
+  def processalarmbutton( self ):
+    '''Use alarm button to switch between displays.  Snooze button exits back to time.'''
+    state = self._buttons[Clock.snooze].update()
+    if state == button.CHANGE | button.DOWN:
+      if self._tab > 0:
         self._tab = 0
+        self.save()
+    else:
+      state = self._buttons[Clock.alarmset].update()
+      if state == button.CHANGE | button.DOWN:
+        self._tab += 1
+        if self._tab >= len(Clock._tabname):
+          self._tab = 0
+          self.save()
 
 #Alarm properties.
   @property
-  def beep( self ) :
+  def beep( self ):
     '''Return true if alarm sound can currently be heard.'''
     return self._beep
 
   @beep.setter
-  def beep( self, aTF ) :
+  def beep( self, aTF ):
     '''Set alarm beep on/off.'''
-    if self._beep != aTF :
+    if self._beep != aTF:
       self._beep = aTF
       if self._beep:
         self._sounds[0].play()
@@ -153,46 +270,46 @@ class Clock:
         self._sounds[1].play()
 
   @property
-  def triggered( self ) :
+  def triggered( self ):
     '''Return true if alarm is currently triggered (beeping).'''
     return self._triggered
 
   @triggered.setter
-  def triggered( self, aTF ) :
+  def triggered( self, aTF ):
     '''Set alarm trigger on/off.'''
-    if self._triggered != aTF :
+    if self._triggered != aTF:
       self._triggered = aTF
       self.beep = aTF
 
   @property
-  def alarmenabled( self ) :
+  def alarmenabled( self ):
     '''Return true if alarm is set to go off.'''
     return self._alarmenabled
 
   @alarmenabled.setter
-  def alarmenabled( self, aTF ) :
+  def alarmenabled( self, aTF ):
     '''Set alarm on/off.'''
     self._alarmenabled = aTF
-    if aTF == False :
+    if aTF == False:
       self.triggered = False
 
   @property
-  def alarmtime( self ) :
+  def alarmtime( self ):
     '''Return (hh,mm) tuple.'''
     return self._alarmtime
 
   @alarmtime.setter
-  def alarmtime( self, aValue ) :
+  def alarmtime( self, aValue ):
     '''Set alarm time (hh,mm) tuple.'''
     self._alarmtime = aValue
 
   @property
-  def alarmhhmm( self ) :
+  def alarmhhmm( self ):
     '''Get "hh:mm" in string format (for the settings http server).'''
     return Clock.tmconvert.format(*self._alarmtime)
 
   @alarmhhmm.setter
-  def alarmhhmm( self, aValue ) :
+  def alarmhhmm( self, aValue ):
     try:
       hh, mm = aValue.split(':')
       self.alarmtime = (int(hh), int(mm))
@@ -201,132 +318,132 @@ class Clock:
 #END Alarm properties.
 
   @property
-  def alwaysontimes( self ) :
+  def alwaysontimes( self ):
     return self._alwaysontimes
 
   @alwaysontimes.setter
-  def alwaysontimes( self, aValue ) :
+  def alwaysontimes( self, aValue ):
     start, stop = aValue
     start = min(stop, start)
     self._alwaysontimes[0] = start
     self._alwaysontimes[1] = stop
 
   @property
-  def alwaysontimeshhmm( self ) :
+  def alwaysontimeshhmm( self ):
     start, stop = self.alwaysontimes
     start = Clock.tmconvert.format(start // 60, start % 60)
     stop = Clock.tmconvert.format(stop // 60, stop % 60)
     return (start, stop)
 
   @alwaysontimeshhmm.setter
-  def alwaysontimeshhmm( self, aValue ) :
-    try :
-      def cnvt( atime ) :
+  def alwaysontimeshhmm( self, aValue ):
+    try:
+      def cnvt( atime ):
         hh, mm = atime.split(':')
         return (int(hh) * 60) + int(mm)
       self.alwaysontimes = (cnvt(aValue[0]), cnvt(aValue[1]))
-    except :
+    except:
       self.alwaysontimes = (0,0)
 
   @property
-  def tempdisplay( self ) :
+  def tempdisplay( self ):
     '''Return if large temp display is enabled.'''
     return self._tempdisplay
 
   @tempdisplay.setter
-  def tempdisplay( self, aValue ) :
+  def tempdisplay( self, aValue ):
     '''Enable/Disable large temperature display.'''
     self._tempdisplay = aValue
 
   @property
-  def tempdisplayinterval( self ) :
+  def tempdisplayinterval( self ):
     '''Get the interval in second for temperature display trigger.'''
     return self._tempdisplayinterval
 
   @tempdisplayinterval.setter
-  def tempdisplayinterval( self, aValue ) :
+  def tempdisplayinterval( self, aValue ):
     '''Set the interval in second for temperature display trigger.  Clamped to 60-tempdisplaytime.'''
     self._tempdisplayinterval = min(aValue, 60 - self.tempdisplaytime)
 
   @property
-  def tempdisplaytime( self ) :
+  def tempdisplaytime( self ):
     '''Get the temperature display duration.'''
     return self._tempdisplaytime
 
   @tempdisplaytime.setter
-  def tempdisplaytime( self, aValue ) :
+  def tempdisplaytime( self, aValue ):
     '''Set the temperature display duration and recalculate tempdisplayinterval.'''
     self._tempdisplaytime = aValue
     self.tempdisplayinterval = self.tempdisplayinterval #Recalculate the temp display interval.
 
   @property
-  def tempupdateinterval( self ) :
+  def tempupdateinterval( self ):
     '''Get the temperature update interval in minutes.'''
     return self._tempupdateinterval
 
   @tempupdateinterval.setter
-  def tempupdateinterval( self, aValue ) :
+  def tempupdateinterval( self, aValue ):
     '''Set the temperature update interval in minutes.'''
     self._tempupdateinterval = aValue
 
   @property
-  def hhmm( self ) :
+  def hhmm( self ):
     '''Get "hh:mm" in string format (for the settings http server).'''
     return Clock.tmconvert.format(self._h, self._m)
 
   @hhmm.setter
-  def hhmm( self, aValue ) :
+  def hhmm( self, aValue ):
     '''todo: Convert "hh:mm" into hours/minutes and set the time.'''
     pass
 
   @property
-  def date( self ) :
+  def date( self ):
     '''Get "yy-mm-dd" in string format (for the settings http server).'''
     t = datetime.date.today()
     return Clock.dtconvert.format(t.year, t.month, t.day)
 
   @property
-  def color( self ) :
+  def color( self ):
     '''Get the color in 0x00RRGGBB'''
     return self._color
 
   @color.setter
-  def color( self, aValue ) :
+  def color( self, aValue ):
     '''Set the color'''
     self._color = aValue
 
   @property
-  def colorstr( self ) :
+  def colorstr( self ):
     '''Get the color as a string "#RRGGBB".'''
     return Clock.colorconvert.format(self._color)
 
   @colorstr.setter
-  def colorstr( self, aValue ) :
+  def colorstr( self, aValue ):
     '''Set the color from a string format "#RRGGBB".'''
     c = int(aValue[1:], 16) #skin the leading #
     self._color = c
 
   @property
-  def location( self ) :
+  def location( self ):
     '''Get the location zip.'''
     return self._location
 
   @location.setter
-  def location( self, aLoc ) :
+  def location( self, aLoc ):
     '''Set the location zip and setup the querry url for the weather update thread.'''
     self._location = aLoc
-    try :
+    try:
       wid = woeid.woeidfromzip(aLoc)
-    except :
+    except:
       wid = 2458710 #Set to Frederick MD on error.
       print('error reading woeid from internet.')
 
     self._url = 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%3D' + str(wid) + '&format=json'
 
-  def triggerweatherupdate( self ) :
+  def triggerweatherupdate( self ):
     self._weathertimer = 0.0
 
-  def startsettings( self ) :
+  def startsettings( self ):
 #    print("Starting settings server")
     settings.run(self)
 
@@ -343,7 +460,7 @@ class Clock:
 
     print("Weather update thread exit.")
 
-  def save( self ) :
+  def save( self ):
     '''Save options to json file.'''
     with open(Clock.fname, 'w+') as f:
       data = {}
@@ -358,7 +475,7 @@ class Clock:
       data['alwayson'] = self.alwaysontimes
       dump(data, f)
 
-  def load( self ) :
+  def load( self ):
     '''Load options from json file.'''
 #    try:
     with open(Clock.fname, 'r') as f:
@@ -375,7 +492,7 @@ class Clock:
 #    except:
 #      pass
 
-  def char( self, aPos, aChar, aOn, aFont ) :
+  def char( self, aPos, aChar, aOn, aFont ):
     '''Draw a character at the given position using the given font and color.
        aSizes is a tuple with x, y as integer scales indicating the
        # of pixels to draw for each pixel in the character.'''
@@ -394,16 +511,16 @@ class Clock:
 
       charA = aFont["Data"][ci:ci + fontw]
       px = aPos[0]
-      for c in charA :
+      for c in charA:
         py = aPos[1]
-        for r in range(fonth) :
-          if c & 0x01 :
+        for r in range(fonth):
+          if c & 0x01:
             pygame.draw.line(self.screen, self._color, (px, py), (px, py))
           py += 1
           c >>= 1
         px += 1
 
-  def drawtext( self, aPos, aString, aOn, aFont ) :
+  def drawtext( self, aPos, aString, aOn, aFont ):
     '''Draw a text at the given position.  If the string reaches the end of the
        display it is wrapped to aPos[0] on the next line.  aSize may be an integer
        which will size the font uniformly on w,h or a or any type that may be
@@ -445,7 +562,7 @@ class Clock:
       if wh >= Clock.twoline:
         self.iline(sx, y, ex, y)
       #if large enough to 3 then draw the final line.
-      if wh >= Clock.threeline :
+      if wh >= Clock.threeline:
         self.iline(sx, y + 2, ex, y + 2)
     else:
       #Vertical line.
@@ -459,7 +576,7 @@ class Clock:
       if wh >= Clock.twoline:
         self.iline(x, sy, x, ey)
       #if large enough to 3 then draw the final line.
-      if wh >= Clock.threeline :
+      if wh >= Clock.threeline:
         self.iline(x + 2, sy, x + 2, ey)
 
   def drawsegs( self, pos, seglist, wh ):
@@ -486,17 +603,17 @@ class Clock:
         self.drawsegs(p, Clock.apm[2], wh)
 
     #Draw hh, mm and am/pm.
-    for x in range(4) :
+    for x in range(4):
       drawdig(x, self.digits[x])
     drawapm(4, self.digits[4])
 
     #If alarm enabled print the bell icon.
-    if self._alarmenabled :
+    if self._alarmenabled:
       p = (x + int(self.wh * Clock.digitpos[4]), y + 4 + self.wh)
       self.char(p, '\x1F', True, terminalfont)
 
     #If we want to display the temperature then do so at the bottom right.
-    if self.tempdisplay :
+    if self.tempdisplay:
       p = (x + int(self.wh * Clock.digitpos[4]), y + 3 + (self.wh * 2))
       wh = Clock.tempsize
       n1 = (self.temp // 10) % 10
@@ -511,9 +628,11 @@ class Clock:
       rect = (pos[0], pos[1], 3, 3)
       pygame.draw.rect(self.screen, self._color, rect)
 
+    drawtext = self._tab == 0
+
     #Draw the colon in between hh and mm every second for a second.
     #This will cause it to blink.
-    if self.digits[5] & 1 :
+    if self.digits[5] & 1:
       sx = (Clock.digitpos[1] + 1.0 + Clock.digitpos[2]) / 2
       sy = (self.wh // 3) * 2
       p = (int(sx * self.wh) + x, y + sy)
@@ -522,8 +641,10 @@ class Clock:
       p = (p[0], y + sy)
       drawrect(p)
 
-      if Clock._tabname[self._tab] != '' :
-        p = (x + 10, y + 10 + (self.wh * 2))
+      drawtext = True
+
+    if drawtext and Clock._tabname[self._tab] != '':
+        p = (x, y + 10 + (self.wh * 2))
         self.drawtext(p, Clock._tabname[self._tab], True, terminalfont)
 
   def UpdateWeather( self ):
@@ -536,50 +657,54 @@ class Clock:
       j = loads(d.decode('utf-8'))
       cond = j['query']['results']['channel']['item']['condition']
       self.temp = int(cond['temp'])
+      self.code = int(cond['code'])
+      if self.code < len(Clock._weathertext):
+        Clock._tabname[0] = Clock._weathertext[self.code]
+
       self.text = cond['text']
     except Exception as e:
       print(e)
 
-  def UpdateAlarm( self, dt ) :
+  def UpdateAlarm( self, dt ):
     '''Update the alarm state.'''
     ah, am = self.alarmtime
     #If alarm is currently triggered then update it.
     h, m = self._curtime
 
-    if self.triggered :
+    if self.triggered:
       #Turn alarm off as soon as hour or minute change.
-      if h != ah or m != am :
+      if h != ah or m != am:
         self.triggered = False
       else:
         self._beeptime -= dt
-        if self._beeptime <= 0 :
+        if self._beeptime <= 0:
           self.beep = not self.beep  #toggle sound on/off at beepfreq.
           self._beeptime = Clock.beepfreq
     #If alarm is set then once we hit the hour and minute start triggered.
     #But only check on every new minute.
-    elif self.alarmenabled and m != self._alarmcheckminute :
+    elif self.alarmenabled and m != self._alarmcheckminute:
       self._alarmcheckminute = m
-      if h == ah and m == am :
+      if h == ah and m == am:
         self.triggered = True
 
   @staticmethod
-  def _pmadjust( aHour ) :
+  def _pmadjust( aHour ):
     '''  '''
     apm = 0
-    if aHour >= 12 : #if pm then set to pm.
+    if aHour >= 12: #if pm then set to pm.
       apm = 1
-      if aHour > 12 :
+      if aHour > 12:
         aHour -= 12                             #12 hour display.
     elif aHour == 0:
       aHour = 12
 
     return (aHour, apm)
 
-  def checkinc( self, aState, rates, dt ) :
+  def checkinc( self, aState, rates, dt ):
     '''Determine if it's time to increment a value based on button state and time depressed.'''
 
     #We assume button is pressed if this function is called.  So this determines if it was just pressed.
-    if button.ischanged(aState) :
+    if button.ischanged(aState):
       self._pressedtime = 0.0
       self._repeattime = 0.0
       return 1
@@ -590,24 +715,42 @@ class Clock:
     rate = 0.0
 
     #Look up repeat rate based on pressed time.
-    for v in rates :
-      if self._pressedtime >= v[0] :
+    for v in rates:
+      if self._pressedtime >= v[0]:
         rate = v[1]
         break
 
     #If repeat time is > repeate rate then do a repeat.
-    if self._repeattime > rate :
+    if self._repeattime > rate:
       self._repeattime = 0
       return 1
 
     return 0
 
+  def testconditions( self ):
+    '''  '''
+    self._buttons[Clock.extra1].update()
+    change = False
+    if self._buttons[Clock.extra1].pressed:
+      self.code = (self.code - 1) % len(Clock._weathertext)
+      change = True
+    else:
+      self._buttons[Clock.extra2].update()
+      if self._buttons[Clock.extra2].pressed:
+        self.code = (self.code + 1) % len(Clock._weathertext)
+        change = True
+
+    if change:
+      Clock._tabname[0] = Clock._weathertext[self.code]
+
   def Update( self, dt ):
     '''Run update of face check, time and display state.'''
 
+    self.testconditions()
+
     self.processalarmbutton()
     state = self._buttons[Clock.alarmonoff].update()
-    if state == button.CHANGE :
+    if state == button.CHANGE:
       self.alarmenabled = not self.alarmenabled
 
     t = time.localtime()
@@ -615,70 +758,97 @@ class Clock:
     s = t.tm_sec
 
     apm = 0
-    apmadjust = True
 
     #Update button pressed states.
     tbuttonstate = self._buttons[Clock.timeset].update()
 
-    if self._tab == 0 :
+    if self._tab == 0:
       h, m = self._curtime                      #Display current time.
-    elif self._tab == 1 :
-      h, m = self._alarmtime
-    elif self._tab == 2 :
-      m = self.alwaysontimes[0]
-      h = m // 60
-      m = m % 60
-    else :
-      m = self.alwaysontimes[1]
-      h = m // 60
-      m = m % 60
 
-    if self._tab > 0 :
-      state = self._buttons[Clock.minuteset].update()
-      change = False
-      if button.ison(state) : #If minuteset pressed then increase minutes.
-        if self.checkinc(state, Clock.incratem, dt) :
-          m += 1
-          #Wrap around at 60 and increase hour.
-          if m > 59 :
-            m = m % 60
-            h = (h + 1) % 24
-            change = True
-      else :
-        state = self._buttons[Clock.hourset].update()
-        #If hourset pressed then increase hour.
-        if button.ison(state) and self.checkinc(state, Clock.incrateh, dt) :
-          h = (h + 1) % 24
-          change = True
-        else :
-          #timeset button is used to decrement hour.
-          if button.ison(tbuttonstate) and self.checkinc(tbuttonstate, Clock.incrateh, dt) :
-            h = (h - 1) % 24
-            change = True
-
-      if self._tab == 1 :
-        self._alarmtime = (h, m)
-      elif self._tab == 2 :
-        self.alwaysontimes = (h * 60 + m, self._alwaysontimes[1])
-      else :
-        self.alwaysontimes = (self._alwaysontimes[0], h * 60 + m)
-    else:
       #Update temp and display temp in main display if it's time.
-      if self.tempdisplay :
+      if self.tempdisplay:
+        #If timeset button is pressed during regular display we trigger temp update.
+        if self._buttons[Clock.timeset].pressed:
+          self.triggerweatherupdate()
+
         #If time to display then do so.
-        if ((s % self.tempdisplayinterval) < self.tempdisplaytime) :
-          apmadjust = False                     #Not a time we are displaying so don't do 24 hour adjustment.
+        if ((s % self.tempdisplayinterval) < self.tempdisplaytime):
           h = self.temp // 100                  #Clear hours to 0.
           m = self.temp % 100                   #Set minutes to the temperature (only works for positive temps).
           apm = 3                               #Set am/pm to deg symbol.
+    elif self._tab == 4:
+      m = self._variance
+      h = 0
+      apm = 3
+
+      state = self._buttons[Clock.minuteset].update()
+      if button.ison(state): #If minuteset pressed then increase minutes.
+        if self.checkinc(state, Clock.incratem, dt):
+          #If time button pressed, go backwards.
+          if button.ison(tbuttonstate):
+            m -= 1
+            if m < 1:
+              m += 8
+          else:
+            m += 1
+            if m > 8:
+              m -= 8
+          self._variance = m
+    else:
+      if self._tab == 1:
+        h, m = self._alarmtime
+      elif self._tab == 2:
+        m = self.alwaysontimes[0]
+        h = m // 60
+        m = m % 60
+      elif self._tab == 3:
+        m = self.alwaysontimes[1]
+        h = m // 60
+        m = m % 60
+
+      state = self._buttons[Clock.minuteset].update()
+      change = False
+      if button.ison(state): #If minuteset pressed then increase minutes.
+        if self.checkinc(state, Clock.incratem, dt):
+          #If time button pressed, go backwards.
+          if button.ison(tbuttonstate):
+            m -= 1
+            #Wrap around at 0 and decrease hour.
+            if m < 0:
+              m += 60
+              h = (h - 1) % 24
+          else:
+            m += 1
+            #Wrap around at 60 and increase hour.
+            if m > 59:
+              m = m % 60
+              h = (h + 1) % 24
+          change = True
+      else:
+        state = self._buttons[Clock.hourset].update()
+        #If hourset pressed then increase hour.
+        if button.ison(state) and self.checkinc(state, Clock.incrateh, dt):
+          #If time button pressed, decrement hour.
+          h = (h + (-1 if button.ison(tbuttonstate) else 1)) % 24
+          change = True
+
+      if change:
+        if self._tab == 1:
+          self._alarmtime = (h, m)
+        elif self._tab == 2:
+          self.alwaysontimes = (h * 60 + m, self._alwaysontimes[1])
+        else:
+          self.alwaysontimes = (self._alwaysontimes[0], h * 60 + m)
 
     #If we want to adjust time from 24 to 12 hour then do so.
-    if apmadjust :
+    # apm will be set to 3 (deg) if not.
+    if apm == 0:
       h, apm = self._pmadjust(h)
 
     self.digits = (h // 10, h % 10, m // 10, m % 10, apm, s)
 
-    if self._tab != 1 :
+    #Don't update alarm while we are setting it.
+    if self._tab != 1:
       self.UpdateAlarm(dt)
 
   def run( self ):
