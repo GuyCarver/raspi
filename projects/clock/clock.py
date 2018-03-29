@@ -18,12 +18,11 @@ import keyboard
 import settings
 import woeid
 from mlx90614 import mlx, c2f
-from seriffont import *
+from terminalfont import *
 from buttons import button
 import wifi
 
-#todo: Make clock stay on during day time and only turn off at night.  Maybe add a light sensor to control that?
-#todo: What is the time button going to do?  We don't need it for setting the time.
+#todo: Maybe add a light sensor to control when clock stays on?
 
 class Clock :
 
@@ -45,7 +44,7 @@ class Clock :
   apm = [(0,1,2,3,4,5), (0,1,2,3,4), (0,1,2,4,5,7,8,10), (0,1,2,3)]
 
   #Position x mulipliers of the clock digits and am/pm.
-  digitpos = [0.0, 1.3, 3.1, 4.4, 6.0]
+  digitpos = [0.0, 1.35, 3.2, 4.55, 6.15]
   twoline = 7     #minimum size for 2 line width of segment.
   threeline = 10  #minimum size for 3 line width of segment.
   tempsize = 6    #Size in pixels of temp half segment.
@@ -63,7 +62,7 @@ class Clock :
   hourset = 4
   timeset = 5
   #Seconds for different rates of increment.
-  incratem = [(8.0, .2), (5.0, .3), (2.0, .5), (0.0, 0.75)]
+  incratem = [(8.0, .1), (5.0, .2), (1.0, .3), (0.0, 0.5)]
   incrateh = [(1.0, .2), (0.0, 1.0)]
   fiverate = 7
   fifteenrate = 10
@@ -80,17 +79,17 @@ class Clock :
   defaulttempinterval = 30    #seconds to wait before tempurature update.
   defaulttempdur = 3          #Duration of main temp display.
   defaulttempupdate = 5.0     #Time between tempurature querries.
-  ledcontrolpin = 4           #GPIO4 pin controls secondary IR LEDs.
   alarmpin = 18               #GPIO18 pin is PWM for alarm buzzer.
   alarmfreq = 700             #Just play with this # til you get something nice.
   alarmdutycycle = 75         #Between 0-100 but 0 and 100 are silent.
   beepfreq = 1.0              #Frequency in seconds for beep.
 
+  _tabname = ['', 'ALARM', 'ALWAYS ON', 'ALWAYS OFF']
+
   def __init__( self ) :
     print("Init")
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
-    GPIO.setup(Clock.ledcontrolpin, GPIO.OUT)
     GPIO.setup(Clock.alarmpin, GPIO.OUT)
     self._buttons = [ button(i) for i in Clock.buttonids ]
     self._pressedtime = 0                         #Used to track amount of time the hour/minute set buttons are pressed.
@@ -105,13 +104,14 @@ class Clock :
     self._beeptime = Clock.beepfreq
 
     self._tempdisplayinterval = Clock.defaulttempinterval
+
     #set properties
     self.tempdisplaytime = Clock.defaulttempdur
     self.tempupdateinterval = Clock.defaulttempupdate
     self.displayduration = Clock.defaultdisplaydur
     self.checkinterval = Clock.defaultobjectcheck
     self.wh = 15  #Size of half of the segment (0-3).  IE: segment 6 is drawn at y of 30 if wh is 15.
-    self.pos = (5, 10)
+    self.pos = (1, 10)
     self.size = (128, 64)
 
     try :
@@ -120,7 +120,12 @@ class Clock :
       self._oled = oled(0)  #if those fail we're using the 1st gen maybe?
 
     self._oled.rotation = 2
-    self.digits = (0, 0, 0, 0, 0, 0)
+
+    #wifi stuff.
+    self._lvl = -100  #wifi level.
+    self._lastsecond = 0
+
+    self._digits = (0, 0, 0, 0, 0, 0)
     self._tempdisplay = True
     self._curtime = (0, 0)
     self.temp = 0
@@ -129,16 +134,18 @@ class Clock :
     self._url = ''
     self.location = '21774' #zipcode.
     self._running = True
-    self._ontime = 0.0
-    self.on = True
     self._dirtydisplay = False
-    self._checktime = 0
 
     self._weathertimer = 0.0
     self._prevtime = time.time()
 
+    self._ontime = 0.0
+    self.on = True
+    self._checktime = 0                         #Timer for checking for object.
     self._checker = mlx()
+    self._tab = 0 #0 = clock, 1 = alarm, 2 = start time, 3 = stop time
 
+    self._alwaysontimes = [0, 0]
     self.mlxdefaults()
     self.load()
 
@@ -155,6 +162,15 @@ class Clock :
   def __del__( self ) :
     self._oled.clear()
     GPIO.cleanup()
+
+  def processalarmbutton( self ) :
+    '''Use alarm button to switch between displays'''
+    state = self._buttons[Clock.alarmset].update()
+    if state == button.CHANGE | button.DOWN :
+      self._tab += 1
+      if self._tab > 3 :
+        self._tab = 0
+        self.save()
 
 #Alarm properties.
   @property
@@ -193,6 +209,8 @@ class Clock :
   def alarmenabled( self, aTF ) :
     '''Set alarm on/off.'''
     self._alarmenabled = aTF
+    if aTF == False :
+      self.triggered = False
 
   @property
   def alarmtime( self ) :
@@ -226,7 +244,8 @@ class Clock :
   def alwaysontimes( self, aValue ) :
     start, stop = aValue
     start = min(stop, start)
-    self._alwaysontimes = (start, stop)
+    self._alwaysontimes[0] = start
+    self._alwaysontimes[1] = stop
 
   @property
   def alwaysontimeshhmm( self ) :
@@ -384,7 +403,7 @@ class Clock :
     self._variance = aValue
 
   def mlxdefaults( self ) :
-    self._alwaysontimes = Clock.defaultalwaysontimes
+    self.alwaysontimes = Clock.defaultalwaysontimes
     self._basetemp = Clock.defaultbasetemp
     self.variance = Clock.defaultvariance
 
@@ -504,13 +523,13 @@ class Clock :
       #Draw an hour or minute digit.
       def drawdig( anum ) :
         p = (x + int(self.wh * Clock.digitpos[anum]), y)
-        self.drawsegs(p, Clock.nums[self.digits[anum]], self.wh)
+        self.drawsegs(p, Clock.nums[self._digits[anum]], self.wh)
 
       #Draw am or pm depending on the hour.
       def drawapm( anum ) :
         wh = self.wh // 2
         p = (x + int(self.wh * Clock.digitpos[anum]), y)
-        d = self.digits[anum]
+        d = self._digits[anum]
         self.drawsegs(p, Clock.apm[d], wh)
         if d < 2 :
           p = (p[0] + wh + (wh // 2) + 1, y)
@@ -526,12 +545,12 @@ class Clock :
       #If alarm enabled print the bell icon.
       if self._alarmenabled :
         p = (x + int(self.wh * Clock.digitpos[4]), y + 4 + self.wh)
-        self._oled.char(p, '\x1F', True, seriffont, (1, 1))
+        self._oled.char(p, '\x1F', True, terminalfont, (1, 1))
 
-      lvl = wifi.level()
-      if lvl > 0 :
+      #Draw wifi level indicator
+      if self._lvl > 0 :
         p = (x + int(self.wh * Clock.digitpos[4]) + 18, y + 4 + self.wh)
-        self._oled.char(p, chr(lvl), True, wifi.font, (1, 1))
+        self._oled.char(p, chr(self._lvl), True, wifi.font, (1, 1))
 
       #If we want to display the temperature then do so at the bottom right.
       if self.tempdisplay :
@@ -551,7 +570,7 @@ class Clock :
 
       #Draw the colon in between hh and mm every second for a second.
       #This will cause it to blink.
-      if (self.digits[5] & 1) == 1 :
+      if self._digits[5] & 1 :
         sx = (Clock.digitpos[1] + 1.0 + Clock.digitpos[2]) / 2
         sy = (self.wh // 3) * 2
         p = (int(sx * self.wh) + x, y + sy)
@@ -559,6 +578,11 @@ class Clock :
         sy += sy
         p = (p[0], y + sy)
         drawrect(p)
+
+        #Draw the display tab name.
+        if Clock._tabname[self._tab] != '' :
+          p = (x + 10, y + 10 + (self.wh * 2))
+          self._oled.text(p, Clock._tabname[self._tab], 1, terminalfont)
 
       self._oled.display() #Update the display.
 
@@ -598,6 +622,19 @@ class Clock :
       if h == ah and m == am :
         self.triggered = True
 
+  @staticmethod
+  def _pmadjust( aHour ) :
+    '''  '''
+    apm = 0
+    if aHour >= 12 : #if pm then set to pm.
+      apm = 1
+      if aHour > 12 :
+        aHour -= 12                             #12 hour display.
+    elif aHour == 0:
+      aHour = 12
+
+    return (aHour, apm)
+
   def checkinc( self, aState, rates, dt ) :
     '''Determine if it's time to increment a value based on button state and time depressed.'''
 
@@ -605,7 +642,7 @@ class Clock :
     if button.ischanged(aState) :
       self._pressedtime = 0.0
       self._repeattime = 0.0
-      return 1.0
+      return 1
 
     self._pressedtime += dt                     #Update amount of time the button has been pressed.
     self._repeattime += dt                      #Update amount of time until repeat of button press.
@@ -659,8 +696,7 @@ class Clock :
     state = self._buttons[Clock.alarmonoff].update()
     self._alarmenabled = button.ison(state)
 
-    state = self._buttons[Clock.alarmset].update()
-    settingalarm = button.ison(state)
+    self.processalarmbutton()
 
     #Read time and save in digits.
     t = time.localtime()
@@ -673,10 +709,21 @@ class Clock :
     #Update button pressed states.
     self._buttons[Clock.timeset].update()
 
-    #Don't bother looking for face if we are setting the alarm
-    if settingalarm :
-      self.on = True;                           #Turn display on so we can see alarm time setting.
+    if self._tab == 0 :
+      h, m = self._curtime                      #Display current time.
+    elif self._tab == 1 :
       h, m = self._alarmtime
+    elif self._tab == 2 :
+      m = self.alwaysontimes[0]
+      h = m // 60
+      m = m % 60
+    else :
+      m = self.alwaysontimes[1]
+      h = m // 60
+      m = m % 60
+
+    if self._tab > 0 :
+      self.on = True;                           #Turn display on so we can see alarm time setting.
       state = self._buttons[Clock.minuteset].update()
       change = False
       if button.ison(state) : #If minuteset pressed then increase minutes.
@@ -699,10 +746,14 @@ class Clock :
           if button.ison(state) and self.checkinc(state, Clock.incrateh, dt) :
             h = (h - 1) % 24
             change = True
-      self._alarmtime = (h, m)
-    else :
-      h, m = self._curtime                      #Display current time.
 
+      if self._tab == 1 :
+        self._alarmtime = (h, m)
+      elif self._tab == 2 :
+        self.alwaysontimes = (h * 60 + m, self._alwaysontimes[1])
+      else :
+        self.alwaysontimes = (self._alwaysontimes[0], h * 60 + m)
+    else :
       #If snooze button pressed just enable the display.
       if button.ison(self._buttons[Clock.snooze].update()) :
         self.on = True;                         #Turn display on.
@@ -722,7 +773,6 @@ class Clock :
       #Update temp and display temp in main display if it's time.
       if self.tempdisplay :
         #If timeset button is pressed during regular display we trigger temp update.
-        self._buttons[Clock.timeset].update()
         if self._buttons[Clock.timeset].pressed :
           self.triggerweatherupdate()
 
@@ -735,16 +785,16 @@ class Clock :
 
     #If we want to adjust time from 24 to 12 hour then do so.
     if apmadjust :
-      if h >= 12 : #if pm then set to pm.
-        apm = 1
-        if h > 12 :
-          h -= 12                               #12 hour display.
-      elif h == 0 :
-        h = 12
+      h, apm = self._pmadjust(h)
 
-    self.digits = (h // 10, h % 10, m // 10, m % 10, apm, s)
+    self._digits = (h // 10, h % 10, m // 10, m % 10, apm, s)
 
     if self.on :
+      #Every second we'll check wifi signal level.
+      if s != self._lastsecond :
+        self._lastsecond = s
+        self._lvl = wifi.level()
+
       #if display on then update the on time and display.
       self._ontime -= dt
       rem = self._ontime
@@ -754,9 +804,9 @@ class Clock :
         self._oled.clear()
         self._oled.display()
 
-    #Don't update alarm while we are settnig it.
-    if not settingalarm :
-      self.UpdateAlarm(dt)
+      #Don't update alarm while we are settnig it.
+      if self._tab != 1 :
+        self.UpdateAlarm(dt)
 
   def run( self ) :
     '''Run the clock.'''

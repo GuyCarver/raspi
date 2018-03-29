@@ -12,10 +12,12 @@ class button(object) :
   STATE = 1       #Mask for button state.
   CHANGE = 2      #Indicates button has changed state since last update.
 
+  @staticmethod
   def ison( aState ) :
     '''return True if given button state is on'''
     return (aState & button.STATE) == button.DOWN
 
+  @staticmethod
   def ischanged( aState ) :
     '''return True if given button state indicates it changed.'''
     return (aState & button.CHANGE) != 0
@@ -38,12 +40,12 @@ class button(object) :
   @property
   def pressed( self ) :
     '''return 1 if button just pressed else 0'''
-    return (self._prevstate ^ self._curstate) & self._prevstate
+    return (self._prevstate ^ self._curstate) & self._prevstate & button.STATE
 
   @property
   def released( self ) :
     '''return 1 if button just released else 0'''
-    return (self._prevstate ^ self._curstate) & self._curstate
+    return (self._prevstate ^ self._curstate) & self._curstate & button.STATE
 
   @property
   def on( self ) :
@@ -51,12 +53,14 @@ class button(object) :
     return button.ison(self._curstate)
 
   def update( self ) :
-    '''Returns NOACTION, PRESSED or RELEASED.'''
+    '''Update button state and returns state + change flag.'''
     self._prevstate = self._curstate
-    self._curstate = GPIO.input(self._channel)
-    res = self._curstate
-    if self._curstate != self._prevstate :
+    res = GPIO.input(self._channel)
+    if res != (self._prevstate & button.STATE):
       res |= button.CHANGE
+
+    self._curstate = res
+
     return res
 
 #todo: Test all 6 buttons and the alarm switch.

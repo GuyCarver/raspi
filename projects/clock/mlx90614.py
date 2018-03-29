@@ -57,3 +57,4 @@ class mlx(object) :
 
   def object2temp( self ) :
     return self.readtemp(mlx._TOBJ2)
+
