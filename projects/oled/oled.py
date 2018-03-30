@@ -62,6 +62,8 @@ class oled(object) :
   _SETSTARTLINE = 0x40
 
   _MEMORYMODE = 0x20
+  _COLUMNADDR = 0x21
+  _PAGEADDR = 0x22
 
   _COMSCANINC = 0xC0
   _COMSCANDEC = 0xC8
@@ -81,9 +83,9 @@ class oled(object) :
   _VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL = 0x29
   _VERTICAL_AND_LEFT_HORIZONTAL_SCROLL = 0x2A
 
-  def __init__( self, aLoc=1 ) :
+  def __init__( self, aLoc=1, aHeight = 64 ) :
     """aLoc I2C pin location is either 1 for 'X' or 2 for 'Y'."""
-    self._size = (128, 64)
+    self._size = (128, aHeight)
     self._rotation = 0
     self._inverted = False
     self._on = False
@@ -91,19 +93,20 @@ class oled(object) :
     self.pages = self.size[1] // 8
     self.bytes = self.size[0] * self.pages
     self.buffer = bytearray(self.bytes)
+    self._dim = 0x8F  #Dim level 0-255
 
     #Send the initialization commands.
     self._command(oled._DISPLAYOFF,
       oled._SETDISPLAYCLOCKDIV, 0x80, #suggested ratio.
-      oled._SETMULTIPLEX, 0x3F,
+      oled._SETMULTIPLEX, aHeight - 1,
       oled._SETDISPLAYOFFSET, 0x0,
       oled._SETSTARTLINE, #| 0x0
       oled._CHARGEPUMP, 0x14,  #No external power.
       oled._MEMORYMODE, 0x00,  #Act like ks0108
       oled._SEGREMAP + 0x01,
       oled._COMSCANDEC,
-      oled._SETCOMPINS, 0x12,
-      oled._SETCONTRAST, 0xCF,
+      oled._SETCOMPINS, 0x12 if aHeight == 64 else 0x02,
+      oled._SETCONTRAST, self._dim,
       oled._SETPRECHARGE, 0xF1,
       oled._SETVCOMDETECT, 0x40,
       oled._DISPLAYALLON_RESUME,
@@ -128,9 +131,9 @@ class oled(object) :
 
   @on.setter
   def on( self, aTF ) :
+    '''Turn display on or off.'''
     if aTF != self._on :
       self._on = aTF
-      '''Turn display on or off.'''
       self._command(oled._DISPLAYON if aTF else oled._DISPLAYOFF)
 
   @property
@@ -142,6 +145,15 @@ class oled(object) :
       self._inverted = aTF
       self._command(oled._INVERTDISPLAY if aTF else oled._NORMALDISPLAY)
 
+  @property
+  def dim( self ):
+    return self._dim
+
+  @dim.setter
+  def dim( self, aValue ):
+    self._dim = aValue
+    self._command(oled._SETCONTRAST, self._dim)
+
   def _data( self, aValue ) :
     '''
     Sends a data byte or sequence of data bytes through to the
@@ -149,7 +161,6 @@ class oled(object) :
     data is larger than this it is sent in chunks.
     In our library, only data operation used is 128x64 long, ie whole canvas.
     '''
-
     for i in range(0, len(aValue), 32):
       self.i2c.write_i2c_block_data(oled.ADDRESS, oled._DATAMODE, list(aValue[i:i+32]))
 
@@ -263,6 +274,10 @@ class oled(object) :
     if aFont == None:
       return
 
+    #If single scale value given turn it into 2 dimensions.
+    if type(aSizes) == int :
+      aSizes = (aSizes, aSizes)
+
     startchar = aFont['Start']
     endchar = aFont['End']
 
@@ -297,7 +312,7 @@ class oled(object) :
     self._command(aDir, 0x00, start, 0x00, stop, 0x00, 0xFF, oled._ACTIVATE_SCROLL)
 
   def _scrollDiag( self, start, stop, aDir ) :
-    self._command(oled._SET_VERTICAL_SCROLL_AREA, 0x00, self.size()[1], aDir, 0x00,
+    self._command(oled._SET_VERTICAL_SCROLL_AREA, 0x00, self.size[1], aDir, 0x00,
       start, 0x00, stop, 0x01, oled._ACTIVATE_SCROLL)
 
   def scroll( self, adir, start=0, stop=7 ) :
@@ -314,7 +329,8 @@ class oled(object) :
       self._scrollDiag(start, stop, oled._VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL)
 
   def display( self ) :
-    self._command(oled._SETLOWCOLUMN, oled._SETHIGHCOLUMN, oled._SETSTARTLINE)
+    self._command(oled._COLUMNADDR, 0, self.size[0] - 1, oled._PAGEADDR, 0, self.pages - 1)
+#    self._command(oled._SETLOWCOLUMN, oled._SETHIGHCOLUMN, oled._SETSTARTLINE)
     self._data(self.buffer)
 
 
