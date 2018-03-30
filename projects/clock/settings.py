@@ -221,7 +221,7 @@ class RH(BaseHTTPRequestHandler):
       RH.ourTarget.tempdisplayinterval = int(dis)
       RH.ourTarget.tempupdateinterval = float(ud) #Convert from minutes to seconds.
 #      RH.ourTarget.colorstr = clr
-      RH.ourTarget.variance = float(variance)
+      RH.ourTarget.variance = int(variance)
       if ontime != None and offtime != None :
         RH.ourTarget.alwaysontimeshhmm = (ontime, offtime)
 #      RH.ourTarget.alarmenabled = aenabled
