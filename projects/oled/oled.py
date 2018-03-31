@@ -1,5 +1,5 @@
-#driver for Sainsmart 1.8" TFT display ST7735
-#Translated by Guy Carver from the ST7735 sample code.
+#128x64 OLED display driver.
+#128x32 support pulled from Adafruit SSD1306 libraries.
 
 #NOTE: This current code will set the pixel at 0,0 but the scrolling will not scroll it.  Don't know if it's software causing it or not.
 
@@ -26,7 +26,8 @@ from smbus import SMBus
 #   407 40F
 
 class oled(object) :
-  """diyMall OLED 9.6 128x64 pixel display driver."""
+  """diyMall OLED 9.6 128x64 pixel display driver.
+     Now also supports 128x32"""
 
   ADDRESS = 0x3C  # 011110+SA0+RW - 0x3C or 0x3D
   STOP = 0
@@ -84,7 +85,8 @@ class oled(object) :
   _VERTICAL_AND_LEFT_HORIZONTAL_SCROLL = 0x2A
 
   def __init__( self, aLoc=1, aHeight = 64 ) :
-    """aLoc I2C pin location is either 1 for 'X' or 2 for 'Y'."""
+    """aLoc I2C pin location is either 1 for 'X' or 2 for 'Y'.
+       aHeight should be either 64 or 32."""
     self._size = (128, aHeight)
     self._rotation = 0
     self._inverted = False

@@ -1,0 +1,6 @@
+python extension to use OpenCV to check for face from a camera.
+
+[ ] Add support for eyes.
+[ ] Need to get better results from image.  Currently external light values mess with the results too much.  Auto exposure doesn't help.
+
+

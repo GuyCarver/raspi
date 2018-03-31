@@ -234,6 +234,7 @@ class Clock:
       button.setjoy(joy)
 
     self._tab = 0 #0 = clock, 1 = alarm, 2 = start time, 3 = stop time
+    self.dim = 0x7F
 
   def __del__( self ):
     button.setjoy(None)
@@ -344,6 +345,21 @@ class Clock:
       self.alwaysontimes = (cnvt(aValue[0]), cnvt(aValue[1]))
     except:
       self.alwaysontimes = (0,0)
+
+  @property
+  def dim( self ):
+    return self._dim
+
+  @dim.setter
+  def dim( self, aValue ):
+    self._dim = aValue
+    print(self._dim)
+
+  def _nextdim( self ):
+    '''  '''
+    self._dim += 0x7F
+    if self._dim > 0xFF :
+      self._dim = 0
 
   @property
   def tempdisplay( self ):
@@ -473,24 +489,27 @@ class Clock:
       data['alarm'] = self.alarmhhmm
       data['alarmon'] = self.alarmenabled
       data['alwayson'] = self.alwaysontimes
+      data['dim'] = self.dim
+
       dump(data, f)
 
   def load( self ):
     '''Load options from json file.'''
-#    try:
-    with open(Clock.fname, 'r') as f:
-      data = load(f)
-      self.tempdisplay = data['tempon']
-      self.tempdisplayinterval = data['interval']
-      self.tempdisplaytime = data['tempduration']
-      self.tempupdateinterval = data['update']
-      self.colorstr = data['color']
-      self.location = data['location']
-      self.alarmhhmm = data['alarm']
-      self.alarmenabled = data['alarmon']
-      self.alwaysontimes = data['alwayson']
-#    except:
-#      pass
+    try:
+      with open(Clock.fname, 'r') as f:
+        data = load(f)
+        self.tempdisplay = data['tempon']
+        self.tempdisplayinterval = data['interval']
+        self.tempdisplaytime = data['tempduration']
+        self.tempupdateinterval = data['update']
+        self.colorstr = data['color']
+        self.location = data['location']
+        self.alarmhhmm = data['alarm']
+        self.alarmenabled = data['alarmon']
+        self.alwaysontimes = data['alwayson']
+        self.dim = data['dim']
+    except:
+      pass
 
   def char( self, aPos, aChar, aOn, aFont ):
     '''Draw a character at the given position using the given font and color.
@@ -761,8 +780,13 @@ class Clock:
 
     #Update button pressed states.
     tbuttonstate = self._buttons[Clock.timeset].update()
+    msetstate = self._buttons[Clock.minuteset].update()
 
     if self._tab == 0:
+      #Minute button updates dimness.
+      if msetstate == button.CHANGE :
+        self._nextdim()
+
       h, m = self._curtime                      #Display current time.
 
       #Update temp and display temp in main display if it's time.
@@ -781,9 +805,8 @@ class Clock:
       h = 0
       apm = 3
 
-      state = self._buttons[Clock.minuteset].update()
-      if button.ison(state): #If minuteset pressed then increase minutes.
-        if self.checkinc(state, Clock.incratem, dt):
+      if button.ison(msetstate): #If minuteset pressed then increase minutes.
+        if self.checkinc(msetstate, Clock.incratem, dt):
           #If time button pressed, go backwards.
           if button.ison(tbuttonstate):
             m -= 1
@@ -806,10 +829,9 @@ class Clock:
         h = m // 60
         m = m % 60
 
-      state = self._buttons[Clock.minuteset].update()
       change = False
-      if button.ison(state): #If minuteset pressed then increase minutes.
-        if self.checkinc(state, Clock.incratem, dt):
+      if button.ison(msetstate): #If minuteset pressed then increase minutes.
+        if self.checkinc(msetstate, Clock.incratem, dt):
           #If time button pressed, go backwards.
           if button.ison(tbuttonstate):
             m -= 1

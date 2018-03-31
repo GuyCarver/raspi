@@ -27,7 +27,12 @@ HTML = Template('<html><head><style type="text/css">' +
 
   '<span>Zip Code:</span>' +
   '<input type="number" name="zipcode" value="${zipcode}"></input>' +
-  '<input type="submit" name="gps" value="gps"><br/>' +
+  '<input type="submit" name="gps" value="gps"><br/><br/><br/>' +
+
+  '<datalist id="ticks"><option value="0" label="0"><option value="25">' +
+  '<option value="50" label="50"><option value="75"><option value="100" label="100"></datalist> ' +
+  '<span>Brightness:</span><input type="range" min="0" max="100" value="${bright}" name="bright" ' +
+  'onchange="form.submit()" list="ticks">  ${bright}<br/>' +
 
   '<span>Temp Display Duration:</span>' +
   '<select name="tempduration" style="width:50px" onchange="form.submit()">' +
@@ -121,6 +126,9 @@ class RH(BaseHTTPRequestHandler):
       subs['alarmtime'] = RH.ourTarget.alarmhhmm
       subs['thecolor'] = RH.ourTarget.colorstr
 
+      br = str(int(RH.ourTarget.dim / 2.55))
+      subs['bright'] = br
+
     self.send_response(200)
     self.send_header('Content-Type', 'text/html')
     self.end_headers()
@@ -139,6 +147,7 @@ class RH(BaseHTTPRequestHandler):
     t = form.getfirst('tempon')
     g = form.getfirst('gps')
     zc = form.getfirst('zipcode')
+    br = form.getfirst('bright')
     clr = form.getfirst('color')
     sv = form.getfirst('Save')
     aenabled = form.getfirst('alarmon') != None
@@ -166,6 +175,7 @@ class RH(BaseHTTPRequestHandler):
       RH.ourTarget.tempupdateinterval = float(ud) #Convert from minutes to seconds.
       RH.ourTarget.colorstr = clr
       RH.ourTarget.alarmenabled = aenabled
+      RH.ourTarget.dim = (0xFF * int(br)) // 100
       if atime != None:
         RH.ourTarget.alarmhhmm = atime
 
