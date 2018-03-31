@@ -4,7 +4,7 @@
 import RPi.GPIO as GPIO
 import time
 
-class button(object) :
+class button(object):
   """Handle input from a single button channel on GPIO."""
 
   DOWN = 0        #Indicates button is currently being pressed.
@@ -13,16 +13,16 @@ class button(object) :
   CHANGE = 2      #Indicates button has changed state since last update.
 
   @staticmethod
-  def ison( aState ) :
+  def ison( aState ):
     '''return True if given button state is on'''
     return (aState & button.STATE) == button.DOWN
 
   @staticmethod
-  def ischanged( aState ) :
+  def ischanged( aState ):
     '''return True if given button state indicates it changed.'''
     return (aState & button.CHANGE) != 0
 
-  def __init__( self, channel ) :
+  def __init__( self, channel ):
     super(button, self).__init__()
     self._channel = channel
     GPIO.setup(channel, GPIO.IN, pull_up_down = GPIO.PUD_UP)
@@ -30,29 +30,29 @@ class button(object) :
     self._prevstate = 1
 
   @property
-  def channel( self ) :
+  def channel( self ):
     return self._channel
 
   @property
-  def state( self ) :
+  def state( self ):
     return self._curstate
 
   @property
-  def pressed( self ) :
+  def pressed( self ):
     '''return 1 if button just pressed else 0'''
     return (self._prevstate ^ self._curstate) & self._prevstate & button.STATE
 
   @property
-  def released( self ) :
+  def released( self ):
     '''return 1 if button just released else 0'''
     return (self._prevstate ^ self._curstate) & self._curstate & button.STATE
 
   @property
-  def on( self ) :
+  def on( self ):
     '''return True if button state is on'''
     return button.ison(self._curstate)
 
-  def update( self ) :
+  def update( self ):
     '''Update button state and returns state + change flag.'''
     self._prevstate = self._curstate
     res = GPIO.input(self._channel)
@@ -68,25 +68,25 @@ class button(object) :
 #Snooze, Alarm On/Off Switch, Alarm Set, Minute, Hour, Time Set (Update temp)
 ButtonIDS = [12, 5, 6, 13, 19, 26]
 
-def test(  ) :
+def test(  ):
   GPIO.setwarnings(False)
   GPIO.setmode(GPIO.BCM)
 
   MyButtons = [ button(x) for x in ButtonIDS ]
 
   running = True;
-  try :
-    while running :
-      for b in MyButtons :
+  try:
+    while running:
+      for b in MyButtons:
         state = b.update()
-        if state & button.CHANGE :
+        if state & button.CHANGE:
           print("{} is {}".format(b.channel, "released" if state & button.UP else "pressed"))
       time.sleep(0.2)
-  except KeyboardInterrupt :
+  except KeyboardInterrupt:
     print("exiting.")
     running = False
 
-if __name__ == '__main__' :  #start server and open browser
+if __name__ == '__main__':  #start server and open browser
   test()
   print('done')
 

@@ -11,23 +11,23 @@ font = {"Width": 7, "Height": 8, "Start": 1, "End": 4, "Data": bytearray([
 
 check = re.compile('.*wlan0: .* *[0-9]*\\.. *(.*)\\.')
 
-def signal(  ) :
+def signal(  ):
   '''Read wireless signal from /proc/net/wireless file. Range is 0 to -100 with 0 being strongest.'''
   sig = -100
   try:
-    with open('/proc/net/wireless', 'r') as f :
+    with open('/proc/net/wireless', 'r') as f:
       f.readline() #Skip the header lines.
       f.readline()
       h = f.readline() #Read the data then parse the level value.
       g = check.match(h)
-      if g != None :
+      if g != None:
         sig = int(g.group(1))
   except Exception as e:
     print(e)
 
   return(sig)
 
-def signal2level( aSignal ) :
+def signal2level( aSignal ):
   '''aSignal between 0 and -100.
      Return level value 0-4
      4 = <= -54
@@ -37,14 +37,14 @@ def signal2level( aSignal ) :
      0 = > -75 (No useable signal)'''
   return min(max(0, (82 + aSignal) // 7), 4)
 
-def level(  ) :
+def level(  ):
   '''Read wireless signal strength, then convert to level 0-4.'''
   return signal2level(signal())
 
 #from time import sleep
 
-#def main(  ) :
-#  while True :
+#def main(  ):
+#  while True:
 #    v = signal()
 #    print(v)
 #    sleep(2.0)

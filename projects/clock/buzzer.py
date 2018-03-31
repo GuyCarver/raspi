@@ -8,7 +8,7 @@ buzzerfreq = 1200
 buzzerdutycycle = 75 #between 0-100 but 0 and 100 are silent.
 beepfreq = 1.0
 
-def run(  ) :
+def run(  ):
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(buzzerpin, GPIO.OUT)
@@ -17,7 +17,7 @@ def run(  ) :
     phase = False
 
     while True:
-      if phase :
+      if phase:
         buzzer.stop()
       else:
         buzzer.start(buzzerdutycycle)

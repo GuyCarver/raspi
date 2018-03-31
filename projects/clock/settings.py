@@ -11,7 +11,7 @@ import woeid
 
 #http://woeid.rosselliot.co.nz/lookup/21774
 
-#todo: Handle time setting. C vs F?
+#todo: Handle time setting. C vs F?, revert from saved data?
 
 HTML = Template('<html><head><style type="text/css">' +
   ' body {margin: 30px; font-family: sans-serif; background: #ddd;}' +
@@ -43,7 +43,12 @@ HTML = Template('<html><head><style type="text/css">' +
 
   '<span>Zip Code:</span>' +
   '<input type="number" name="zipcode" value="${zipcode}"></input>' +
-  '<input type="submit" name="gps" value="gps"><br/>' +
+  '<input type="submit" name="gps" value="gps"><br/><br/><br/>' +
+
+  '<datalist id="ticks"><option value="0" label="0"><option value="25">' +
+  '<option value="50" label="50"><option value="75"><option value="100" label="100"></datalist> ' +
+  '<span>Brightness:</span><input type="range" min="0" max="100" value="${bright}" name="bright" ' +
+  'onchange="form.submit()" list="ticks">  ${bright}<br/>' +
 
   '<span>Temp Display Duration:</span>' +
   '<select name="tempduration" style="width:50px" onchange="form.submit()">' +
@@ -86,21 +91,21 @@ class RH(BaseHTTPRequestHandler):
 
   ourTarget = None                                #Target Clock class.
 
-  def determineloc(  ) :
+  def determineloc(  ):
     '''Get a location from the Clock.'''
     return '21774' if RH.ourTarget == None else RH.ourTarget.location
 
-  def determinedur(  ) :
+  def determinedur(  ):
     '''Get a duration as z_??.'''
     dur = 5 if RH.ourTarget == None else int(RH.ourTarget.displayduration)
     return 'z_' + str(dur)
 
-  def determinetempdur(  ) :
+  def determinetempdur(  ):
     '''Get a duration as t_??.'''
     dur = 0 if RH.ourTarget == None else int(RH.ourTarget.tempdisplaytime)
     return 't_' + str(dur)
 
-  def determinetempinterval(  ) :
+  def determinetempinterval(  ):
     '''Get a interval or i_10, 15 or 30.'''
     inter = 30 if RH.ourTarget == None else RH.ourTarget.tempdisplayinterval
     inters = ''
@@ -113,7 +118,7 @@ class RH(BaseHTTPRequestHandler):
 
     return 'i_' + inters
 
-  def determineupdate(  ) :
+  def determineupdate(  ):
     '''Get update time of u_5, 10, 15, 30, 45 or 60.'''
     upd = 15.0 if RH.ourTarget == None else RH.ourTarget.tempupdateinterval
     upds = ''
@@ -132,33 +137,34 @@ class RH(BaseHTTPRequestHandler):
 
     return 'u_' + upds
 
-  def determineinterval(  ) :
+  def determineinterval(  ):
     return 0.1 if RH.ourTarget == None else RH.ourTarget.checkinterval
 
-  def do_GET( self ) :  #load initial page
+  def do_GET( self ):  #load initial page
 #    print('getting ' + self.path)
     subs = {RH.determinedur() : 'selected', RH.determinetempdur() : 'selected',
-      RH.determinetempinterval(): 'selected', RH.determineupdate(): 'selected',
-      'zipcode': RH.determineloc(), 'interval': RH.determineinterval() }
+      RH.determinetempinterval() : 'selected', RH.determineupdate() : 'selected',
+      'zipcode': RH.determineloc(), 'interval' : RH.determineinterval() }
 
     #If we have a target read data from it.
     if RH.ourTarget != None:
       cond = RH.ourTarget.text + ' and ' + str(RH.ourTarget.temp) + ' degrees.'
       subs['conditions'] = cond
 
-      if RH.ourTarget.tempdisplay :
+      if RH.ourTarget.tempdisplay:
         subs['t_on'] = 'checked'
 
-      if RH.ourTarget.alarmenabled :
+      if RH.ourTarget.alarmenabled:
         subs['alarmon'] = 'checked'
 
       subs['alarmtime'] = RH.ourTarget.alarmhhmm
 
       subs['variance'] = str(RH.ourTarget.variance)
 
-      aotimes = RH.ourTarget.alwaysontimeshhmm
-      print(aotimes)
+      br = str(int(RH.ourTarget.dim / 2.55))
+      subs['bright'] = br
 
+      aotimes = RH.ourTarget.alwaysontimeshhmm
       subs['ontime'] = aotimes[0]
       subs['offtime'] = aotimes[1]
 
@@ -171,7 +177,7 @@ class RH(BaseHTTPRequestHandler):
     self.end_headers()
     self.wfile.write(bytearray(HTML.safe_substitute(subs), 'utf-8'))
 
-  def do_POST( self ) :  #process requests
+  def do_POST( self ):  #process requests
     #read form data
     form = cgi.FieldStorage(fp = self.rfile, headers = self.headers,
                             environ = {'REQUEST_METHOD':'POST',
@@ -191,6 +197,7 @@ class RH(BaseHTTPRequestHandler):
 #    st = form.getfirst('SetTime')
     sa = form.getfirst('SetAlarm')
     variance = form.getfirst('variance')
+    br = form.getfirst('bright')
     aenabled = form.getfirst('alarmon') != None
     atime = form.getfirst('alarm')
     ontime = form.getfirst('ontime')
@@ -205,7 +212,7 @@ class RH(BaseHTTPRequestHandler):
 #    print('vars {}, {}'.format(c, s))
 
     #If gps button pressed then get the zipcode from our IP address.
-    if g != None :
+    if g != None:
 #      print('doing gps')
       zc = woeid.zipfromip()
 
@@ -222,23 +229,24 @@ class RH(BaseHTTPRequestHandler):
       RH.ourTarget.tempupdateinterval = float(ud) #Convert from minutes to seconds.
 #      RH.ourTarget.colorstr = clr
       RH.ourTarget.variance = int(variance)
-      if ontime != None and offtime != None :
+      RH.ourTarget.dim = (0xFF * int(br)) // 100
+      if ontime != None and offtime != None:
         RH.ourTarget.alwaysontimeshhmm = (ontime, offtime)
 #      RH.ourTarget.alarmenabled = aenabled
       if atime != None and sa != None:  #Only set alarm if the SetAlarm button pressed.
         RH.ourTarget.alarmhhmm = atime
 
       #If save button pressed then save settings to json file.
-      if sv != None :
+      if sv != None:
 #        print('saving')
         RH.ourTarget.save()
 
-      if defaults != None :
+      if defaults != None:
         RH.ourTarget.mlxdefaults()
 
     self.do_GET()                               #Re-read the data.
 
-def run( aTarget ) :
+def run( aTarget ):
   RH.ourTarget = aTarget
 
   server = HTTPServer(('', 8080), RH)
@@ -246,7 +254,7 @@ def run( aTarget ) :
 #  print("Staring server")
 
   #Loop as long as target clock is running or forever if we have none.
-  while RH.ourTarget == None or aTarget._running :
+  while RH.ourTarget == None or aTarget._running:
     server.handle_request()
     time.sleep(1.0)
 

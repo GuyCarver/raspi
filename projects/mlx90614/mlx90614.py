@@ -36,24 +36,25 @@ class mlx(object):
 
     self._i2c = smbus.SMBus(1)
 
-  def read( self, aLoc ) :
+  def read( self, aLoc ):
     '''Read 16 bit value and return.'''
     return self._i2c.read_word_data(mlx._ADDRESS, aLoc) #, addr_size = 16)
 
-#  def write( self, aVal, aLoc ) :
+#  def write( self, aVal, aLoc ):
 #    """Write 16 bit value to given address.  aVal may be an int buffer."""
 #    self._i2c.write_word_data(_ADDRESS, aLoc, aVal)
 
-  def readtemp( self, aLoc ) :
-    ''' '''
+  def readtemp( self, aLoc ):
+    '''Read the desired temperature in celsius '''
     temp = self.read(aLoc)
     return (temp * 0.02) - 273.15
 
-  def ambienttemp( self ) :
+  def ambienttemp( self ):
     return self.readtemp(mlx._TA)
 
-  def objecttemp( self ) :
+  def objecttemp( self ):
     return self.readtemp(mlx._TOBJ1)
 
-  def object2temp( self ) :
+  def object2temp( self ):
     return self.readtemp(mlx._TOBJ2)
+

@@ -23,6 +23,7 @@ from buttons import button
 import wifi
 
 #todo: Maybe add a light sensor to control when clock stays on?
+#todo: Hour setting toggle display of mlx90614 values?  Could add variance setting to it.
 
 #Weather codes
 #Code  Description
@@ -131,6 +132,7 @@ class Clock:
   defaulttempinterval = 30    #seconds to wait before tempurature update.
   defaulttempdur = 3          #Duration of main temp display.
   defaulttempupdate = 5.0     #Time between tempurature querries.
+  defaultdim = 0x7F           #Default value for brightness 0-0xFF.
   alarmpin = 18               #GPIO18 pin is PWM for alarm buzzer.
   alarmfreq = 700             #Just play with this # til you get something nice.
   alarmdutycycle = 75         #Between 0-100 but 0 and 100 are silent.
@@ -224,6 +226,7 @@ class Clock:
       self._oled = oled(0)  #if those fail we're using the 1st gen maybe?
 
     self._oled.rotation = 2
+    self._oled.dim = Clock.defaultdim
 
     #wifi stuff.
     self._lvl = -100  #wifi level.
@@ -386,6 +389,22 @@ class Clock:
     self._ontime = self.displayduration if aTF else 0.0
 
   @property
+  def dim( self ):
+    return self._oled.dim
+
+  @dim.setter
+  def dim( self, aValue ):
+    self._oled.dim = aValue
+
+  def _nextdim( self ):
+    '''Cycle through brightness values 0, 0x7F, 0xFE '''
+    d = self.dim  + 0x7F
+    if d > 0xFF :
+     d = 0
+    self.dim = d
+    self.on = True                                #Turn display on, so we can see the brightness.
+
+  @property
   def tempdisplay( self ):
     '''Return if large temp display is enabled.'''
     return self._tempdisplay
@@ -545,21 +564,25 @@ class Clock:
 
   def save( self ):
     '''Save options to json file.'''
-    with open(Clock.savename, 'w+') as f:
-      data = {}
-      data['tempon'] = self.tempdisplay
-      data['duration'] = self.displayduration
-      data['tempduration'] = self.tempdisplaytime
-      data['interval'] = self.tempdisplayinterval
-      data['objectcheck'] = self.checkinterval
-      data['update'] = self.tempupdateinterval
-      data['location'] = self.location
-      data['color'] = self.colorstr
-      data['alarm'] = self.alarmtime
-      data['variance'] = self.variance
-      data['alwayson'] = self.alwaysontimes
+    try:
+      with open(Clock.savename, 'w+') as f:
+        data = {}
+        data['tempon'] = self.tempdisplay
+        data['duration'] = self.displayduration
+        data['tempduration'] = self.tempdisplaytime
+        data['interval'] = self.tempdisplayinterval
+        data['objectcheck'] = self.checkinterval
+        data['update'] = self.tempupdateinterval
+        data['location'] = self.location
+        data['color'] = self.colorstr
+        data['alarm'] = self.alarmtime
+        data['variance'] = self.variance
+        data['alwayson'] = self.alwaysontimes
+        data['dim'] = self.dim
 
-      dump(data, f)
+        dump(data, f)
+    except:
+      pass
 
   def load( self ):
     '''Load options from json file.'''
@@ -577,6 +600,7 @@ class Clock:
         self.alarmtime = data['alarm']
         self.variance = data['variance']
         self.alwaysontimes = data['alwayson']
+        self.dim = data['dim']
     except:
       pass
 
@@ -656,12 +680,12 @@ class Clock:
       #If alarm enabled print the bell icon.
       if self._alarmenabled:
         p = (x + int(self.wh * Clock.digitpos[4]), y + 4 + self.wh)
-        self._oled.char(p, '\x1F', True, terminalfont, (1, 1))
+        self._oled.char(p, '\x1F', True, terminalfont, 1)
 
       #Draw wifi level indicator
       if self._lvl > 0:
         p = (x + int(self.wh * Clock.digitpos[4]) + 18, y + 4 + self.wh)
-        self._oled.char(p, chr(self._lvl), True, wifi.font, (1, 1))
+        self._oled.char(p, chr(self._lvl), True, wifi.font, 1)
 
       #If we want to display the temperature then do so at the bottom right.
       if self.tempdisplay:
@@ -827,9 +851,15 @@ class Clock:
 
     #Update button pressed states.
     tbuttonstate = self._buttons[Clock.timeset].update()
+    msetstate = self._buttons[Clock.minuteset].update()
+    hsetstate = self._buttons[Clock.hourset].update()
 
     #Regular time display.
     if self._tab == 0:
+      #Minute button updates dimness.
+      if msetstate == button.CHANGE :
+        self._nextdim()
+
       h, m = self._curtime                      #Display current time.
 
       #If snooze button pressed just enable the display.
@@ -866,9 +896,8 @@ class Clock:
       h = 0
       apm = 3
 
-      state = self._buttons[Clock.minuteset].update()
-      if button.ison(state): #If minuteset pressed then increase minutes.
-        if self.checkinc(state, Clock.incratem, dt):
+      if button.ison(msetstate): #If minuteset pressed then increase minutes.
+        if self.checkinc(msetstate, Clock.incratem, dt):
           #If time button pressed, go backwards.
           if button.ison(tbuttonstate):
             m -= 1
@@ -894,10 +923,9 @@ class Clock:
         h = m // 60
         m = m % 60
 
-      state = self._buttons[Clock.minuteset].update()
       change = False
-      if button.ison(state): #If minuteset pressed then increase minutes.
-        if self.checkinc(state, Clock.incratem, dt):
+      if button.ison(msetstate): #If minuteset pressed then increase minutes.
+        if self.checkinc(msetstate, Clock.incratem, dt):
           #If time button pressed, go backwards.
           if button.ison(tbuttonstate):
             m -= 1
@@ -913,9 +941,8 @@ class Clock:
               h = (h + 1) % 24
           change = True
       else:
-        state = self._buttons[Clock.hourset].update()
         #If hourset pressed then increase hour.
-        if button.ison(state) and self.checkinc(state, Clock.incrateh, dt):
+        if button.ison(hsetstate) and self.checkinc(hsetstate, Clock.incrateh, dt):
           #If time button pressed, decrement hour.
           h = (h + (-1 if button.ison(tbuttonstate) else 1)) % 24
           change = True
