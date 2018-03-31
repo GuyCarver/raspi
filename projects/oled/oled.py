@@ -25,7 +25,7 @@ from smbus import SMBus
 #   406 40E
 #   407 40F
 
-class oled(object) :
+class oled(object):
   """diyMall OLED 9.6 128x64 pixel display driver.
      Now also supports 128x32"""
 
@@ -84,7 +84,7 @@ class oled(object) :
   _VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL = 0x29
   _VERTICAL_AND_LEFT_HORIZONTAL_SCROLL = 0x2A
 
-  def __init__( self, aLoc=1, aHeight = 64 ) :
+  def __init__( self, aLoc=1, aHeight = 64 ):
     """aLoc I2C pin location is either 1 for 'X' or 2 for 'Y'.
        aHeight should be either 64 or 32."""
     self._size = (128, aHeight)
@@ -119,31 +119,31 @@ class oled(object) :
     self.display()
 
   @property
-  def size( self ) : return self._size
+  def size( self ): return self._size
 
   @property
-  def rotation( self ) : return self._rotation
+  def rotation( self ): return self._rotation
 
   @rotation.setter
-  def rotation( self, aValue ) :
+  def rotation( self, aValue ):
     self._rotation = aValue & 3
 
   @property
-  def on( self ) : return self._on
+  def on( self ): return self._on
 
   @on.setter
-  def on( self, aTF ) :
+  def on( self, aTF ):
     '''Turn display on or off.'''
-    if aTF != self._on :
+    if aTF != self._on:
       self._on = aTF
       self._command(oled._DISPLAYON if aTF else oled._DISPLAYOFF)
 
   @property
-  def invert( self ) : return self._inverted
+  def invert( self ): return self._inverted
 
   @invert.setter
-  def invert( self, aTF ) :
-    if aTF != self._inverted :
+  def invert( self, aTF ):
+    if aTF != self._inverted:
       self._inverted = aTF
       self._command(oled._INVERTDISPLAY if aTF else oled._NORMALDISPLAY)
 
@@ -156,7 +156,7 @@ class oled(object) :
     self._dim = aValue
     self._command(oled._SETCONTRAST, self._dim)
 
-  def _data( self, aValue ) :
+  def _data( self, aValue ):
     '''
     Sends a data byte or sequence of data bytes through to the
     device - maximum allowed in one transaction is 32 bytes, so if
@@ -166,18 +166,18 @@ class oled(object) :
     for i in range(0, len(aValue), 32):
       self.i2c.write_i2c_block_data(oled.ADDRESS, oled._DATAMODE, list(aValue[i:i+32]))
 
-  def _command( self, *aValue ) :
+  def _command( self, *aValue ):
     assert(len(aValue) <= 32)
     self.i2c.write_i2c_block_data(oled.ADDRESS, oled._CMDMODE, list(aValue))
 
-  def fill( self, aValue ) :
+  def fill( self, aValue ):
     for x in range(0, self.bytes):
       self.buffer[x] = aValue;
 
-  def clear( self ) :
+  def clear( self ):
     self.fill(0)
 
-  def pixel( self, aPos, aOn ) :
+  def pixel( self, aPos, aOn ):
     '''Draw a pixel at the given position'''
     x, y = aPos
     w, h = self.size
@@ -192,12 +192,12 @@ class oled(object) :
       bit = 1 << (aPos[1] % 8)
       index = (aPos[0] + (aPos[1] // 8) * w)
 
-      if aOn :
+      if aOn:
         self.buffer[index] |= bit
-      else :
+      else:
         self.buffer[index] &= ~bit
 
-  def line( self, aStart, aEnd, aOn ) :
+  def line( self, aStart, aEnd, aOn ):
     '''Draws a line from aStart to aEnd in the given color.  Vertical or horizontal
        lines are forwarded to vline and hline.'''
     px, py = aStart
@@ -232,7 +232,7 @@ class oled(object) :
         e += dx
         py += iny
 
-  def fillrect( self, aStart, aSize, aOn ) :
+  def fillrect( self, aStart, aSize, aOn ):
     '''Draw a filled rectangle.  aStart is the smallest coordinate corner
        and aSize is a tuple indicating width, height.'''
     x, y = aStart
@@ -242,7 +242,7 @@ class oled(object) :
     for i in range(y, y + h):
       self.line((x, i), (ex, i), aOn)
 
-  def text( self, aPos, aString, aColor, aFont, aSize = 1 ) :
+  def text( self, aPos, aString, aColor, aFont, aSize = 1 ):
     '''Draw a text at the given position.  If the string reaches the end of the
        display it is wrapped to aPos[0] on the next line.  aSize may be an integer
        which will size the font uniformly on w,h or a or any type that may be
@@ -268,7 +268,7 @@ class oled(object) :
         py += aFont["Height"] * wh[1] + 1
         px = aPos[0]
 
-  def char( self, aPos, aChar, aOn, aFont, aSizes ) :
+  def char( self, aPos, aChar, aOn, aFont, aSizes ):
     '''Draw a character at the given position using the given font and color.
        aSizes is a tuple with x, y as integer scales indicating the
        # of pixels to draw for each pixel in the character.'''
@@ -277,7 +277,7 @@ class oled(object) :
       return
 
     #If single scale value given turn it into 2 dimensions.
-    if type(aSizes) == int :
+    if type(aSizes) == int:
       aSizes = (aSizes, aSizes)
 
     startchar = aFont['Start']
@@ -291,46 +291,46 @@ class oled(object) :
 
       charA = aFont["Data"][ci:ci + fontw]
       px = aPos[0]
-      if aSizes[0] <= 1 and aSizes[1] <= 1 :
-        for c in charA :
+      if aSizes[0] <= 1 and aSizes[1] <= 1:
+        for c in charA:
           py = aPos[1]
-          for r in range(fonth) :
-            if c & 0x01 :
+          for r in range(fonth):
+            if c & 0x01:
               self.pixel((px, py), aOn)
             py += 1
             c >>= 1
           px += 1
       else:
-        for c in charA :
+        for c in charA:
           py = aPos[1]
-          for r in range(fonth) :
-            if c & 0x01 :
+          for r in range(fonth):
+            if c & 0x01:
               self.fillrect((px, py), aSizes, aOn)
             py += aSizes[1]
             c >>= 1
           px += aSizes[0]
 
-  def _scrollLR( self, start, stop, aDir ) :
+  def _scrollLR( self, start, stop, aDir ):
     self._command(aDir, 0x00, start, 0x00, stop, 0x00, 0xFF, oled._ACTIVATE_SCROLL)
 
-  def _scrollDiag( self, start, stop, aDir ) :
+  def _scrollDiag( self, start, stop, aDir ):
     self._command(oled._SET_VERTICAL_SCROLL_AREA, 0x00, self.size[1], aDir, 0x00,
       start, 0x00, stop, 0x01, oled._ACTIVATE_SCROLL)
 
-  def scroll( self, adir, start=0, stop=7 ) :
+  def scroll( self, adir, start=0, stop=7 ):
     '''Scroll in given direction.  Display is split in 8 vertical segments.'''
-    if adir == oled.STOP :
+    if adir == oled.STOP:
       self._command(oled._DEACTIVATE_SCROLL)
-    elif adir == oled.LEFT :
+    elif adir == oled.LEFT:
       self._scrollLR(start, stop, oled._LEFT_HORIZONTAL_SCROLL)
-    elif adir == oled.RIGHT :
+    elif adir == oled.RIGHT:
       self._scrollLR(start, stop, oled._RIGHT_HORIZONTAL_SCROLL)
-    elif adir == oled.DIAGLEFT :
+    elif adir == oled.DIAGLEFT:
       self._scrollDiag(start, stop, oled._VERTICAL_AND_LEFT_HORIZONTAL_SCROLL)
-    elif adir == oled.DIAGRIGHT :
+    elif adir == oled.DIAGRIGHT:
       self._scrollDiag(start, stop, oled._VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL)
 
-  def display( self ) :
+  def display( self ):
     self._command(oled._COLUMNADDR, 0, self.size[0] - 1, oled._PAGEADDR, 0, self.pages - 1)
 #    self._command(oled._SETLOWCOLUMN, oled._SETHIGHCOLUMN, oled._SETSTARTLINE)
     self._data(self.buffer)
