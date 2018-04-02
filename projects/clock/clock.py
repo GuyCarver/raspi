@@ -138,7 +138,7 @@ class Clock:
   alarmdutycycle = 75         #Between 0-100 but 0 and 100 are silent.
   beepfreq = 1.0              #Frequency in seconds for beep.
 
-  _tabname = ['', 'ALARM', 'ALWAYS ON', 'ALWAYS OFF', 'VARIANCE']
+  _tabname = ['', 'ALARM', 'ALWAYS ON', 'ALWAYS OFF', 'VARIANCE', 'SENSOR']
 
   #Abbreviated text for weather condition codes.
   _weathertext = [
@@ -270,21 +270,6 @@ class Clock:
   def __del__( self ):
     self._oled.clear()
     GPIO.cleanup()
-
-  def processalarmbutton( self ):
-    '''Use alarm button to switch between displays.  Snooze button exits back to time.'''
-    state = self._buttons[Clock.snooze].update()
-    if state == button.CHANGE | button.DOWN:
-      if self._tab > 0:
-        self._tab = 0
-        self.save()
-    else:
-      state = self._buttons[Clock.alarmset].update()
-      if state == button.CHANGE | button.DOWN:
-        self._tab += 1
-        if self._tab >= len(Clock._tabname):
-          self._tab = 0
-          self.save()
 
 #Alarm properties.
   @property
@@ -834,12 +819,33 @@ class Clock:
     # else if temperature > base for given amount of time, then set as new base.
     return res
 
-  def Update( self, dt ):
-    '''Run update of face check, time and display state.'''
-    #Only check for a face every so often.  If found turn display on.
-    state = self._buttons[Clock.alarmonoff].update()
-    self._alarmenabled = button.ison(state)
+  def updatebuttons( self ) :
+    for b in self._buttons:
+      b.update()
 
+  def processalarmbutton( self ):
+    '''Use alarm button to switch between displays.  Snooze button exits back to time.'''
+
+    #If snooze button jest pressed, show tab 0 (time).
+    if self._buttons[Clock.snooze].pressed:
+      if self._tab > 0:
+        self._tab = 0
+        self.save() #Save any potential changes on exit back to time.
+    else:
+      #alarmset button cycles through tabs.
+      if self._buttons[Clock.alarmset].pressed:
+        self._tab += 1
+        #Note: Tabs - 1 cuz we don't cycle through the sensor tab.
+        if self._tab >= len(Clock._tabname) - 1:
+          self._tab = 0
+          self.save()  #Save when we wrap around.
+
+  def Update( self, dt ):
+    '''Run clock update'''
+
+    self.updatebuttons()
+
+    self._alarmenabled = self._buttons[Clock.alarmonoff].on
     self.processalarmbutton()
 
     #Read time and save in digits.
@@ -850,9 +856,9 @@ class Clock:
     apm = 0
 
     #Update button pressed states.
-    tbuttonstate = self._buttons[Clock.timeset].update()
-    msetstate = self._buttons[Clock.minuteset].update()
-    hsetstate = self._buttons[Clock.hourset].update()
+    tbuttonstate = self._buttons[Clock.timeset].state
+    msetstate = self._buttons[Clock.minuteset].state
+    hsetstate = self._buttons[Clock.hourset].state
 
     #Regular time display.
     if self._tab == 0:
@@ -881,8 +887,12 @@ class Clock:
       #Update temp and display temp in main display if it's time.
       if self.tempdisplay:
         #If timeset button is pressed during regular display we trigger temp update.
-        if self._buttons[Clock.timeset].pressed:
+        if button.justpressed(tbuttonstate):
           self.triggerweatherupdate()
+
+        #If hour button is pressed we switch to sensor display tab.
+        if button.justpressed(hsetstate):
+          self._tab = 5
 
         #If time to display then do so.
         if ((s % self.tempdisplayinterval) < self.tempdisplaytime):
@@ -891,7 +901,7 @@ class Clock:
           apm = 3                               #Set am/pm to deg symbol.
     #Variance edit.
     elif self._tab == 4:
-      self.on = True;                           #Turn display on so we can see.
+      self.on = True                           #Turn display on so we can see.
       m = self._variance
       h = 0
       apm = 3
@@ -908,7 +918,17 @@ class Clock:
             if m > 8:
               m -= 8
           self._variance = m
-    #Alarm, Start and Stop times.
+    #Sensor data display tab.
+    elif self._tab == 5:
+      self.on = True                            #Turn display on so we can see.
+      m = int(c2f(self._checker.objecttemp()))
+      h = int(c2f(self._checker.ambienttemp()))
+      apm = 3
+
+      if button.justpressed(hsetstate):
+        self._tab = 0
+
+      #Alarm, Start and Stop times.
     else:
       self.on = True;                           #Turn display on so we can see alarm time setting.
 

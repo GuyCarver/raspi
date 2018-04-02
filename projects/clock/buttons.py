@@ -13,6 +13,10 @@ class button(object):
   CHANGE = 2      #Indicates button has changed state since last update.
 
   @staticmethod
+  def justpressed( aState ) :
+    return aState == button.CHANGE | button.DOWN
+
+  @staticmethod
   def ison( aState ):
     '''return True if given button state is on'''
     return (aState & button.STATE) == button.DOWN
