@@ -4,7 +4,7 @@ todo:
 [ ] get the ST7735 code into a python c lib.
 [*] Python get the camera to take pictures into a memory buffer
 [*] Python get OpenCV to examine image for a face.
-[ ] Get the face recognition to enable/disable oled display.
+[*] Get the face recognition to enable/disable oled display.
 [*] OLED brightness by adjusting the color.  This actually doesn't work.  The OLED values are binary.  There is no brightness control.
 [*] Create interface to be able to control clock setting remotely.
 
@@ -127,6 +127,20 @@ OpenCV:
 It could be possible to install the files into rootfs on the PC then use rsync to push them back to the raspi.
 END:
 
+\\ Network Connection //
+
+Setting up wifi:
+1: sudo nano /etc/wpa_supplicant/wpa_supplicant.conf
+2: Add the following to it.
+  network={
+        ssid="Carvers"
+        psk="password"
+        key_mgmt=WPA-PSK
+  }
+3: Add this to the bottom of your /etc/network/interfaces file, as it prevents power-save modes in the wifi dongles.
+  wireless-power off
+
+Static IP:
 PI1 is set to 192.168.2.61 static IP address.
 Add this to /etc/dhcpcd.conf
   interface wlan0
@@ -136,11 +150,10 @@ Add this to /etc/dhcpcd.conf
 
 Do the same for eth0.
 
-Add this to the bottom of your /etc/network/interfaces file, as it prevents power-save modes in the wifi dongles.
+\\ Remote Access //
 
-wireless-power off
-
-Can copy from ubunto bash directly to raspi with the following command:
+scp:
+Can copy from ubunto bash directly to raspi with the following command
 scp file pi@192.168.2.61:[destdir/filename]
   -r dir will copy a directory to the destination IE:
   scp -r clock pi@192.168.2.61:~/projects/pygame/clock
@@ -148,55 +161,6 @@ scp file pi@192.168.2.61:[destdir/filename]
 can ssh from ubuntu using:
 ssh pi@192.168.2.61
 ctrl+d or exit will stop the ssh session.
-
-Mounting external HD:
-[[https://www.modmypi.com/blog/how-to-mount-an-external-hard-drive-on-the-raspberry-pi-raspian]]
-In order to be able to write data I had to install ntfs-3g.
-
-USB Drive Backup:
-I formatted a 16gb USB drive with
-  sudo mkfs.vfat /dev/sda -n pibackup
-Then mounted with
-  sudo mkdir /mnt/usb
-  sudo mount /dev/sda /mnt/usb
-Running the SD Card Copier app after this didn't work.  In order to get it to work I had to not mount /dev/sda.  It still showed up in the write dropdown.
-
-Cross Compile OpenCV:
-This is the command used to cross compile OpenCV for arm on PC using the ubunto linux console.
-cmake -DCMAKE_TOOLCHAIN_FILE=../arm-gnueabi.toolchain.cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D BUILD_NEW_PYTHON_SUPPORT=ON -D INSTALL_C_EXAMPLES=ON -D INSTALL_PYTHON_EXAMPLES=ON  -D BUILD_EXAMPLES=ON ..
-
-PC Ubunto loc:
-ubunto bash files are at C:\Users\gcarver\AppData\Local\lxss
-You can't see this directory or set a shortcut to it but it exists.
-Copying files to here from windows will not be visible in ubuntu bash unless you touch them (so I heard).  So it's best to copy from bash using /mnt/? drive access.
-
-From bash you can access the windows files from /mnt/c or d.  But can't see usb drives.
-
-Auto ssh login:
-Note, all pi's use the same key.  To use multiple key's you'd have to create a .ssh/config file.
-On pi -
-  cd ~/.ssh
-  ssh-keygen -t rsa  (hit return through prompts)
-  cat id_rsa.pub >> authorized_keys
-  chmod 600 authorized_keys
-  rm id_rsa.pub
-  pi1 - pi4 have this key so you can just scp it from one of these.
-On client:
-  scp pi@pi ip:~/.ssh/id_rsa ~/.ssh
-  done
-
-ST7735:
-sudo modprobe fbtft_device name=sainsmart18 speed=16000000 rotate=270
-
-Hardware clock:
-Adding a battery backup clock to the pi, I followed the instructions here.
-[[https://www.raspberrypi.org/forums/viewtopic.php?f=63&t=161133]]
-
-Clock:
-Had to run pip install requests and pip install bs4 to run clock.py
-Auto start using Crontab.  Added the following line with
-crontab -e (to edit the crontab file)
-@reboot sudo /home/pi/projects/oled/clock.py > /home/pi/projects/oled/clock.log
 
 TightVNC:
 #!/bin/sh
@@ -219,8 +183,97 @@ case "$1" in
 esac
 exit 0
 
-wififont = {"Width": 7, "Height": 8, "Start": 0, "End": 3, "Data": bytearray([
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80 #wifi 1.
-  0x00, 0x00, 0x00, 0x00, 0xC0, 0x20, 0xA0 #wifi 2.
-  0x00, 0x00, 0xE0, 0x10, 0xC8, 0x28, 0xA8 #wifi 3.
-  0xF0, 0x08, 0xE4, 0x12, 0xCA, 0x2A, 0xAA #wifi 4.
+Auto ssh login:
+Note, all pi's use the same key.  To use multiple key's you'd have to create a .ssh/config file.
+On pi -
+  cd ~/.ssh
+  ssh-keygen -t rsa  (hit return through prompts)
+  cat id_rsa.pub >> authorized_keys
+  chmod 600 authorized_keys
+  rm id_rsa.pub
+  pi1 - pi4 have this key so you can just scp it from one of these.
+On client:
+  scp pi@pi ip:~/.ssh/id_rsa ~/.ssh
+  done
+
+\\ HDMI display //
+The minihdmi doesn't output to my square screen with the VGA converter. Have to tell the raspi to output VGA format over hdmi.
+1: Edit /boot/config.txt
+2: Make sure hdmi_force_hotplug=1 is not commented out.
+3: Uncomment the following or make sure they are there.
+  hdmi_group=1
+  hdmi_mode=1
+
+\\ Hard Drives and SD cards //
+Mounting external HD:
+[[https://www.modmypi.com/blog/how-to-mount-an-external-hard-drive-on-the-raspberry-pi-raspian]]
+In order to be able to write data I had to install ntfs-3g.
+
+USB Drive Backup:
+I formatted a 16gb USB drive with
+  sudo mkfs.vfat /dev/sda -n pibackup
+Then mounted with
+  sudo mkdir /mnt/usb
+  sudo mount /dev/sda /mnt/usb
+Running the SD Card Copier app after this didn't work.  In order to get it to work I had to not mount /dev/sda.  It still showed up in the write dropdown.
+
+\\ OpenCV //
+Cross Compile OpenCV:
+This is the command used to cross compile OpenCV for arm on PC using the ubunto linux console.
+cmake -DCMAKE_TOOLCHAIN_FILE=../arm-gnueabi.toolchain.cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D BUILD_NEW_PYTHON_SUPPORT=ON -D INSTALL_C_EXAMPLES=ON -D INSTALL_PYTHON_EXAMPLES=ON  -D BUILD_EXAMPLES=ON ..
+
+PC Ubunto loc:
+ubunto bash files are at C:\Users\gcarver\AppData\Local\lxss
+You can't see this directory or set a shortcut to it but it exists.
+Copying files to here from windows will not be visible in ubuntu bash unless you touch them (so I heard).  So it's best to copy from bash using /mnt/? drive access.
+
+From bash you can access the windows files from /mnt/c or d.  But can't see usb drives.
+
+\\ Bluetooth //
+Connecting:
+Got Raspi3 bluetooth working and connecting to my controller with the following commands.
+1: sudo bluetoothctl
+2: power on (optional)
+3: agent on
+4: default-agent
+5: scan on
+6: This scans forever and will show a list of items.
+7: pair ??:??:??:??:??:?? This is an address of 6 hex digits separated by :.  It's case sensitive.
+8: connect ??:??:??:??:??:??
+9: scan off
+10: exit
+
+Auto Connecting:
+Every time the raspi reboots or the controller disconnects we have to manually tell it to connect.  It doesn't autoconnect.
+Build and install Bluez.  Instructions here.
+[[https://learn.adafruit.com/install-bluez-on-the-raspberry-pi/installation]]
+
+Python Bluetoothctl:
+I may be able to control this from python.  To do so I got a module from -
+[[https://gist.github.com/egorf/66d88056a9d703928f93]]
+  This module handles all of the communication for me.  I may trim it down at some point as it is a bit more functionality than we need.  It's also for Python2 so I have to convert it.  I used pythonista on my IPad.
+  This module also requires pexpect
+{
+pip3 install pexpect
+}
+Try using subprocess.run() to connect instead.  I need a system that is error free in case of accidental disconnect.
+
+
+Reading Controller:
+This link has a good example.
+[[http://ericgoebelbecker.com/2015/06/raspberry-pi-and-gamepad-programming-part-1-reading-the-device/]]
+
+ST7735:
+sudo modprobe fbtft_device name=sainsmart18 speed=16000000 rotate=270
+
+Hardware clock:
+Adding a battery backup clock to the pi, I followed the instructions here.
+[[https://www.raspberrypi.org/forums/viewtopic.php?f=63&t=161133]]
+
+Clock:
+Had to run pip install requests and pip install bs4 to run clock.py
+Auto start using Crontab.  Added the following line with
+crontab -e (to edit the crontab file)
+@reboot sudo /home/pi/projects/oled/clock.py > /home/pi/projects/oled/clock.log
+
+
