@@ -24,7 +24,7 @@ os.system('echo "power on \nconnect E4:17:D8:2C:08:68 \nquit" | sudo bluetoothct
 #t2.join()
 
 sleep(1.0)
-devices = [fn for fn in list_devices()]
+devices = [InputDevice(fn) for fn in list_devices()]
 print(devices)
 #for device in devices:
 #  print(fn)
