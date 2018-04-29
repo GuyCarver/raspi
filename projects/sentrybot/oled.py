@@ -91,10 +91,10 @@ class oled(object):
     self._rotation = 0
     self._inverted = False
     self._on = False
-    self.i2c = SMBus(aLoc)
-    self.pages = self.size[1] // 8
-    self.bytes = self.size[0] * self.pages
-    self.buffer = bytearray(self.bytes)
+    self._i2c = SMBus(aLoc)
+    self._pages = self._size[1] // 8
+    self._bytes = self._size[0] * self._pages
+    self._buffer = [0] * self._bytes
     self._dim = 0x8F  #Dim level 0-255
 
     #Send the initialization commands.
@@ -164,15 +164,15 @@ class oled(object):
     In our library, only data operation used is 128x64 long, ie whole canvas.
     '''
     for i in range(0, len(aValue), 32):
-      self.i2c.write_i2c_block_data(oled.ADDRESS, oled._DATAMODE, list(aValue[i:i+32]))
+      self._i2c.write_i2c_block_data(oled.ADDRESS, oled._DATAMODE, aValue[i:i+32])
 
   def _command( self, *aValue ):
     assert(len(aValue) <= 32)
-    self.i2c.write_i2c_block_data(oled.ADDRESS, oled._CMDMODE, list(aValue))
+    self._i2c.write_i2c_block_data(oled.ADDRESS, oled._CMDMODE, list(aValue))
 
   def fill( self, aValue ):
-    for x in range(0, self.bytes):
-      self.buffer[x] = aValue;
+    for x in range(0, self._bytes):
+      self._buffer[x] = aValue;
 
   def clear( self ):
     self.fill(0)
@@ -193,9 +193,9 @@ class oled(object):
       index = (aPos[0] + (aPos[1] // 8) * w)
 
       if aOn:
-        self.buffer[index] |= bit
+        self._buffer[index] |= bit
       else:
-        self.buffer[index] &= ~bit
+        self._buffer[index] &= ~bit
 
   def line( self, aStart, aEnd, aOn ):
     '''Draws a line from aStart to aEnd in the given color.  Vertical or horizontal
@@ -331,8 +331,8 @@ class oled(object):
       self._scrollDiag(start, stop, oled._VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL)
 
   def display( self ):
-    self._command(oled._COLUMNADDR, 0, self.size[0] - 1, oled._PAGEADDR, 0, self.pages - 1)
+    self._command(oled._COLUMNADDR, 0, self.size[0] - 1, oled._PAGEADDR, 0, self._pages - 1)
 #    self._command(oled._SETLOWCOLUMN, oled._SETHIGHCOLUMN, oled._SETSTARTLINE)
-    self._data(self.buffer)
+    self._data(self._buffer)
 
 
