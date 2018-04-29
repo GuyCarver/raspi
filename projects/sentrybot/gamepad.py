@@ -128,54 +128,39 @@ class gamepad(object):
     if self._callback:
       self._callback(aEvent.code, aEvent.value)
 
-  def _getevents( self ):
-    '''Get the events'''
-    try:
-      evs = self._device.read()
-      try:
-        v = [e for e in evs]
-        return v
-      except Exception as e:
-        if debug > 1:
-          print(e)
-          sleep(1.0)
-    except Exception as e:
-      if debug:
-        if debug > 1:
-          raise e
-        print(e)
-      else:
-        self._connect(1)
-
-    return []
-
   def joy( self, aIndex ):
-    '''  '''
+    '''Get joystick value for given index _LX, _LY, _RX or _RY'''
     return self._joys[aIndex]
 
   def update( self ):
-    '''  '''
+    '''Read events fromt he input device, update joy values
+       and use callback to process button events.'''
     if self.connected:
-      evs = self._getevents()
-      for event in evs:
-        if event.type == ecodes.EV_KEY:
-#          print(event)
-          self._docallback(event)
-        elif event.type == ecodes.EV_ABS:
-          if ecodes.ABS_HAT0X <= event.code <= ecodes.ABS_HAT0Y:
+      try:
+        for event in self._device.read():
+          if event.type == ecodes.EV_KEY:
 #            print(event)
             self._docallback(event)
-          elif event.code <= 5: #l/r triggers pass abs codes in as well as btn codes.
-#            print(event)
-            #This code is 5 but we want 0-3
-            if event.code == ecodes.ABS_RZ:
-              event.code = gamepad._RY
-            self._joys[event.code] = gamepad._translate(event.value, event.code & 1)
+          elif event.type == ecodes.EV_ABS:
+            if ecodes.ABS_HAT0X <= event.code <= ecodes.ABS_HAT0Y:
+#              print(event)
+              self._docallback(event)
+            elif event.code <= 5: #l/r triggers pass abs codes in as well as btn codes.
+#              print(event)
+              #This code is 5 but we want 0-3
+              if event.code == ecodes.ABS_RZ:
+                event.code = gamepad._RY
+              self._joys[event.code] = gamepad._translate(event.value, event.code & 1)
+      except Exception as e:
+        if debug:
+          if debug > 1:
+            raise e
+          print(e)
     else:
       self._connect(1)
 
 def mytest( aButton, aValue ):
-  ''' '''
+  '''Test input.'''
   def printbtn(btn, v):
     print(btn + (' pressed' if v else ' released'))
 
