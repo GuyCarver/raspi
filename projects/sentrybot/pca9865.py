@@ -24,13 +24,14 @@ class pca9865(object):
   _MINPULSE = 120
   _MAXPULSE = 600
 
-  def __init__( self, aLoc = 1 ):
+  def __init__( self, aFreq = 60, aLoc = 1 ):
     '''aLoc = 1 by default and should only be 0 if on older model cards.'''
     self.i2c = SMBus(aLoc)
-    self._buffer = bytearray(4)
+    self._buffer = [0] * 4 #Can't use a bytearray with the write function.
     sleep(.050)
     self.reset()
     self._minmax(self._MINPULSE, self._MAXPULSE)
+    self.setfreq(aFreq)
 
   def _minmax( self, aMin, aMax ):
     '''Set min/max and calculate range.'''
@@ -61,7 +62,7 @@ class pca9865(object):
     prescalefloat = (6103.51562 / aFreq) - 1  #25000000 / 4096 / freq.
     prescale = int(prescalefloat + 0.5)
 
-    oldmode = self.read(self._MODE1)
+    oldmode = self._read(self._MODE1)
     newmode = (oldmode & 0x7F) | 0x10
     self._write(newmode, self._MODE1)
     self._write(prescale, self._PRESCALE)
@@ -69,7 +70,7 @@ class pca9865(object):
     sleep(0.050)
     self._write(oldmode | 0xA1, self._MODE1)  #This sets the MODE1 register to turn on auto increment.
 
-  def setpwm( self, aServo, aOn, aOff ):
+  def _setpwm( self, aServo, aOn, aOff ):
     '''aServo = 0-15.
        aOn = 16 bit on value.
        aOff = 16 bit off value.
@@ -78,9 +79,9 @@ class pca9865(object):
       #Data = on-low, on-high, off-low and off-high.  That's 4 bytes each servo.
       loc = self._LED0_ON_L + (aServo * 4)
 #    print(loc)
-      self._buffer[0] = aOn
+      self._buffer[0] = aOn & 0xFF
       self._buffer[1] = aOn >> 8
-      self._buffer[2] = aOff
+      self._buffer[2] = aOff & 0xFF
       self._buffer[3] = aOff >> 8
       self._writebuffer(self._buffer, loc)
     else:
@@ -88,7 +89,7 @@ class pca9865(object):
 
   def off( self, aServo ):
     '''Turn off a servo.'''
-    self.setpwm(aServo, 0, 0)
+    self._setpwm(aServo, 0, 0)
 
   def alloff( self ):
     '''Turn all servos off.'''
@@ -101,7 +102,7 @@ class pca9865(object):
       self.off(aServo)
     else:
       val = self._min + ((self._range * aPerc) // 100)
-      self.setpwm(aServo, 0, val)
+      self._setpwm(aServo, 0, val)
 
   def setangle( self, aServo, aAngle ):
     '''Set angle -90 to +90.  < -90 is off.'''
