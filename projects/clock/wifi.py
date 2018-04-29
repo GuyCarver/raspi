@@ -14,16 +14,20 @@ check = re.compile('.*wlan0: .* *[0-9]*\\.. *(.*)\\.')
 def signal(  ):
   '''Read wireless signal from /proc/net/wireless file. Range is 0 to -100 with 0 being strongest.'''
   sig = -100
+  #NOTE: I suspect opening this file can conflict with some other system writing to it.  This will
+  # result in wifi no longer working.
   try:
     with open('/proc/net/wireless', 'r') as f:
       f.readline() #Skip the header lines.
       f.readline()
-      h = f.readline() #Read the data then parse the level value.
-      g = check.match(h)
-      if g != None:
-        sig = int(g.group(1))
+      h = f.readline() #Read the data then close the file before parsing to shorten the open window.
   except Exception as e:
     print(e)
+  else:
+    #parse the level value.
+    g = check.match(h)
+    if g != None:
+      sig = int(g.group(1))
 
   return(sig)
 

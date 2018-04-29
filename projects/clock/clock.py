@@ -984,7 +984,7 @@ class Clock:
 
     if self.on:
       #Every second we'll check wifi signal level.
-      if s != self._lastsecond:
+      if ((s % 15) == 0) and (s != self._lastsecond):
         self._lastsecond = s
         self._lvl = wifi.level()
 
