@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # PCA9865 16 servo controller driver for Raspberry PI
 
 from smbus import SMBus

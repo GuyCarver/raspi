@@ -4,9 +4,8 @@
 
 from evdev import InputDevice, ecodes, list_devices
 import os
-from time import sleep
-
-debug = 0
+import pyudev
+from time import time, sleep
 
 #evdev Button codes are as follows, type = 1 and val is 0 or 1 for buttons.
 #types EV_KEY = 1, vals will be 0 or 1.
@@ -35,12 +34,20 @@ debug = 0
 class gamepad(object):
   '''8Bitdo FC30 Pro gamepad device driver.'''
 
+  debug = 0
   _NAME = '8Bitdo FC30 Pro'
 
   _LX = 0 #ecodes.ABS_X
   _LY = 1 #ecodes.ABS_Y
   _RX = 2 #ecodes.ABS_Z
   _RY = 3 #This one isn't mapped right so we convert ABS_RZ(5) to 3.
+
+  BTN_DPADU = 4
+  BTN_DPADR = 5
+  BTN_DPADD = 6
+  BTN_DPADL = 7
+
+  GAMEPAD_DISCONNECT = 32                       #Special button action to indicate disconnect.
 
   @staticmethod
   def _translate( aValue, aInvert ):
@@ -58,9 +65,17 @@ class gamepad(object):
         return d
     return None
 
+  @staticmethod
+  def isconnected(  ):
+    '''  '''
+    return gamepad.finddevice() != None
+
   def __init__( self, aID = 'E4:17:D8:2C:08:68', aCallback = None ):
     '''aID is the bluetooth device ID reported by bluetoothctl during pairing.
        aCallback is the callback function to call for processing button events.'''
+    self.monitorconnections()
+    self._dcondetect = False                    #Set to true when disconnect detected.
+    self._errcount = 0
     self._id = aID
     self._joys = [0] * 4
     self._callback = None
@@ -69,17 +84,29 @@ class gamepad(object):
     self._connect()
     self.update()
     self._callback = aCallback
+    self.resettime()
 
   def __del__( self ):
-    self.shutdown()
-
-  def shutdown( self ):
-    '''Disconnect from the gamepad'''
+    self._observer.stop()
     self._disconnect()
     try:
       os.system('echo "disconnect ' + self._id + ' \nquit" | sudo bluetoothctl')
     except:
       pass
+
+  def monitorconnections( self ):
+    '''Monitor the udev system for device disconnect.'''
+    context = pyudev.Context()
+    monitor = pyudev.Monitor.from_netlink(context)
+
+    #Watch for js0 remove event and flag disconnect to be handled by main thread.
+    # Don't know why it's called JS0, but that's what testing showed.
+    def eventhandler( action, device ):
+      if action == 'remove' and device.sys_name == 'js0':
+        self._dcondetect = True
+
+    self._observer = pyudev.MonitorObserver(monitor, eventhandler)
+    self._observer.start()
 
   @property
   def callback( self ):
@@ -93,16 +120,27 @@ class gamepad(object):
   def connected( self ):
     return self._device != None
 
+  def elapsedtime( self ):
+    return time() - self._prevtime
+
+  def resettime( self ):
+    self._prevtime = time()
+
   def _disconnect( self ):
     '''Soft disconnect, kill the InputDevice'''
     self._device = None
+
+    #If disconnect was detected, send special event to callback.
+    if self._dcondetect and self._callback:
+      self._callback(gamepad.GAMEPAD_DISCONNECT, 0)
+      self._dcondetect = False
 
   def _connect( self, aTries = 20 ):
     '''Attempt to connect to the gamepad and create the InputDevice'''
     self._disconnect()
 
     for i in range(aTries):
-      if debug:
+      if gamepad.debug:
         print("connect attempt {} for {}".format(i, self._id))
       try:
         os.system('echo "power on \nconnect ' + self._id + ' \nquit" | sudo bluetoothctl')
@@ -110,12 +148,13 @@ class gamepad(object):
         for j in range(5):
           sleep(1.0)
           self._device = gamepad.finddevice()
-          sleep(0.1)
-          print('connected!')
-          return self.connected
+          if self.connected:
+            sleep(0.1)
+            print('connected!')
+            return self.connected
       except Exception as e:
-        if debug:
-          if debug > 1:
+        if gamepad.debug:
+          if gamepad.debug > 1:
             raise(e)
           print(e)
 
@@ -133,17 +172,21 @@ class gamepad(object):
     return self._joys[aIndex]
 
   def update( self ):
-    '''Read events fromt he input device, update joy values
+    '''Read events from the input device, update joy values
        and use callback to process button events.'''
-    if self.connected:
+    if self.connected and not self._dcondetect:
       try:
         for event in self._device.read():
           if event.type == ecodes.EV_KEY:
 #            print(event)
             self._docallback(event)
           elif event.type == ecodes.EV_ABS:
-            if ecodes.ABS_HAT0X <= event.code <= ecodes.ABS_HAT0Y:
-#              print(event)
+            #turn hat x,y +/- values to dpad button events.
+            if event.code == ecodes.ABS_HAT0X:
+              event.code = gamepad.BTN_DPADR if event.value > 0 else gamepad.BTN_DPADL
+              self._docallback(event)
+            elif event.code == ecodes.ABS_HAT0Y:
+              event.code = gamepad.BTN_DPADU if event.value > 0 else gamepad.BTN_DPADD
               self._docallback(event)
             elif event.code <= 5: #l/r triggers pass abs codes in as well as btn codes.
 #              print(event)
@@ -151,9 +194,14 @@ class gamepad(object):
               if event.code == ecodes.ABS_RZ:
                 event.code = gamepad._RY
               self._joys[event.code] = gamepad._translate(event.value, event.code & 1)
+        self._errcount = 0
       except Exception as e:
-        if debug:
-          if debug > 1:
+        self._errcount += 1
+        if self._errcount > 2000:
+          self._errcount = 1000
+          self._connect(1)
+        if gamepad.debug:
+          if gamepad.debug > 1:
             raise e
           print(e)
     else:

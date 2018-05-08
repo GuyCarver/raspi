@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Controller for the quicrun 1060 Electronic Speed Control (ESP)
 #This controller works through the pca9865 servo controller.
 

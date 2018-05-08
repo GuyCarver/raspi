@@ -1,0 +1,5 @@
+#!/bin/sh
+
+g++ -std=c++11 -shared -fPIC ps2con.cpp \
+	-o ps2con.so -lwiringPi \
+	-I "/usr/include/" -I "/usr/local/include/"

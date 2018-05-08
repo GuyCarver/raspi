@@ -1,0 +1,6 @@
+#!/bin/sh
+
+rm -r build/*
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=../../../toolchain-rpi.cmake ..
+

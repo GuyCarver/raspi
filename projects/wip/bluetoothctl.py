@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # ReachView code is placed under the GPL license.
 # Written by Egor Fedorov (egor.fedorov@emlid.com)
 # Copyright (c) 2015, Emlid Limited
