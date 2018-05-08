@@ -4,8 +4,116 @@
 		"selected_items":
 		[
 			[
+				"_b",
+				"_buttonaction"
+			],
+			[
+				"_but",
+				"_buttonsounds"
+			],
+			[
+				"_init",
+				"_initsounds"
+			],
+			[
+				"BTN_D",
+				"BTN_DPADL"
+			],
+			[
+				"BTN",
+				"BTN_START"
+			],
+			[
+				"BTN_TH",
+				"BTN_THUMBR"
+			],
+			[
+				"Py",
+				"Py_DECREF"
+			],
+			[
+				"ps2con",
+				"ps2con_type"
+			],
+			[
+				"call",
+				"callback"
+			],
+			[
+				"delay",
+				"delay_us"
+			],
+			[
+				"pin",
+				"pinMode"
+			],
+			[
+				"c",
+				"cmethod"
+			],
+			[
+				"to",
+				"todo"
+			],
+			[
+				"ABS_H",
+				"ABS_HAT0X"
+			],
+			[
+				"ifmai",
+				"ifmain"
+			],
+			[
+				"ABS",
+				"ABS_RZ"
+			],
+			[
+				"po",
+				"property\tproperty"
+			],
+			[
 				"try",
 				"try\tTry/Except"
+			],
+			[
+				"_t",
+				"_tabname"
+			],
+			[
+				"_w",
+				"_weathertext"
+			],
+			[
+				"extr",
+				"extra1"
+			],
+			[
+				"al",
+				"alarmenabled"
+			],
+			[
+				"alar",
+				"alarmset"
+			],
+			[
+				"_joy",
+				"_joybuttons"
+			],
+			[
+				"pro",
+				"processbutton"
+			],
+			[
+				"up",
+				"updatejoy"
+			],
+			[
+				"Joy",
+				"joystick"
+			],
+			[
+				"joy",
+				"joystick"
 			],
 			[
 				"tr",
@@ -58,10 +166,6 @@
 			[
 				"_H",
 				"_H_RATE"
-			],
-			[
-				"alar",
-				"alarmtime"
 			],
 			[
 				"CheckF",
@@ -156,88 +260,116 @@
 	"buffers":
 	[
 		{
-			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/clock.py",
+			"file": "projects/sentrybot/pca9865.py",
 			"settings":
 			{
-				"buffer_size": 30720,
-				"encoding": "UTF-8",
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/terminalfont.py",
-			"settings":
-			{
-				"buffer_size": 3797,
-				"line_ending": "Windows"
-			}
-		},
-		{
-			"file": "/C/Users/gcarver/Downloads/Adafruit_SSD1306-master/Adafruit_SSD1306-master/Adafruit_SSD1306.h",
-			"settings":
-			{
-				"buffer_size": 5769,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "/C/Users/gcarver/Downloads/Adafruit_SSD1306-master/Adafruit_SSD1306-master/Adafruit_SSD1306.cpp",
-			"settings":
-			{
-				"buffer_size": 24754,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "projects/clock/wifi.py",
-			"settings":
-			{
-				"buffer_size": 1316,
-				"encoding": "UTF-8",
-				"line_ending": "Windows",
-				"name": "#read wifi signal strength."
-			}
-		},
-		{
-			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/pygame/clock/clock.py",
-			"settings":
-			{
-				"buffer_size": 25962,
-				"encoding": "UTF-8",
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/raspi.ida",
-			"settings":
-			{
-				"buffer_size": 10520,
+				"buffer_size": 3467,
 				"encoding": "UTF-8",
 				"line_ending": "Windows"
 			}
 		},
 		{
-			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/mlx90614.py",
+			"file": "projects/sentrybot/sentrybot.py",
 			"settings":
 			{
-				"buffer_size": 1231,
+				"buffer_size": 3440,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/ps2con/makeit",
+			"settings":
+			{
+				"buffer_size": 125,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/C/Projects/Python/dtest.py",
+			"settings":
+			{
+				"buffer_size": 181,
 				"encoding": "UTF-8",
 				"line_ending": "Windows"
 			}
 		},
 		{
-			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/oled.py",
+			"file": "projects/sentrybot/quicrun.py",
 			"settings":
 			{
-				"buffer_size": 9318,
+				"buffer_size": 1670,
+				"encoding": "UTF-8",
 				"line_ending": "Windows"
 			}
 		},
 		{
-			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/settings.py",
+			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/sentrybot/ps2.py",
 			"settings":
 			{
-				"buffer_size": 9655,
+				"buffer_size": 7677,
+				"encoding": "UTF-8",
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "projects/sentrybot/gamepad.py",
+			"settings":
+			{
+				"buffer_size": 6304,
+				"encoding": "UTF-8",
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/ps2con/ps2con.cpp",
+			"settings":
+			{
+				"buffer_size": 16229,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "projects/sentrybot/sound.py",
+			"settings":
+			{
+				"buffer_size": 4965,
+				"encoding": "UTF-8",
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/C/Users/gcarver/OneDrive/notes.ida",
+			"settings":
+			{
+				"buffer_size": 13240,
+				"encoding": "UTF-8",
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/c/Users/gcarver/OneDrive/projects/raspi/raspi.ida",
+			"settings":
+			{
+				"buffer_size": 13027,
+				"encoding": "UTF-8",
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/ps2con/ps2contest.py",
+			"settings":
+			{
+				"buffer_size": 469,
+				"encoding": "UTF-8",
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/c/Users/gcarver/OneDrive/SentryBot.ida",
+			"settings":
+			{
+				"buffer_size": 5960,
 				"encoding": "UTF-8",
 				"line_ending": "Windows"
 			}
@@ -251,9 +383,13 @@
 	"command_palette":
 	{
 		"height": 392.0,
-		"last_filter": "",
+		"last_filter": "Package Control: ",
 		"selected_items":
 		[
+			[
+				"Package Control: ",
+				"Package Control: List Unmanaged Packages"
+			],
 			[
 				"pack",
 				"Package Control: Add Channel"
@@ -265,10 +401,6 @@
 			[
 				"g",
 				"GitHub: Open Gist in Browser"
-			],
-			[
-				"Package Control: ",
-				"Package Control: Discover Packages"
 			],
 			[
 				"pa",
@@ -303,13 +435,56 @@
 				"Package Control: Install Package"
 			]
 		],
-		"width": 460.0
+		"width": 412.0
 	},
 	"console":
 	{
-		"height": 153.0,
+		"height": 206.0,
 		"history":
 		[
+			"1 / 30",
+			"0xFE / 2.55",
+			"0xFF / 2.55",
+			"hex(v)",
+			"v = (v + 0x7F) & 0xFF",
+			"hex(v)",
+			"v = (v + 0x7F) & 0xFF",
+			"hex(v)",
+			"v = (v + 0x7F) & 0xFF",
+			"v = 0",
+			"hex(v)",
+			"v = (v + 0x3F) & 0xFF",
+			"hex(v)",
+			"v = (v + 0x3F) & 0xFF",
+			"hex(v)",
+			"v = (v + 0x3F) & 0xFF",
+			"hex(v)",
+			"v = (v + 0x3F) & 0xFF",
+			"hex(v)",
+			"v = (v + 0x3F) & 0xFF",
+			"v = 0",
+			"hex(v)",
+			"v <<= 1",
+			"hex(v)",
+			"v = 0x3F << 1",
+			"hex(0x7F + 0x7F)",
+			"hex(0x7F)",
+			"hex(128)",
+			"hex(0x400 // 8)",
+			"hex(128 // 8)",
+			"hex(128 / 8)",
+			"0x3f8",
+			"64 // 8",
+			"32 // 8",
+			"-1 % 24",
+			"420 % 60",
+			"420 // 60",
+			"b",
+			"a",
+			"a, b = test",
+			"test = [1, 2]",
+			"0",
+			"not 1",
 			"75 - 6",
 			"20 / 3",
 			"20 / 5",
@@ -369,24 +544,101 @@
 	[
 		"/c/Users/gcarver/OneDrive/projects/raspi",
 		"/c/Users/gcarver/OneDrive/projects/raspi/projects",
-		"/c/Users/gcarver/OneDrive/projects/raspi/projects/clock"
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/mlx90614",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/oledexample",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/ps2con",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/sentrybot",
+		"/c/Users/gcarver/OneDrive/projects/raspi/raspicam"
 	],
 	"file_history":
 	[
-		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/oled/oled2.py",
-		"/C/Users/gcarver/AppData/Local/Temp/7zE2FAF.tmp/Adafruit_SSD1306.h",
-		"/C/Users/gcarver/AppData/Local/Temp/7zO5951.tmp/Adafruit_SSD1306.h",
-		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/clock/wififont.py",
+		"/C/Users/gcarver/OneDrive/Projects/micropython-1/ports/esp32/ps2.c",
+		"/C/Users/gcarver/OneDrive/Projects/MicroPython/SentryBot/ps2.py",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/sentrybot/bluetoothctl.py",
+		"/C/Users/gcarver/OneDrive/Projects/Python/PyTest/PyTest/PyTest.cpp",
+		"/C/Users/gcarver/OneDrive/Projects/Temp/PyConsole.cpp",
+		"/C/Users/gcarver/OneDrive/Projects/Temp/BSPython.cpp",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/ps2con/ps2con.cpp",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/clock.py",
 		"/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/oled.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/simple2d.sh",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/ps2con/makeit",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/ps2con/ps2contest.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/sentrybot/ps2contest.py",
+		"/C/Users/gcarver/OneDrive/Projects/Temp/example.cpp",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/checkface/makecheckface",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/checkface/checkface.cpp",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/sentrybot/soundtest.py",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/sentrybot/controller.py",
+		"/F/projects/gcarver_gcarver_t_gcarver_632/BSCore/BSCoreTypes.h",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/sentrybot/ps2.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Package Control/Package Control.sublime-settings",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/User/Package Control.sublime-settings",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/sentrybot/oled.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/VisualStudio/VisualStudio.sublime-settings",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/python.sublime-completions",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/property.sublime-snippet",
+		"/C/Users/gcarver/OneDrive/Projects/MicroPython/SentryBot/dfplayer.py",
+		"/C/Users/gcarver/OneDrive/Projects/MicroPython/SentryBot/hc05.py",
+		"/C/Users/gcarver/OneDrive/Projects/MicroPython/SentryBot/pca9865.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/User/VisualStudio.sublime-settings",
+		"/c/Users/gcarver/OneDrive/projects/raspi/raspi.ida",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/sentrybot/angle.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/sentrybot/controller.py",
+		"/c/Users/gcarver/OneDrive/SentryBot.ida",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/clock/wifi.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/ida/ida.sublime-completions",
+		"/C/Users/gcarver/OneDrive/vanguard.ida",
+		"/C/Users/gcarver/OneDrive/notes.ida",
+		"/C/Users/gcarver/OneDrive/Projects/MicroPython/esp32/pca9865.py",
+		"/C/Users/gcarver/OneDrive/Projects/MicroPython/SentryBot/legs.py",
+		"/C/Users/gcarver/OneDrive/Projects/Sentrybot/quicrun.py",
+		"/C/Users/gcarver/OneDrive/Projects/MicroPython/SentryBot/quicrun.py",
+		"/C/Users/gcarver/OneDrive/Projects/MicroPython/esp32/quicrun.py",
+		"/C/Users/gcarver/OneDrive/Projects/Python/pygame/joystick.py",
+		"/c/Users/gcarver/OneDrive/Projects/Raspi/raspi.ida",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/pygame/clock/buttons.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/oled/oled.py",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/pygame/clock/settings.py",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/pygame/clock/clock.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/clock/oled.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/clock/buttons.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/sentrybot/settings.py",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/settings.py",
+		"/C/Users/gcarver/OneDrive/Projects/MicroPython/lib/oled.py",
+		"/E/Backup/C/Users/gcarver/OneDrive/Projects/raspi/projects/oled/settings-2018-01-15_16-23-11.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/checkface/notes.ida",
+		"/C/Users/gcarver/OneDrive/Projects/MicroPython/lib/oled32.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/oled/lib_oled96.py",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/__magic__.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/withi.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/textcommand.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/windowcommand.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/while.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/Try-Except-Finally.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/Try-Except-Else-Finally.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/Try-Except-Else.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/Try-Except.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/New-Class.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/if-__name__-==-'__main__'.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/if.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/function.sublime-snippet",
+		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/Python/for.sublime-snippet",
 		"/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/buttons.py",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/pygame/clock/buttons.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/pygame/clock/clock.json",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/pygame/clock/terminalfont.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/pygame/clock/seriffont.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/pygame/clock/sysfont.py",
+		"/E/Backup/C/Users/gcarver/OneDrive/Projects/raspi/projects/pygame/clock/clock-2018-03-27_10-55-17.py",
+		"/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/mlx90614.py",
+		"/C/Users/gcarver/OneDrive/Projects/raspi/projects/clock/wififont.py",
 		"/C/Users/gcarver/OneDrive/Projects/raspi/opencv/platforms/linux/build/version_string.tmp",
 		"/c/Users/gcarver/OneDrive - ZeniMax Media, Inc-/projects/raspi/projects/clock/clock.py",
 		"/C/Users/gcarver/OneDrive/Projects/raspi/raspi.sublime-project",
 		"/C/Users/gcarver/OneDrive - ZeniMax Media, Inc/Projects/raspi/projects/mlx90614/mlx90614.py",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/settings.py",
-		"/C/Users/gcarver/OneDrive/notes.ida",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/projects/oled/clock.py",
-		"/C/Users/gcarver/OneDrive/Projects/Python/pygame/joystick.py",
 		"/C/Users/gcarver/OneDrive/Projects/raspi/clock/clock.py",
 		"/C/Users/gcarver/AppData/Local/Packages/CanonicalGroupLimited.UbuntuonWindows_79rhkp1fndgsc/LocalState/rootfs/home/gcarver/raspi/toolchain-rpi.cmake",
 		"/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/clock.py",
@@ -427,80 +679,7 @@
 		"/C/Users/gcarver/OneDrive/Projects/MicroPython/lib/OLED.py",
 		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/projects/oled/settings.py",
 		"/C/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/projects/seeface/seeface.cpp",
-		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/opencv/modules/objdetect/src/cascadedetect.cpp",
-		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/projects/DisplayImage/DisplayImage.cpp",
-		"/C/Users/gcarver/Dropbox/Apps/Guys app/htmlserversample.py",
-		"/C/Users/gcarver/Dropbox/Apps/Guys app/echoserver.py",
-		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/opencv/platforms/linux/arm.toolchain.cmake",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/savetest.py",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/settings.py",
-		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/projects/seeface/CMakeLists.txt",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/clock.json",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/woeid.py",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/pygame/clock/iploc.py",
-		"/C/Users/gcarver/OneDrive/Projects/raspi/pygame/clock/seeface.py",
-		"/C/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/projects/seeface/seefaceold.cpp",
-		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/toolchain-rpi.cmake",
-		"/C/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/rootfs/usr/include/python2.7/pyconfig.h",
-		"/C/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/rootfs/usr/include/python3.5m/pyconfig.h",
-		"/C/Sublime Text Backups/2017-11-17/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/projects/seeface/seeface.cpp",
-		"/C/Sublime Text Backups/2017-11-18/C/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/projects/seeface/seeface.cpp",
-		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/rootfs/usr/local/include/raspicam/raspicam.h",
-		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/rootfs/usr/local/include/raspicam/raspicam_still_cv.h",
-		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/rootfs/usr/local/include/raspicam/raspicam_cv.h",
-		"/C/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/toolchain-rpi.cmake",
-		"/C/Users/gcarver/AppData/Roaming/Sublime Text 3/Packages/User/Package Control.sublime-settings",
-		"/C/temp/image.ppm",
-		"/C/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/opencv/platforms/linux/arm.toolchain.cmake",
-		"/C/Users/gcarver/Dropbox/Apps/Guys app/Interactive Form.py",
-		"/C/Users/gcarver/Dropbox/Apps/Guys app/Examples (previous beta)/HTTP Server/Server.py",
-		"/C/Users/gcarver/Dropbox/Apps/Guys app/guy/clock/settings.py",
-		"/C/Users/gcarver/OneDrive/Projects/Python/weathertest.py",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/tft/ST77352.py",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/tft/shapes.py",
-		"/C/Users/gcarver/OneDrive/Projects/Python/clock/clock.py",
-		"/C/Users/gcarver/OneDrive/Projects/raspi/pygame/clock/iploc.py",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/oled/clock.py",
-		"/C/Users/gcarver/OneDrive/Projects/raspi/pygame/clock.py",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/oled/oled.py",
-		"/c/Users/gcarver/OneDrive/Projects/Raspi/clock/clock.py",
-		"/C/Users/gcarver/OneDrive/Projects/MicroPython/lib/ST7735.py",
-		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/penguinspuzzle.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp31059/home/pi/python_games/memorypuzzle.py",
-		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/penguinspuzzle.bin",
-		"/C/Users/gcarver/AppData/Local/Temp/scp11626/usr/include/EGL/egl.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp11842/usr/include/EGL/eglext.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp12876/usr/include/EGL/eglmesaext.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp12447/usr/include/EGL/eglplatform.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp59009/home/gcarver/Projects/penguins/penguins.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp58580/home/gcarver/Projects/penguins/penguinspuzzle.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp38916/opt/vc/src/hello_pi/Makefile.include",
-		"/C/Users/gcarver/AppData/Local/Temp/scp05977/usr/include/X11/Xlib.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp07681/usr/include/X11/X.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp07658/home/gcarver/penguinspuzzle/penguinspuzzle.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp34111/usr/include/GL/glfw.h",
-		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/README",
-		"/C/Users/gcarver/AppData/Local/Temp/scp47668/home/gcarver/penguinspuzzle/matrix.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp47188/home/gcarver/penguinspuzzle/global.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp13189/usr/include/GLES2/gl2.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp45595/usr/include/GLES2/gl2ext.h",
-		"/C/Projects/raspi/wiringPi/examples/Makefile",
-		"/C/Users/gcarver/AppData/Local/Temp/scp58827/home/gcarver/myglfw/Makefile",
-		"/C/Users/gcarver/AppData/Local/Temp/scp31657/home/gcarver/penguinspuzzle/audio.c",
-		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/matrix.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp41190/home/gcarver/myglfw/myglfw.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp42865/root/.vnc/xstartup",
-		"/C/Projects/raspi/myglfw/Makefile",
-		"/C/Projects/raspi/pforth/build/wiringPi/examples/Makefile",
-		"/C/Projects/raspi/pforth/build/unix/Makefile",
-		"/C/Projects/raspi/myglfw/myglfw.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp07658/home/gcarver/myglfw/myglfw.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp06550/usr/include/X11/Xutil.h",
-		"/C/Users/gcarver/AppData/Local/Temp/scp00579/usr/include/KHR/khrplatform.h",
-		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/Makefile",
-		"/C/Users/gcarver/AppData/Local/Temp/scp18976/home/gcarver/penguinspuzzle/shaders.c",
-		"/C/Users/gcarver/AppData/Local/Temp/scp37557/home/gcarver/penguinspuzzle/framebuffer.c",
-		"/c/Projects/Raspi/peterderivaz-penguinspuzzle-818906c/matrix.c"
+		"/c/Users/gcarver/AppData/Local/lxss/home/gcarver/raspi/opencv/modules/objdetect/src/cascadedetect.cpp"
 	],
 	"find":
 	{
@@ -528,14 +707,101 @@
 		"case_sensitive": false,
 		"find_history":
 		[
-			"_dim",
-			"def up",
-			"text\\(",
-			"char",
-			"_alarmenabled",
+			"gamepad",
+			"connected",
+			"_connect",
+			"on_start",
+			"docallback",
+			"vnc",
+			"DelayUS",
+			"Init\\(",
+			"Init",
+			"PyCall",
+			"_callback",
+			"DoSetCal",
+			"_callback",
+			"DelayUS",
+			"Update",
+			"DelayUS",
+			"DoSetCallb",
+			"is",
+			"_callback",
+			"GetData",
+			"std::cout",
+			"DoSetCallback",
+			"SetCallback",
+			"ps2conc",
+			"test",
+			"bluetooth",
+			"wiringPi",
+			"CV_CAP_PROP_BRIGHTNESS",
+			"_init",
+			"_qdata",
+			"_sendrcv",
+			"_getpin",
+			"_setpin",
+			"delay_us",
+			"machine_ps2_locals_dict_table",
+			"getinputname",
+			"apArg",
+			"Create",
+			"reconnect",
+			"const\\((\\d*)\\)",
+			"bytes",
 			"buffer",
+			"_bytes",
+			"pages",
+			"i2c",
+			"_command",
+			"_data",
+			"buffer",
+			"_getev",
+			"_wtthread",
+			"BTN_",
+			"_X",
+			"dim",
+			"brightness",
+			"_SETSTARTLINE",
+			"_SETHIGHCOLUMN",
+			"_SETLOWCOLUMN",
+			"_MEMORYMODE",
+			"pages",
+			" :",
+			":",
+			"apmadjust",
+			"_tab",
+			"tempdisplay",
+			"triggerweatherupdate",
 			"UpdateWeather",
+			"update",
+			"tbuttonstate",
+			"snooze",
+			"digitpos",
+			"checkinc",
+			"incratem",
+			"checkinc",
+			"font",
+			"alarmenabled",
+			"alarmonoff",
+			"def draw",
+			"seriffont",
+			"load",
+			"alwaysontimes",
+			"_always",
+			"seriffont",
+			"timeset",
+			"alwaysontimes",
+			"defaultalwaysontimes",
+			"alwaysontime",
 			"_alwaysontimes",
+			"alwaysontimes",
+			"_lastsecond",
+			"_checktime",
+			"ledcon",
+			"_alarmtime",
+			"_tab",
+			"updatejoy",
+			"_js",
 			"digitpos",
 			"digits",
 			"timeset",
@@ -568,94 +834,7 @@
 			"cascadeName",
 			"nestedObjects",
 			"nestedCascade",
-			"faces",
-			"faces2",
-			"    ",
-			"time.sl",
-			"tempupdateinterval",
-			"defaulttempupdate",
-			"tempupdateinterval",
-			"tempdisplay",
-			"ourTarget",
-			"RequestHandler",
-			"cgi",
-			"ourTarget",
-			"center",
-			"sleep",
-			"print",
-			"location",
-			"adj",
-			"  def UpdateWeather( self ):\n    try:\n",
-			"UpdateW",
-			"_rotate",
-			"draw",
-			"img2data",
-			"windowLocData",
-			"_windowLocData",
-			"colorData",
-			"CASET",
-			"print",
-			"_size",
-			"color565",
-			"fill",
-			"reset",
-			"bytearray",
-			"pyb",
-			"_draw",
-			"_write",
-			"_draw",
-			"_write",
-			"\\.rot",
-			"\\._spi",
-			"\\.spi",
-			"_write",
-			"draw",
-			"spi",
-			"reset",
-			"TFT",
-			"TFT\\.",
-			"TFT",
-			"_writedata\\((.*)\\)",
-			"_writecommand\\((.*)\\)",
-			"_writecommand\\((.*\\))",
-			"rect",
-			"Dispaly",
-			"rect",
-			"Display",
-			"start",
-			"add",
-			"dst_rect",
-			"Window",
-			"wl_egl_window",
-			"NativeWindowType",
-			"dispman_element",
-			"Update",
-			"width",
-			"update",
-			"width",
-			"element",
-			"nativewindow",
-			"EGL_DISP",
-			"EGL_DISPMAN",
-			"path",
-			"dreamhost",
-			"gert",
-			"89",
-			"x89",
-			"89",
-			"print",
-			"else",
-			"**\n",
-			"DicName",
-			"ifdef",
-			"endif",
-			"ctrl+shift",
-			"^#(if|else|elif|endif)",
-			"conditionkeys",
-			"endif",
-			"ifdef",
-			"defined",
-			"#ifdef"
+			"faces"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -663,6 +842,14 @@
 		"regex": true,
 		"replace_history":
 		[
+			"Init",
+			"GetData",
+			"SendReceive",
+			"GetPin",
+			"SetPin",
+			"DelayUS",
+			"\\1",
+			":",
 			"\\t",
 			"RH",
 			"ST7735.",
@@ -686,52 +873,24 @@
 	"groups":
 	[
 		{
-			"selected": 0,
+			"selected": 1,
 			"sheets":
 			[
 				{
 					"buffer": 0,
-					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/clock.py",
+					"file": "projects/sentrybot/pca9865.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 30720,
+						"buffer_size": 3467,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								16453,
-								16453
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Python/Python.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 8304.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 0,
-					"type": "text"
-				},
-				{
-					"buffer": 1,
-					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/terminalfont.py",
-					"semi_transient": true,
-					"settings":
-					{
-						"buffer_size": 3797,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								0,
-								0
+								1022,
+								1022
 							]
 						],
 						"settings":
@@ -742,85 +901,85 @@
 						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 3,
+					"stack_index": 12,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "projects/sentrybot/sentrybot.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 3440,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								2704,
+								2704
+							]
+						],
+						"settings":
+						{
+							"auto_name": "",
+							"syntax": "Packages/Python/Python.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 1225.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
 					"type": "text"
 				},
 				{
 					"buffer": 2,
-					"file": "/C/Users/gcarver/Downloads/Adafruit_SSD1306-master/Adafruit_SSD1306-master/Adafruit_SSD1306.h",
-					"semi_transient": false,
+					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/ps2con/makeit",
+					"semi_transient": true,
 					"settings":
 					{
-						"buffer_size": 5769,
+						"buffer_size": 125,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								3693,
-								3757
+								125,
+								125
 							]
 						],
 						"settings":
 						{
-							"syntax": "Packages/C++/C++.sublime-syntax"
+							"syntax": "Packages/ShellScript/Shell-Unix-Generic.sublime-syntax"
 						},
 						"translation.x": 0.0,
-						"translation.y": 1440.0,
+						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 6,
+					"stack_index": 7,
 					"type": "text"
 				},
 				{
 					"buffer": 3,
-					"file": "/C/Users/gcarver/Downloads/Adafruit_SSD1306-master/Adafruit_SSD1306-master/Adafruit_SSD1306.cpp",
+					"file": "/C/Projects/Python/dtest.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 24754,
+						"buffer_size": 181,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								17216,
-								17216
+								181,
+								181
 							]
 						],
 						"settings":
 						{
-							"syntax": "Packages/C++/C++.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 6035.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 5,
-					"type": "text"
-				},
-				{
-					"buffer": 4,
-					"file": "projects/clock/wifi.py",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 1316,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								0,
-								0
-							]
-						],
-						"settings":
-						{
-							"auto_name": "#read wifi signal strength.",
 							"syntax": "Packages/Python/Python.sublime-syntax"
 						},
 						"translation.x": 0.0,
@@ -829,28 +988,22 @@
 					},
 					"stack_index": 8,
 					"type": "text"
-				}
-			]
-		},
-		{
-			"selected": 3,
-			"sheets":
-			[
+				},
 				{
-					"buffer": 5,
-					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/pygame/clock/clock.py",
+					"buffer": 4,
+					"file": "projects/sentrybot/quicrun.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 25962,
+						"buffer_size": 1670,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								8649,
-								8653
+								341,
+								341
 							]
 						],
 						"settings":
@@ -858,27 +1011,147 @@
 							"syntax": "Packages/Python/Python.sublime-syntax"
 						},
 						"translation.x": 0.0,
-						"translation.y": 4790.0,
+						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 2,
+					"stack_index": 10,
 					"type": "text"
 				},
 				{
-					"buffer": 6,
-					"file": "/c/Users/gcarver/OneDrive/Projects/Raspi/raspi.ida",
+					"buffer": 5,
+					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/sentrybot/ps2.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 10520,
+						"buffer_size": 7677,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								10520,
-								10520
+								1305,
+								1305
+							]
+						],
+						"settings":
+						{
+							"history_list_is_closing": true,
+							"syntax": "Packages/Python/Python.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 300.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 11,
+					"type": "text"
+				}
+			]
+		},
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 6,
+					"file": "projects/sentrybot/gamepad.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 6304,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								3800,
+								3800
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 2780.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				},
+				{
+					"buffer": 7,
+					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/ps2con/ps2con.cpp",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 16229,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								14009,
+								14009
+							]
+						],
+						"settings":
+						{
+							"history_list_is_closing": true,
+							"syntax": "Packages/C++/C++.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 9180.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 5,
+					"type": "text"
+				},
+				{
+					"buffer": 8,
+					"file": "projects/sentrybot/sound.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 4965,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1961,
+								1961
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 890.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 3,
+					"type": "text"
+				},
+				{
+					"buffer": 9,
+					"file": "/C/Users/gcarver/OneDrive/notes.ida",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 13240,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								652,
+								652
 							]
 						],
 						"settings":
@@ -886,27 +1159,55 @@
 							"syntax": "Packages/ida/ida.tmLanguage"
 						},
 						"translation.x": 0.0,
-						"translation.y": 3220.0,
+						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 9,
 					"type": "text"
 				},
 				{
-					"buffer": 7,
-					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/mlx90614.py",
+					"buffer": 10,
+					"file": "/c/Users/gcarver/OneDrive/projects/raspi/raspi.ida",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 1231,
+						"buffer_size": 13027,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								651,
-								651
+								11366,
+								11366
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/ida/ida.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 5880.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"type": "text"
+				},
+				{
+					"buffer": 11,
+					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/ps2con/ps2contest.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 469,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								266,
+								266
 							]
 						],
 						"settings":
@@ -921,59 +1222,31 @@
 					"type": "text"
 				},
 				{
-					"buffer": 8,
-					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/oled.py",
-					"semi_transient": true,
-					"settings":
-					{
-						"buffer_size": 9318,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								3298,
-								3298
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Python/Python.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 1805.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 1,
-					"type": "text"
-				},
-				{
-					"buffer": 9,
-					"file": "/c/Users/gcarver/OneDrive/projects/raspi/projects/clock/settings.py",
+					"buffer": 12,
+					"file": "/c/Users/gcarver/OneDrive/SentryBot.ida",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 9655,
+						"buffer_size": 5960,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								8224,
-								8224
+								828,
+								828
 							]
 						],
 						"settings":
 						{
-							"syntax": "Packages/Python/Python.sublime-syntax"
+							"syntax": "Packages/ida/ida.tmLanguage"
 						},
 						"translation.x": 0.0,
-						"translation.y": 2880.0,
+						"translation.y": 1680.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 7,
+					"stack_index": 6,
 					"type": "text"
 				}
 			]
@@ -981,11 +1254,11 @@
 	],
 	"incremental_find":
 	{
-		"height": 39.0
+		"height": 42.0
 	},
 	"input":
 	{
-		"height": 36.0
+		"height": 41.0
 	},
 	"layout":
 	{
@@ -1007,7 +1280,7 @@
 		"cols":
 		[
 			0.0,
-			0.511925616806,
+			0.489369225829,
 			1.0
 		],
 		"rows":
@@ -1033,7 +1306,7 @@
 	"project": "raspi.sublime-project",
 	"replace":
 	{
-		"height": 52.0
+		"height": 75.0
 	},
 	"save_all_on_build": true,
 	"select_file":
@@ -1109,7 +1382,7 @@
 		[
 			[
 				"",
-				"C:\\Users\\gcarver\\OneDrive\\Projects\\micropython-1\\MicroPython.sublime-project"
+				"F:\\Projects\\Project76\\Project76.sublime-project"
 			]
 		],
 		"width": 380.0

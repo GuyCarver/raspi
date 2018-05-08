@@ -2,6 +2,7 @@ todo:
 [*] make oled clock read temp in bg thread.
 [*] make a python c lib stub and test it.
 [ ] get the ST7735 code into a python c lib.
+[ ] I set the clock name to "clock". Now sudo doesn't work from ssh.  And still the name doesn't show up on the router.
 [*] Python get the camera to take pictures into a memory buffer
 [*] Python get OpenCV to examine image for a face.
 [*] Get the face recognition to enable/disable oled display.
@@ -17,11 +18,13 @@ Edit /etc/dphys-swapfile and change CONF_SWAPSIZE to 1024 in order for make -j4 
 Linux commands:
 df = storage space
 ls -all = shows system files too.
+find [path] -name "filename"
 mv = move or rename
 rm -r = remove recursive
 pushd . and popd
 created topi and frompi in /usr/local/bin.  These use scp to copy files to/from pis.
 added pi1-?? aliases to ~/.bash_aliases.  These use ssh to connect to the pis.
+Add pi ? cmn in /usr/local/bin. ? is the number from 0-9 for 192.168.2.6?
 
 TightVNCServer:
 Used instructions located here to install and autorun on startup.  Warning! There are multiple methods out there but some of them do not work at all.
@@ -139,6 +142,10 @@ Setting up wifi:
   }
 3: Add this to the bottom of your /etc/network/interfaces file, as it prevents power-save modes in the wifi dongles.
   wireless-power off
+4: Setting host name
+
+  [[https://thepihut.com/blogs/raspberry-pi-tutorials/19668676-renaming-your-raspberry-pi-the-hostname]]
+  sudo nano /etc/hostname
 
 Static IP:
 PI1 is set to 192.168.2.61 static IP address.
@@ -147,10 +154,13 @@ Add this to /etc/dhcpcd.conf
   static pi_address=192.168.2.61/24
   static routers=192.168.2.1
   static domain_name_servers=8.8.8.8 8.8.4.4
+  static domain_search=8.8.8.8
 
 Do the same for eth0.
 
 \\ Remote Access //
+bluetooth ssh:
+[[https://hacks.mozilla.org/2017/02/headless-raspberry-pi-configuration-over-bluetooth/]]
 
 scp:
 Can copy from ubunto bash directly to raspi with the following command
@@ -162,7 +172,16 @@ can ssh from ubuntu using:
 ssh pi@192.168.2.61
 ctrl+d or exit will stop the ssh session.
 
+\\ Wireless Access Point //
+[[https://learn.sparkfun.com/tutorials/setting-up-a-raspberry-pi-3-as-an-access-point]]
+Need a password of at least 8 digits.
+Test with this, it will show you errors if it doesn't work.
+{
+sudo /usr/sbin/hostapd /etc/hostapd/hostapd.conf
+}
+
 TightVNC:
+{
 #!/bin/sh
 # /etc/init.d/tightvncserver
 # Set the VNCUSER variable to the name of the user to start tightvncserver under
@@ -182,6 +201,9 @@ case "$1" in
     ;;
 esac
 exit 0
+}
+
+Set password with vncpasswd
 
 Auto ssh login:
 Note, all pi's use the same key.  To use multiple key's you'd have to create a .ssh/config file.
@@ -243,21 +265,20 @@ Got Raspi3 bluetooth working and connecting to my controller with the following 
 9: scan off
 10: exit
 
+NOTE: Copy of an SD card means you have to remove and re-pair the device or it will not connect correctly.  This is because it is paired with a specific raspi by some unique ID which changes if putting an SD card into a different raspi.
+
 Auto Connecting:
 Every time the raspi reboots or the controller disconnects we have to manually tell it to connect.  It doesn't autoconnect.
 Build and install Bluez.  Instructions here.
 [[https://learn.adafruit.com/install-bluez-on-the-raspberry-pi/installation]]
 
 Python Bluetoothctl:
-I may be able to control this from python.  To do so I got a module from -
-[[https://gist.github.com/egorf/66d88056a9d703928f93]]
-  This module handles all of the communication for me.  I may trim it down at some point as it is a bit more functionality than we need.  It's also for Python2 so I have to convert it.  I used pythonista on my IPad.
-  This module also requires pexpect
+I use os calls into bluetoothctl.
+ID is the bluetooth ID for the object to connect to.
+NOTE: Pairing is still a manual process.
 {
-pip3 install pexpect
+os.system('echo "power on \nconnect ' + [ID] + ' \nquit" | sudo bluetoothctl')
 }
-Try using subprocess.run() to connect instead.  I need a system that is error free in case of accidental disconnect.
-
 
 Reading Controller:
 This link has a good example.

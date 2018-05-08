@@ -52,3 +52,5 @@ Temporary Items
 build
 
 raspi.sublime-workspace
+*.ida
+*.sublime-workspace
