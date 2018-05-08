@@ -1,3 +1,0 @@
-/home/gcarver/raspi/wiringPi/wiringPi/CMakeFiles/edit_cache.dir
-/home/gcarver/raspi/wiringPi/wiringPi/CMakeFiles/rebuild_cache.dir
-/home/gcarver/raspi/wiringPi/wiringPi/CMakeFiles/wiringPi.dir
