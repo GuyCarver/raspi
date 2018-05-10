@@ -4,29 +4,10 @@ from pca9865 import *
 from quicrun import *
 from gamepad import *
 from sound import *
+import settings
 
+import saveload
 import ps2con
-
-#temporary button, group, sound-name mappings.  Move to json.
-mysounds = (
-  (ecodes.BTN_A, 1, 'alertsafety'),
-  (ecodes.BTN_B, 1, 'alertsecurity'),
-  (ecodes.BTN_C, 1, 'allcitizenscalm'),
-  (ecodes.BTN_X, 1, 'donotinterfere'),
-  (ecodes.BTN_Y, 1, 'hostiledetected2'),
-  (ecodes.BTN_SELECT, 1, 'hostiles'),
-  (ecodes.BTN_START, 1, 'movealong'),
-  (ecodes.BTN_TL2, 1, 'nohostiles'),
-  (ecodes.BTN_TR2, 1, 'noncombatants'),
-  (ecodes.BTN_TL, 1, 'privateproperty'),
-  (ecodes.BTN_TR, 1, 'systemreport'),
-  (ecodes.BTN_THUMBL, 1, 'warningleave'),
-  (ecodes.BTN_THUMBR, 1, 'warningsecurity'),
-  (gamepad.BTN_DPADU, 2, 'warningviolation'),
-  (gamepad.BTN_DPADR, 2, 'weaponsfree'),
-  (gamepad.BTN_DPADD, 2, 'weaponslocked'),
-  (gamepad.BTN_DPADL, 2, 'startup')
-)
 
 class sentrybot(object):
   '''docstring for sentrybot'''
@@ -72,18 +53,77 @@ class sentrybot(object):
     ps2con.DPAD_L : gamepad.BTN_DPADL
   }
 
+  _startupsound = 'powerup'
+
   def __init__( self ):
     self._controllernum = 0                     #Type of controller 0=FC30, 1=ps2
     self._controller = None                     #Start out with no controller. Will set once we no which type.
+    self._speed = 100.0
+    self._accel = 50.0
     #todo: load settings json
-    self._initsounds()
-    #todo: start settings server
+    self.load()
 
-    #todo: Take this out once it's done in settings load.
-    self.controller = 0
+#    #todo: Take out once it's done in settings load.
+#    self.controller = 0
 
     self._running = True
+
     sound.start()                               #Start the sound event listener
+
+    #Start settings server
+    self._settingsthread = Thread(target=lambda: settings.run(self))
+
+
+  __del__( self ):
+    self.save()
+    self._contoller = None
+
+  @property
+    def running( self ): return self._running
+
+  @property
+  def speed( self ):
+    return self._speed
+
+  @speed.setter
+  def speed( self, aValue ):
+    self._speed = aValue
+
+  @property
+  def accel( self ):
+    return self._accel
+
+  @accel.setter
+  def accel( self, aValue ):
+    self._accel = aValue
+
+  @property
+  def buttonsounds( self ):
+    return sentrybot._buttonsounds
+
+  @property
+  def startupsound( self ):
+    return sentrybot._startupsound
+
+  @startupsound.setter
+  def startupsound( self, aValue ):
+    sentrybot._startupsound = aValue
+
+  def btntoname( self, aButton ):
+    '''Abstraction interface for access to gamepad.btntoname()'''
+    return gamepad.btntoname(aButton)
+
+  def setbuttonsound( self, aButton, aFile ):
+    '''Assign given sound by name to given button name.'''
+
+    #NOTE: We create a new sound object for each call.
+    # But if the same file is used for multiple buttons we
+    # don't use the same sound object. Not worrying about that
+    # because each button should be assigned a different sound anyway.
+    btnnum = gamepad.nametobtn(aButton)
+    if aFile:
+      aFile = sound(aFile)
+    sentrybot._buttonsounds[btnnum] = aFile
 
   @property
   def controller( self ): return self._controllernum
@@ -91,6 +131,7 @@ class sentrybot(object):
   @controller.setter
   def controller( self, aValue ):
     '''Set the controller # and create the associated controller if necessary'''
+    #Don't do anything if already set to the current value.
     if self._controllernum != aValue or self._controller == None:
       self._controller = aValue
       if aValue:
@@ -98,10 +139,12 @@ class sentrybot(object):
       else:
         self._controller = gamepad(aCallback = self._buttonaction)
 
-  def _initsounds( self ):
+  def initsounds( self, aSounds ):
     '''Temporary method to initialize sounds from a list of button, group, sound'''
-    for s in mysounds:
-      sentrybot._buttonsounds[s[0]] = sound(s[2] + '.mp3', s[1], self._sounddone)
+    for s in aSounds:
+      b = gamepad.nametobtn(s[0])               #Turn button name into button #.
+      if b >= 0:
+        sentrybot._buttonsounds[s[0]] = sound(s[2] + '.mp3', s[1], self._sounddone)
 
   def _sounddone( self, aSound ):
     '''Callback function when sound file is done playing.'''
@@ -126,11 +169,19 @@ class sentrybot(object):
     elif aButton == gamepad.GAMEPAD_DISCONNECT:
       print('Disconnected controller!')
 
+  def save( self ):
+    '''Do save of properites.'''
+    saveload.saveproperties(self)
+
+  def load( self ):
+    '''Do load of properties.'''
+    saveload.loadproperties(self)
+
   def run( self ):
     '''Main loop to run the robot.'''
-    s = sound('powerup.mp3')
+    s = sound(self.startupsound + '.mp3')
     s.play()
-    while self._running:
+    while self.running:
       if self._controller:
         self._controller.update()
       sound.update()                            #Update sound event listener

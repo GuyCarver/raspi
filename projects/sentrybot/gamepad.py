@@ -49,6 +49,40 @@ class gamepad(object):
 
   GAMEPAD_DISCONNECT = 32                       #Special button action to indicate disconnect.
 
+  _buttonnames = {
+   'A' : ecodes.BTN_A,
+   'B' : ecodes.BTN_B,
+   'C' : ecodes.BTN_C,
+   'X' : ecodes.BTN_X,
+   'Y' : ecodes.BTN_Y,
+   'SELECT' : ecodes.BTN_SELECT,
+   'START' : ecodes.BTN_START,
+   'L_TRIGGER' : ecodes.BTN_TL2,
+   'R_TRIGGER' : ecodes.BTN_TR2,
+   'L_SHOULDER' : ecodes.BTN_TL,
+   'R_SHOULDER' : ecodes.BTN_TR,
+   'L_THUMB' : ecodes.BTN_THUMBL,
+   'R_THUMB' : ecodes.BTN_THUMBR,
+   'DPAD_U' : BTN_DPADU,
+   'DPAD_R' : BTN_DPADR,
+   'DPAD_D' : BTN_DPADD,
+   'DPAD_L' : BTN_DPADL
+  }
+
+  @classmethod
+  def nametobtn( self, aValue ):
+    '''Get button # of given button name'''
+    return self._buttonnames[aValue] if aValue in self._buttonnames else -1
+
+  @classmethod
+  def btntoname( self, aButton ):
+    '''Get the name given a button value.'''
+    for k, v in self._buttonnames.items():
+      if v == aButton:
+        return k
+
+    return None
+
   @staticmethod
   def _translate( aValue, aInvert ):
     '''Convert value 0-255 to +/-256
@@ -209,42 +243,14 @@ class gamepad(object):
 
 def mytest( aButton, aValue ):
   '''Test input.'''
-  def printbtn(btn, v):
-    print(btn + (' pressed' if v else ' released'))
-
-  btn = ''
-  if aButton == ecodes.BTN_A:
-    btn = 'A'
-  elif aButton == ecodes.BTN_B:
-    btn = 'B'
-  elif aButton == ecodes.BTN_C:
-    btn = 'C'
-  elif aButton == ecodes.BTN_X:
-    btn = 'X'
-  elif aButton == ecodes.BTN_Y:
-    btn = 'Y'
-  elif aButton == ecodes.BTN_START:
-    btn = 'START'
-  elif aButton == ecodes.BTN_SELECT:
-    btn = 'SELECT'
-  elif aButton == ecodes.BTN_TR2:
-    btn = 'rtrigger'
-  elif aButton == ecodes.BTN_TL2:
-    btn = 'ltrigger'
-  elif aButton == ecodes.BTN_TR:
-    btn = 'rshoulder'
-  elif aButton == ecodes.BTN_TL:
-    btn = 'lshoulder'
-  elif aButton == ecodes.BTN_THUMBL:
-    btn = 'lhat'
-  elif aButton == ecodes.BTN_THUMBR:
-    btn = 'rhat'
-  elif aButton == ecodes.ABS_HAT0X:
+  if aButton == ecodes.ABS_HAT0X:
     btn = 'dpadr' if aValue > 0 else 'dpadl'
-  elif aButton == ecodes.ABS_HAT0Y:
+  if aButton == ecodes.ABS_HAT0Y:
     btn = 'dpadu' if aValue > 0 else 'dpadd'
+  else:
+    btn = gamepad.btntoname(aButton)
 
-  printbtn(btn, aValue)
+  print(btn, ('pressed' if aValue else 'released'))
 
 if __name__ == '__main__':  #start server
   p = gamepad(aCallback = mytest)

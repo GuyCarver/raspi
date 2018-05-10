@@ -35,6 +35,7 @@ class sound(object):
 #    print('starting listener')
 
   def __init__( self, aFile, aGroup = 0, aCallback = None ):
+    self._filename = aFile                      #Keep track of base file name.
     self._group = aGroup                        #Only 1 sound in a group may play at a time.
     self._keeploaded = False                    #When True sound will never be unloaded.
     self._loaded = False;                       #When True the sound data is loaded.
@@ -60,12 +61,16 @@ class sound(object):
     self._keeploaded = aValue
 
   @property
-  def group( self ):
-    return self._group
+  def group( self ): return self._group
 
   @property
-  def loaded( self ):
-    return self._loaded
+  def loaded( self ): return self._loaded
+
+  @property
+  def filename( self ): return self._filename
+
+  @property
+  def source( self ): return self._sound.source if self.loaded else ''
 
   @property
   def callback( self ):
@@ -87,10 +92,6 @@ class sound(object):
   def loop( self, aValue ):
     if self.loaded:
       self._sound.loop = aValue
-
-  @property
-  def source( self ):
-    return self._sound.source if self.loaded else ''
 
   def load( self ):
     '''load the sound.  This is necessary before it can play and is called by play(), but the sound
@@ -119,7 +120,7 @@ class sound(object):
     '''Stop sound from playing if it is currently playing.'''
     if self.playing:
       self._sound.stop()
-#      self.unload(False)                          #Unload the sound only if it's not flagged for keep.
+#      self.unload(False)                       #Unload the sound only if it's not flagged for keep.
 
   @classmethod
   def stopgroup( self, aSound ):
