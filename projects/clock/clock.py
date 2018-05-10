@@ -565,7 +565,7 @@ class Clock:
         data['alwayson'] = self.alwaysontimes
         data['dim'] = self.dim
 
-        dump(data, f)
+        dump(data, f, indent = 2)
     except:
       pass
 

@@ -2,7 +2,6 @@
 #handle button input.
 
 import RPi.GPIO as GPIO
-import time
 
 class button(object):
   """Handle input from a single button channel on GPIO."""
@@ -67,30 +66,30 @@ class button(object):
 
     return res
 
-#todo: Test all 6 buttons and the alarm switch.
-
-#Snooze, Alarm On/Off Switch, Alarm Set, Minute, Hour, Time Set (Update temp)
-ButtonIDS = [12, 5, 6, 13, 19, 26]
-
-def test(  ):
-  GPIO.setwarnings(False)
-  GPIO.setmode(GPIO.BCM)
-
-  MyButtons = [ button(x) for x in ButtonIDS ]
-
-  running = True;
-  try:
-    while running:
-      for b in MyButtons:
-        state = b.update()
-        if state & button.CHANGE:
-          print("{} is {}".format(b.channel, "released" if state & button.UP else "pressed"))
-      time.sleep(0.2)
-  except KeyboardInterrupt:
-    print("exiting.")
-    running = False
-
 if __name__ == '__main__':  #start server and open browser
+  import time
+
+  #Snooze, Alarm On/Off Switch, Alarm Set, Minute, Hour, Time Set (Update temp)
+  ButtonIDS = [12, 5, 6, 13, 19, 26]
+
+  def test(  ):
+    GPIO.setwarnings(False)
+    GPIO.setmode(GPIO.BCM)
+
+    MyButtons = [ button(x) for x in ButtonIDS ]
+
+    running = True;
+    try:
+      while running:
+        for b in MyButtons:
+          state = b.update()
+          if state & button.CHANGE:
+            print("{} is {}".format(b.channel, "released" if state & button.UP else "pressed"))
+        time.sleep(0.2)
+    except KeyboardInterrupt:
+      print("exiting.")
+      running = False
+
   test()
   print('done')
 
