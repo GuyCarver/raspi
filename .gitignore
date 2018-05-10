@@ -54,3 +54,4 @@ build
 raspi.sublime-workspace
 *.ida
 *.sublime-workspace
+*.sublime-project
