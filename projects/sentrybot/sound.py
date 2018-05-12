@@ -45,7 +45,7 @@ class sound(object):
       sound._playinggroups[aGroup] = None
 
     #Create the sound object. This does not actually load the sound data.
-    self._sound = audio.SoundLoader.load(sound._DIR + aFile)
+    self._sound = audio.SoundLoader.load(sound._DIR + aFile + '.mp3')
 
     self._callback = aCallback                  #Sound stop callback function.
     #If sound stop callback given, set it.
@@ -149,7 +149,6 @@ class sound(object):
       self._callback(self)
 
     self.unload(False)                            #Unload unless keeploaded set.
-
 
 if __name__ == '__main__':
   from time import sleep

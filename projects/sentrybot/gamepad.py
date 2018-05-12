@@ -55,18 +55,18 @@ class gamepad(object):
    'C' : ecodes.BTN_C,
    'X' : ecodes.BTN_X,
    'Y' : ecodes.BTN_Y,
-   'SELECT' : ecodes.BTN_SELECT,
-   'START' : ecodes.BTN_START,
-   'L_TRIGGER' : ecodes.BTN_TL2,
-   'R_TRIGGER' : ecodes.BTN_TR2,
-   'L_SHOULDER' : ecodes.BTN_TL,
-   'R_SHOULDER' : ecodes.BTN_TR,
-   'L_THUMB' : ecodes.BTN_THUMBL,
-   'R_THUMB' : ecodes.BTN_THUMBR,
-   'DPAD_U' : BTN_DPADU,
-   'DPAD_R' : BTN_DPADR,
-   'DPAD_D' : BTN_DPADD,
-   'DPAD_L' : BTN_DPADL
+   'SLCT' : ecodes.BTN_SELECT,
+   'STRT' : ecodes.BTN_START,
+   'L_TR' : ecodes.BTN_TL2,
+   'R_TR' : ecodes.BTN_TR2,
+   'L_SH' : ecodes.BTN_TL,
+   'R_SH' : ecodes.BTN_TR,
+   'L_TH' : ecodes.BTN_THUMBL,
+   'R_TH' : ecodes.BTN_THUMBR,
+   'DP_U' : BTN_DPADU,
+   'DP_R' : BTN_DPADR,
+   'DP_D' : BTN_DPADD,
+   'DP_L' : BTN_DPADL
   }
 
   @classmethod
@@ -241,18 +241,19 @@ class gamepad(object):
     else:
       self._connect(1)
 
-def mytest( aButton, aValue ):
-  '''Test input.'''
-  if aButton == ecodes.ABS_HAT0X:
-    btn = 'dpadr' if aValue > 0 else 'dpadl'
-  if aButton == ecodes.ABS_HAT0Y:
-    btn = 'dpadu' if aValue > 0 else 'dpadd'
-  else:
-    btn = gamepad.btntoname(aButton)
-
-  print(btn, ('pressed' if aValue else 'released'))
-
 if __name__ == '__main__':  #start server
+
+  def mytest( aButton, aValue ):
+    '''Test input.'''
+    if aButton == ecodes.ABS_HAT0X:
+      btn = 'dpadr' if aValue > 0 else 'dpadl'
+    if aButton == ecodes.ABS_HAT0Y:
+      btn = 'dpadu' if aValue > 0 else 'dpadd'
+    else:
+      btn = gamepad.btntoname(aButton)
+
+    print(btn, ('pressed' if aValue else 'released'))
+
   p = gamepad(aCallback = mytest)
   while 1:
     p.update()

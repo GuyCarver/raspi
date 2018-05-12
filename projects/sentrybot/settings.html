@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html><head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SentryBot</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+  <style>
+    .mynumber {
+      width: 50px;
+    }
+    .diva {
+      margin-top: 6px;
+    }
+
+    .fa {
+      cursor: pointer;
+      pointer-events: all;
+    }
+
+    header, footer {
+      color: white;
+      background-color: black;
+      clear: left;
+      text-align: center;
+    }
+
+    nav {
+      font-size: 10px;
+      margin-left: 2px;
+      text-align: left;
+      padding: 5px;
+    }
+
+    .range {
+      width: auto;
+      height: 1px;
+      background-color: #00bfff;
+    }
+  </style>
+</head>
+<body><form action="/" method="POST" enctype="multipart/form-data">
+
+  <header>
+     <h2>Sentry Bot</h2>
+  </header>
+
+  <nav>
+    <div class="w3-card-4 w3-container">
+      <span class="w3-tag w3-blue">Controller</span>
+      <select name="controller" onchange="form.submit()">
+        <option value="0" ${c_0}>8Bitdo FC30 Pro</option>
+        <option value="1" ${c_1}>PS2</option>
+      </select>
+    </div>
+    <div class="w3-card-4 w3-container">
+      <h4>Servos and Motors</h4>
+      <div class="diva">
+        Speed: <input class="mynumber" type="number" name="speed" min="1" max="100" value="${speed}">
+        &nbsp;Accel: <input class="mynumber" type="number" name="accel" min="1" max="100" value="${accel}">
+      </div>
+      <div class="diva">
+        Head Turn Limit: <input class="mynumber" type="number" name="headturn" min="1" max="90" value="${headturn}">
+      </div>
+<!--      <div>
+      <datalist id="ticks">
+        <option value="1" label="1">
+      <option value="25">
+        <option value="50" label="50">
+        <option value="75">
+        <option value="100" label="100">
+      </datalist>
+        Speed: ${speed}</br>
+        <input type="range" style="width:400px" min="1" max="100" value="${speed}" name="speed" onchange="form.submit()" list="ticks">
+      </div>
+      <div>
+        Accel: ${accel}</br>
+        <input type="range" style="width:400px" min="1" max="100" value="${accel}" name="accel" onchange="form.submit()" list="ticks">
+      </div>
+      <div>
+        Head Turn Limit: ${headturn}</br>
+        <input type="range" style="width:400px" min="0" max="90" value="${headturn}" name="headturn" onchange="form.submit()" list="ticks">
+      </div>
+!-->
+    </div>
+
+    <div class="w3-card-4 w3-container">
+      <div class="w3-col w3-left" style="width:40%">
+        <h4>Buttons</h4>
+        <select name="button" style="width:60%" size="21">
+          ${buttons}
+        </select>
+        <button class="w3-right w3-border w3-btn w3-light-blue w3-small" style="margin:auto" name="setsound" value="1"><i class="fa fa-angle-double-left"></i></button>
+      </div>
+
+      <div class="w3-rest">
+        <h4>Sounds</h4>
+        <select name="sound" style="width:32%" size="21">
+          ${soundlist}
+        </select>
+        <button class="w3-border w3-btn w3-green w3-small" style="margin:auto" name="Play" value="1"><i class="fa fa-play"></i></button>
+      </div>
+    </div>
+  </nav>
+
+  <footer>
+    <input type="submit" name="Save" value="Save">
+  </footer>
+
+</form></body>
+</html>

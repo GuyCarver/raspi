@@ -13,67 +13,22 @@ import webbrowser
 from os import listdir
 from os.path import isfile, join, splitext
 
-#'<html><head><style type="text/css">'
-#  ' body {margin: 30px; font-family: sans-serif; background: #ddd;}'
-#  ' span {font-style: italic; padding: 0 .5em 0 1em;}'
-#  ' img {display: block; margin-left: auto; margin-right: auto; '
-#  'box-shadow: 5px 5px 10px 0 #666;}'
-
-HTML = Template('<html><head>'
-  '<meta name="viewport" content="width=device-width, initial-scale=1">'
-  '<title>SentryBot</title>'
-  '<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">'
-  '<style>'
-  '.slidecontainer {'
-  '    width: 200px;'
-  '}'
-  '</style></head><body>'
-  '<form action="/" method="POST" enctype="multipart/form-data">' +
-  '<div class="container">'
-  '<div><h1>Sentrybot Settings</h1><div>'
-  '<div>'
-  '  <h2>Controller</h2>'
-  '  <div><input type="radio" name="controller" value="0" ${c_0} onclick="form.submit()">8Bitdo FC30 Pro</div>'
-  '  <div><input type="radio" name="controller" value="1" ${c_1} onclick="form.submit()">PS2</div>'
-  '<div></br></br>'
-  '<div class="slidecontainer">'
-  '<datalist id="ticks"><option value="0" label="0"><option value="25">'
-  '<option value="50" label="50"><option value="75"><option value="100" label="100"></datalist> '
-  '<span>Speed: ${speed}</span><input type="range" min="0" max="100" value="${speed}" name="speed" '
-  'onchange="form.submit()" list="ticks">'
-  '</div></br>'
-  '<div class="slidecontainer">'
-  '<span>Accel: ${accel}</span><input type="range" min="0" max="100" value="${accel}" name="accel" '
-  'onchange="form.submit()" list="ticks">'
-  '</div></br>'
-  '<div>'
-  '<label for="startup">Startup Sound:  </label>'
-  '<select name="startup" style="width:150px" onchange="form.submit()">'
-  '${startup}</select><br/>'
-  '</div></br>'
-  '<div>${buttons}</div>'
-  '<div>'
-  '<input type="submit" name="Save" value="Save">'
-  '</div></div>'
-  '</form></body></html>')
-
-#  '<datalist id="sounds">'
-#  '${startup}'
-#  '</datalist>'
-#  '<div><label for="A">A: </label><input list="sounds" name="A"></div>'
-#  '<div><label for="B">B: </label><input list="sounds" name="B"></div>'
-#  '<div><label for="C">C: </label><input list="sounds" name="C"></div>'
-#  '<div><label for="D">D: </label><input list="sounds" name="D"></div>'
-
 class RH(BaseHTTPRequestHandler):
 
+  HTML = None
+  testing = False
   target = None                                #Target Clock class.
   sounddir = 'sounds'
   soundFiles = []                               #List of sound files in sounds directory.
-  buttonlist = []                               #List of button names.
+  lastsound = None
+  lastbutton = None
+  used = {}
 
+  @staticmethod
   def determinecontroller(  ):
-    return 'c_' + str(RH.target.controller)
+    v = 'c_' + str(RH.target.controller)
+#    print('controller is ', v)
+    return v
 
   @classmethod
   def getsoundfiles( self ):
@@ -82,89 +37,127 @@ class RH(BaseHTTPRequestHandler):
     self.soundFiles.insert(0, 'None')
 
   @classmethod
-  def makesoundlist( self, selection ):
+  def makesoundlist( self ):
+    '''Create html entries for list of sounds. Tag used sounds.'''
     def makeit(f):
-      tag = ' selected' if selection == f else ''
-      return '<option{}>{}</option>'.format(tag, f)
+      selected = ' selected' if self.lastsound == f else ''
+      #If used set tag.
+      if f in self.used:
+        tag = 'X: '
+      else:
+        tag = ''
+      return '<option value="{0}"{1}>{2}{0}</option>'.format(f, selected, tag)
 
-    return ''.join([makeit(f) for f in self.soundFiles])
+    return '\r\n\t'.join([makeit(f) for f in self.soundFiles])
 
   @classmethod
-  def buildbuttonlist( self, buttons ):
+  def updateused( self ):
+    self.used = {v.filename for v in self.target.buttonsounds.values() if v != None }
+    v = self.target.startupsound
+    if v != None:
+      self.used.add(v.filename)
+
+  @classmethod
+  def makebuttonlist( self ):
+    buttonsounds = self.target.buttonsounds
+    def makeit(btnname, s):
+      if s:
+        f = s.filename
+        color = ''
+      else:
+        f = 'None'
+        color = ' class="w3-text-gray" '
+
+      selected = ' selected' if self.lastbutton == btnname else ''
+
+      return '<option {3} value="{0}"{1}>{0} - {2}</option>'.format(btnname, selected, f, color)
+
+    res = [makeit(self.target.btntoname(btn), snd) for btn, snd in buttonsounds.items()]
+    res.sort()
+    res.append(makeit('startup', self.target.startupsound))
+    return '\r\n'.join(res)
+
+  @classmethod
+  def readHTML( self ):
     '''  '''
-    self.buttonlist = [self.target.btntoname(n) for n in buttons.keys()]
+    with open('settings.html', 'r') as f:
+      htdata = f.read()
+    self.HTML = Template(htdata)
 
-  @classmethod
-  def buildbuttonsounds( self, buttons ):
-    res = ''
-#    print(buttons)
-#    print(self.buttonlist)
-    for i, s in enumerate(buttons.values()):
-      bname = self.buttonlist[i]
-      fname = s.filename if s else 'None'
-      slist = self.makesoundlist(fname)
-      res += '''<div><label for="{0}">{0}:</label>
-                <select name="{0}" style="width:150px" onchange="form.submit()">
-                {1}</select></div>'''.format(bname, slist)
-    return res
-
+  #--------------------------------------------------------------
   def do_GET( self ):  #load initial page
+    #When testing we reload this every get.
+    if self.testing:
+      self.readHTML()
+
 #    print('getting ' + self.path)
-    subs = { RH.determinecontroller() : 'checked',
-      'speed' : RH.target.speed,
-      'accel' : RH.target.accel,
-      'startup' : RH.makesoundlist(RH.target.startupsound),
-     'buttons' : RH.buildbuttonsounds(RH.target.buttonsounds)
+    subs = { self.determinecontroller() : 'selected',
+      'speed' : self.target.speed,
+      'accel' : self.target.accel,
+      'soundlist' : self.makesoundlist(),
+      'buttons' : self.makebuttonlist(),
+      'headturn' : self.target.headturnlimit,
     }
 
     self.send_response(200)
     self.send_header('Content-Type', 'text/html')
     self.end_headers()
-    inter = HTML.safe_substitute(subs)
-#    print(inter)
+    inter = self.HTML.safe_substitute(subs)
     self.wfile.write(bytearray(inter, 'utf-8'))
 
+  #--------------------------------------------------------------
   def do_POST( self ):  #process requests
     #read form data
     form = cgi.FieldStorage(fp = self.rfile, headers = self.headers,
                             environ = {'REQUEST_METHOD':'POST',
                            'CONTENT_TYPE':self.headers['Content-Type']})
-#    print(form)
+
     #Read data from forms into variables.
     con = form.getfirst('controller')
-    startup = form.getfirst('startup')
     speed = form.getfirst('speed')
     accel = form.getfirst('accel')
     sv = form.getfirst('Save')
+    pl = form.getfirst('Play')
+    setsound = form.getfirst('setsound')
+    headturnlimit = form.getvalue('headturn')
+    RH.lastsound = form.getvalue('sound')
+    RH.lastbutton = form.getvalue('button')
 
-    #todo: Loop through button sounds and parse.
-    for btn in self.buttonlist:
-      soundname = form.getvalue(btn)
-      RH.target.setbuttonsound(btn, soundname)
+    if pl and self.lastsound:
+      if self.lastsound != 'None':
+        self.target.previewsound(self.lastsound)
+
+    if setsound != None:
+      if self.lastbutton and self.lastsound :
+        self.target.setbuttonsound(self.lastbutton, self.lastsound)
+        self.updateused()
 
     #if have a target clock write data to it.
-    RH.target.controller = int(con)
-    RH.target.speed = float(speed)
-    RH.target.accel = float(accel)
-    RH.target.startupsound = startup
+    self.target.controller = int(con)
+    self.target.speed = float(speed)
+    self.target.accel = float(accel)
+    self.target.headturnlimit = float(headturnlimit)
 
     #If save button pressed then save settings to json file.
     if sv != None:
-#       print('saving')
-      RH.target.save()
-
-    print('controller = ', RH.target.controller)
-    print('speed = ', RH.target.speed)
-    print('accel = ', RH.target.accel)
-    print('startup = ', RH.target.startupsound)
+      self.target.save()
 
     self.do_GET()                               #Re-read the data.
 
-def run( aTarget ):
-  RH.target = aTarget
-  RH.buildbuttonlist(aTarget.buttonsounds)      #Build list of button names.
-  RH.getsoundfiles()                            #Make list of sound files.
-#  print(RH.soundFiles)
+  @classmethod
+  def init( self, aTarget, aTesting ):
+    '''  '''
+    self.testing = aTesting
+    if not self.testing:
+      self.readHTML()
+
+    self.target = aTarget
+    self.getsoundfiles()                        #Make list of sound files.
+#    print(self.soundFiles)
+    self.updateused()
+
+def run( aTarget, aTesting = False ):
+  RH.init(aTarget, aTesting)
 
   server = HTTPServer(('', 8080), RH)
   server.timeout = 2.0 #handle_request times out after 2 seconds.
@@ -178,6 +171,7 @@ def run( aTarget ):
   print('HTTP Server thread exit.')
 
 if __name__ == '__main__':  #start server
+
   class testsnd(object):
     def __init__( self, aFile ):
       self.filename = aFile
@@ -238,28 +232,35 @@ if __name__ == '__main__':  #start server
 
       return None
 
-    '''docstring for testtarget'''
     def __init__( self ):
       self.controller = 1
       self.speed = 50.0
       self.accel = 4.0
+      self.headturnlimit = 90.0
       self._running = True
-      self.startupsound = 'powerup'
+      self.startupsound = None
+
+    def previewsound( self, aSound ):
+      print("playing sound", aSound)
 
     def save( self ):
-      print('saving')
+      print('Saving')
 
     def setbuttonsound( self, aButton, aFile ):
-      '''  '''
-      print("Sound:", aButton, aFile)
-      btnnum = self.nametobtn(aButton)
+      print('Button sound:', aButton, aFile)
+
       if aFile:
-        aFile = testsnd(aFile)
-      self.buttonsounds[btnnum] = aFile
+        aFile = testsnd(aFile) if (aFile != 'None') else None
+
+      if aButton == 'startup':
+        self.startupsound = aFile
+      else:
+        btnnum = self.nametobtn(aButton)
+        self.buttonsounds[btnnum] = aFile
 
     @property
     def running( self ): return self._running
 
-  run(testtarget())
+  run(testtarget(), True)
   print('done')
 
