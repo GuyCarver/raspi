@@ -35,6 +35,7 @@
 #include <python3.5/Python.h>
 #include <python3.5/structmember.h>
 #include <iostream>
+#include <stdio.h>
 #include <wiringPi.h>
 
 #define Offset(Class,Member) (Py_ssize_t)((&((Class*)0)->Member) - 0)
@@ -362,7 +363,7 @@ public:
 		//If the input values are _LX etc, they have an additional bit set to start them at index 16.  Strip that off.
 		int32_t index = PyLong_AsLong(apArg) & 0x03;
 
-		return Py_BuildValue("I", apSelf->_joys[index]);
+		return Py_BuildValue("i", apSelf->_joys[index]);
 	}
 
 	//Set/Get callback functions.
@@ -403,9 +404,19 @@ public:
 
 	//str() conversion function.
 	static PyObject *Print( ps2con *apSelf ) {
-//		char mystring[32];
-//		sprintf_s(mystring, "ps2con._cmd = %d", apSelf->_cmd);
-		return(Py_BuildValue("s", "Not implemented"));
+		char mystring[256];
+		sprintf(mystring, "ps2con._data = %X,%X,%X,%X,%X,%X,%X,%X,%X",
+			apSelf->_res[0],
+			apSelf->_res[1],
+			apSelf->_res[2],
+			apSelf->_res[3],
+			apSelf->_res[4],
+			apSelf->_res[5],
+			apSelf->_res[6],
+			apSelf->_res[7],
+			apSelf->_res[8]
+			);
+		return(Py_BuildValue("s", mystring));
 	}
 
 };

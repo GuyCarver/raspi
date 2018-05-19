@@ -13,20 +13,20 @@ import webbrowser
 from os import listdir
 from os.path import isfile, join, splitext
 
-class RH(BaseHTTPRequestHandler):
+class settings(BaseHTTPRequestHandler):
 
-  HTML = None
-  testing = False
-  target = None                                #Target Clock class.
-  sounddir = 'sounds'
+  HTML = None                                   #HTML contents loaded for setting.html file.
+  testing = False                               #When true HTML file is loaded every get call.
+  target = None                                 #Target class to get/set settings on.
+  sounddir = 'sounds'                           #Directory to grab sounds from.
   soundFiles = []                               #List of sound files in sounds directory.
-  lastsound = None
-  lastbutton = None
-  used = {}
+  lastsound = None                              #Name of last selected sound in list.
+  lastbutton = None                             #Name of last button selected in list.
+  used = {}                                     #Set of used sound names.
 
-  @staticmethod
-  def determinecontroller(  ):
-    v = 'c_' + str(RH.target.controller)
+  @classmethod
+  def determinecontroller( self ):
+    v = 'c_' + str(self.target.controller)
 #    print('controller is ', v)
     return v
 
@@ -52,13 +52,16 @@ class RH(BaseHTTPRequestHandler):
 
   @classmethod
   def updateused( self ):
+    '''Update set of used sound names'''
     self.used = {v.filename for v in self.target.buttonsounds.values() if v != None }
+    #Also add the startup sound.
     v = self.target.startupsound
     if v != None:
       self.used.add(v.filename)
 
   @classmethod
   def makebuttonlist( self ):
+    '''Create list of html entries for buttons by name.'''
     buttonsounds = self.target.buttonsounds
     def makeit(btnname, s):
       if s:
@@ -72,6 +75,7 @@ class RH(BaseHTTPRequestHandler):
 
       return '<option {3} value="{0}"{1}>{0} - {2}</option>'.format(btnname, selected, f, color)
 
+    #todo: Sort buttonsounds by btn # before creating list?
     res = [makeit(self.target.btntoname(btn), snd) for btn, snd in buttonsounds.items()]
     res.sort()
     res.append(makeit('startup', self.target.startupsound))
@@ -79,7 +83,7 @@ class RH(BaseHTTPRequestHandler):
 
   @classmethod
   def readHTML( self ):
-    '''  '''
+    '''Read HTML content from file.'''
     with open('settings.html', 'r') as f:
       htdata = f.read()
     self.HTML = Template(htdata)
@@ -120,8 +124,8 @@ class RH(BaseHTTPRequestHandler):
     pl = form.getfirst('Play')
     setsound = form.getfirst('setsound')
     headturnlimit = form.getvalue('headturn')
-    RH.lastsound = form.getvalue('sound')
-    RH.lastbutton = form.getvalue('button')
+    self.lastsound = form.getvalue('sound')
+    self.lastbutton = form.getvalue('button')
 
     if pl and self.lastsound:
       if self.lastsound != 'None':
@@ -133,9 +137,7 @@ class RH(BaseHTTPRequestHandler):
         self.updateused()
 
     #if have a target clock write data to it.
-    self.target.controller = int(con)
-    self.target.speed = float(speed)
-    self.target.accel = float(accel)
+    self.target.setcontroller(int(con))
     self.target.headturnlimit = float(headturnlimit)
 
     #If save button pressed then save settings to json file.
@@ -146,31 +148,37 @@ class RH(BaseHTTPRequestHandler):
 
   @classmethod
   def init( self, aTarget, aTesting ):
-    '''  '''
+    '''Setup target and testing state.'''
     self.testing = aTesting
+
+    #If not testing we only read HTML file once.
     if not self.testing:
       self.readHTML()
 
     self.target = aTarget
+
     self.getsoundfiles()                        #Make list of sound files.
 #    print(self.soundFiles)
     self.updateused()
 
-def run( aTarget, aTesting = False ):
-  RH.init(aTarget, aTesting)
+  @classmethod
+  def run( self, aTarget, aTesting = False ):
+    '''Run the server and loop until target shuts down.'''
 
-  server = HTTPServer(('', 8080), RH)
-  server.timeout = 2.0 #handle_request times out after 2 seconds.
-#  print("Starting server")
+    self.init(aTarget, aTesting)
 
-  #Loop as long as target clock is running or forever if we have none.
-  while aTarget.running:
-    server.handle_request()
-    time.sleep(1.0)
+    server = HTTPServer(('', 8080), self)
+    server.timeout = 2.0 #handle_request times out after 2 seconds.
+  #  print("Starting server")
 
-  print('HTTP Server thread exit.')
+    #Loop as long as target clock is running or forever if we have none.
+    while aTarget.running:
+      server.handle_request()
+      time.sleep(1.0)
 
-if __name__ == '__main__':  #start server
+    print('HTTP Server thread exit.')
+
+if __name__ == '__main__':  #Run settings test with dummy data.
 
   class testsnd(object):
     def __init__( self, aFile ):
@@ -237,7 +245,7 @@ if __name__ == '__main__':  #start server
       self.speed = 50.0
       self.accel = 4.0
       self.headturnlimit = 90.0
-      self._running = True
+      self.running = True
       self.startupsound = None
 
     def previewsound( self, aSound ):
@@ -258,9 +266,6 @@ if __name__ == '__main__':  #start server
         btnnum = self.nametobtn(aButton)
         self.buttonsounds[btnnum] = aFile
 
-    @property
-    def running( self ): return self._running
-
-  run(testtarget(), True)
+  settings.run(testtarget(), True)
   print('done')
 

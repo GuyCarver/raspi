@@ -3,6 +3,7 @@
 from json import dump, load
 from sound import *
 from gamepad import *
+from body import saveparts, loadparts
 
 #NOTE: If running from crontab, may need to specify the exact address as CWD doesn't seem to be correct.
 #savename = '/home/pi/projects/sentrybot/options.json'
@@ -26,13 +27,13 @@ def saveproperties( bot ):
       data = {}
       data['controller'] = bot.controller
       data['startup'] = bot.startupsound.filename if bot.startupsound else None
-      data['speed'] = bot.speed
-      data['accel'] = bot.accel
 
       #Save sound button mappings.
       #Get sounds and convert from:
       # ecode.btn, soundobj to (btnname, group, basefilename)
       data['sounds'] = jsonsounddata(bot.buttonsounds)
+
+      saveparts(data)                           #Save body part data to json.
 
       dump(data, f, indent = 2)
   except:
@@ -46,14 +47,14 @@ def loadproperties( bot ):
       bot.controller = data['controller']
       bot.startupsound = data['startup']
       bot.initsounds(data['sounds'])
-      bot.speed = data['speed']
-      bot.accel = data['accel']
+      loadparts(data)                           #Load body part data from json.
   except Exception as e:
     print('option load error:', e)
 
+#------------------------------------------------------------------------
 if __name__ == '__main__':  #start server and open browser
   class testsnd(object):
-    '''docstring for testsnd'''
+    '''This is all testing support objects.'''
     def __init__( self, aGroup, aFile ):
       self.group = aGroup
       self.filename = aFile

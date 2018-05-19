@@ -1,5 +1,5 @@
 from ps2con import *
-import wiringpi
+from time import sleep
 
 class dude(object):
   '''docstring for dude'''
@@ -7,7 +7,7 @@ class dude(object):
     self._btn = 3
 
   def mycallback( self, aButton, aValue ):
-    if aButton == self._btn:
+    if aValue & 0x02:
       print(aButton, aValue)
 
 def test(  ):
@@ -16,10 +16,11 @@ def test(  ):
   p = ps2con(27, 22, 18, 17, d.mycallback)
   while 1:
     p.update()
-    for i, v in enumerate(p):
-      print(hex(v), ',', end='')
-    print(';', end='\r')
+    print(p, end='\r')
+#    for i, v in enumerate(p):
+#      print(hex(v), ',', end='')
+#    print(';', end='\r')
 
-    wiringpi.delayMicroseconds(1000)
+    sleep(0.1)
 
 test()

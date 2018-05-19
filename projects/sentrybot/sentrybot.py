@@ -4,14 +4,21 @@ from pca9865 import *
 from quicrun import *
 from gamepad import *
 from sound import *
-import settings
-from threading import Thread #,Lock
+from settings import *
 
+import body
 import saveload
 import ps2con
+import legs
 
+from threading import Thread #,Lock
+from time import perf_counter, sleep
+import keyboard
+
+#todo: Remove testing flag from settings server creation.
+
+#------------------------------------------------------------------------
 class sentrybot(object):
-  '''docstring for sentrybot'''
 
   #map of button to sound object.  This is loaded from a json file.
   _buttonsounds = {
@@ -54,15 +61,20 @@ class sentrybot(object):
     ps2con.DPAD_L : gamepad.BTN_DPADL
   }
 
+  _ps2joymap = {
+    gamepad._LX : ps2con.LX,
+    gamepad._LY : ps2con.LY,
+    gamepad._RX : ps2con.RX,
+    gamepad._RY : ps2con.RY,
+  }
+
   def __init__( self ):
     self._controllernum = 0                     #Type of controller 0=FC30, 1=ps2
     self._controller = None                     #Start out with no controller. Will set once we no which type.
-    self._speed = 100.0
-    self._accel = 50.0
     self._startupsound = None
-    self._headturnlimit = 90.0
-    #todo: load settings json
-    self.load()
+    self._pca = pca9865()
+
+    self.load()                                 #load settings json
 
     #If no keyboard we'll get an exception here so turn off keyboard flag.
     try:
@@ -85,30 +97,6 @@ class sentrybot(object):
 
   @property
   def running( self ): return self._running
-
-  @property
-  def headturnlimit( self ):
-    return self._headturnlimit
-
-  @headturnlimit.setter
-  def headturnlimit( self, aValue ):
-    self._headturnlimit = aValue
-
-  @property
-  def speed( self ):
-    return self._speed
-
-  @speed.setter
-  def speed( self, aValue ):
-    self._speed = aValue
-
-  @property
-  def accel( self ):
-    return self._accel
-
-  @accel.setter
-  def accel( self, aValue ):
-    self._accel = aValue
 
   @property
   def buttonsounds( self ):
@@ -154,16 +142,24 @@ class sentrybot(object):
 
   @controller.setter
   def controller( self, aValue ):
-    '''Set the controller # and create the associated controller if necessary'''
-    #Don't do anything if already set to the current value.
-    if self._controllernum != aValue or self._controller == None:
-      self._controllernum = aValue
-      if aValue:
-        print('starting ps2 controller')
-        self._controller = ps2con.ps2con(27, 22, 18, 17, self._ps2action)
-      else:
-        print('starting Retro Controller')
-        self._controller = gamepad(aCallback = self._buttonaction)
+    '''Set the controller #.'''
+    self._controllernum = aValue
+#    print('Controller:', self._controllernum)
+
+  def _initcontroller( self ):
+    '''Create the controller if necessary.'''
+    if self._controllernum:
+#      print('starting ps2 controller')
+      self._controller = ps2con.ps2con(27, 22, 18, 17, self._ps2action)
+    else:
+#      print('starting Retro Controller')
+      self._controller = gamepad(aCallback = self._buttonaction)
+
+  def setcontroller( self, aIndex ):
+    '''Set controller index if it changed, and create a controller.'''
+    if self._controllernum != aIndex or self._controller == None:
+      self.controller = aIndex
+      self._initcontroller()
 
   def initsounds( self, aSounds ):
     '''Temporary method to initialize sounds from a list of button, group, sound'''
@@ -176,6 +172,13 @@ class sentrybot(object):
     '''Callback function when sound file is done playing.'''
 #    print('Done:', aSound.source)
     pass
+
+  def _joy( self, aIndex ):
+    '''Get joystick value in range 0.0-100.0'''
+    if self._controllernum == 1:
+      aIndex = self._ps2joymap[aIndex]
+
+    return self._controller.getjoy(aIndex) / 255.0
 
   def _ps2action( self, aButton, aValue ):
     '''Callback for ps2 button events. They are remapped to FC30 events and sent
@@ -203,22 +206,73 @@ class sentrybot(object):
     '''Do load of properties.'''
     saveload.loadproperties(self)
 
+  def _initparts( self ):
+    body.initparts(self._pca)
+
+  def _updateparts( self, aDelta ):
+    '''Update all servos based on joystick input'''
+
+    rx = -self._joy(gamepad._RX)
+    ry = self._joy(gamepad._RY)
+    lx = self._joy(gamepad._LX)
+    ly = self._joy(gamepad._LY)
+
+    t = body.getpart(body._TORSO)
+    t.update(aDelta * rx)
+    h = body.getpart(body._HEAD_V)
+    h.update(aDelta * ry)
+
+    #todo: Figure out how to disperse right stick movement into torso, head and arms.
+
+    #todo: Update gun servo based on a button input.
+
+    vl, vr = legs.vels(lx, ly)
+
+    lleg = body.getpart(body._LLEG)
+    rleg = body.getpart(body._RLEG)
+
+    print(vl, '    ', end='\r')
+    lleg.speed = vl * lleg.maxspeed
+    rleg.speed = vr * rleg.maxspeed
+
+    lleg.update(aDelta)
+    rleg.update(aDelta)
+
   def run( self ):
     '''Main loop to run the robot.'''
     self._settingsthread.start()
     if self.startupsound != None:
       self.startupsound.play()
 
+    #Save init of parts and controller until last second to ensure
+    # they get updates as quickly as possible after update.
+    self._initparts()
+    self._initcontroller()
+
+    prevtime = perf_counter()
+
     while self.running:
       if self._haskeyboard and keyboard.is_pressed('q'):
         self._running = False
         print("quitting.")
       else:
+        nexttime = perf_counter()
+        delta = max(0.001, nexttime - prevtime)
+        prevtime = nexttime
+
         if self._controller:
           self._controller.update()
+        self._updateparts(delta)
         sound.update()                          #Update sound event listener
-      sleep(0.03)                               #Update 3fps
 
+        #Get how much time has passed since beginning of frame and subtract
+        # that from the sleep time.
+        nexttime = perf_counter()
+        delta = nexttime - prevtime
+
+        sleep(max(0.01, 0.03 - delta))         #Update 30fps
+
+#------------------------------------------------------------------------
 if __name__ == '__main__':
   sentry = sentrybot()
   sentry.run()

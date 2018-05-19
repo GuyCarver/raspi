@@ -31,13 +31,12 @@ def adjustpoints( aValue ):
   points[5] = (-aValue, points[5][1])
   points[7] = (aValue, points[7][1])
 
-def vels( pnt ):
+def vels( x, y ):
   '''p0--p1
     |   / |
     | /   |
     0,0  p2
    '''
-  x, y = pnt
   #Get quadrant 0-4 from point.
   q = ((y >= 0) << 1) | (x >= 0)
 
@@ -75,5 +74,5 @@ def vels( pnt ):
 #
 #def test(  ):
 #  for t in tests:
-#    r = vels(t)
+#    r = vels(*t)
 #    print('{}: {}'.format(t, r))

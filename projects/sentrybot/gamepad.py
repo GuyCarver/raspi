@@ -5,7 +5,7 @@
 from evdev import InputDevice, ecodes, list_devices
 import os
 import pyudev
-from time import time, sleep
+from time import sleep
 
 #evdev Button codes are as follows, type = 1 and val is 0 or 1 for buttons.
 #types EV_KEY = 1, vals will be 0 or 1.
@@ -85,10 +85,10 @@ class gamepad(object):
 
   @staticmethod
   def _translate( aValue, aInvert ):
-    '''Convert value 0-255 to +/-256
+    '''Convert value 0-255 to +/-255
        aInvert indicates we should negate'''
     sgn = -1 if aInvert else 1
-    return ((aValue - 0x80) << 1) * sgn
+    return (((aValue - 0x80) << 1) + 1) * sgn
 
   @staticmethod
   def finddevice(  ):
@@ -118,7 +118,6 @@ class gamepad(object):
     self._connect()
     self.update()
     self._callback = aCallback
-    self.resettime()
 
   def __del__( self ):
     self._observer.stop()
@@ -153,12 +152,6 @@ class gamepad(object):
   @property
   def connected( self ):
     return self._device != None
-
-  def elapsedtime( self ):
-    return time() - self._prevtime
-
-  def resettime( self ):
-    self._prevtime = time()
 
   def _disconnect( self ):
     '''Soft disconnect, kill the InputDevice'''
@@ -201,7 +194,7 @@ class gamepad(object):
     if self._callback:
       self._callback(aEvent.code, aEvent.value)
 
-  def joy( self, aIndex ):
+  def getjoy( self, aIndex ):
     '''Get joystick value for given index _LX, _LY, _RX or _RY'''
     return self._joys[aIndex]
 
