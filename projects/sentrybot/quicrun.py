@@ -39,6 +39,9 @@ class quicrun(object):
     self.reset()
 
   @property
+  def index( self ): return self._index
+
+  @property
   def rate( self ):
     return self._rate
 

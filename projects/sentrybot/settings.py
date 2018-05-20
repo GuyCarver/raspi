@@ -96,11 +96,11 @@ class settings(BaseHTTPRequestHandler):
 
 #    print('getting ' + self.path)
     subs = { self.determinecontroller() : 'selected',
-      'speed' : self.target.speed,
-      'accel' : self.target.accel,
+      'angle' : self.target.armangle,
+      'accel' : 1.0,
       'soundlist' : self.makesoundlist(),
       'buttons' : self.makebuttonlist(),
-      'headturn' : self.target.headturnlimit,
+      'headturn' : 1.0
     }
 
     self.send_response(200)
@@ -118,7 +118,7 @@ class settings(BaseHTTPRequestHandler):
 
     #Read data from forms into variables.
     con = form.getfirst('controller')
-    speed = form.getfirst('speed')
+    angle = form.getfirst('angle')
     accel = form.getfirst('accel')
     sv = form.getfirst('Save')
     pl = form.getfirst('Play')
@@ -138,7 +138,8 @@ class settings(BaseHTTPRequestHandler):
 
     #if have a target clock write data to it.
     self.target.setcontroller(int(con))
-    self.target.headturnlimit = float(headturnlimit)
+#    self.target.headturnlimit = float(headturnlimit)
+    self.target.armangle = float(angle)
 
     #If save button pressed then save settings to json file.
     if sv != None:
@@ -242,7 +243,7 @@ if __name__ == '__main__':  #Run settings test with dummy data.
 
     def __init__( self ):
       self.controller = 1
-      self.speed = 50.0
+      self.armangle = 50.0
       self.accel = 4.0
       self.headturnlimit = 90.0
       self.running = True

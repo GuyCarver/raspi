@@ -6,6 +6,7 @@ from gamepad import *
 from sound import *
 from settings import *
 
+import angle
 import body
 import saveload
 import ps2con
@@ -72,6 +73,8 @@ class sentrybot(object):
     self._controllernum = 0                     #Type of controller 0=FC30, 1=ps2
     self._controller = None                     #Start out with no controller. Will set once we no which type.
     self._startupsound = None
+    self.amrangle = 0.0
+    self.invert = False
     self._pca = pca9865()
 
     self.load()                                 #load settings json
@@ -112,6 +115,24 @@ class sentrybot(object):
       aFile = sound(aFile) if (aFile != 'None') else None
     self._startupsound = aFile
 
+  @property
+  def armangle( self ):
+    return self._armangle
+
+  @armangle.setter
+  def armangle( self, aValue ):
+    self._armangle = aValue
+    self._cossinl = angle.cossin(aValue)
+    self._cossinr = angle.cossin(-aValue)
+
+  @property
+  def invert( self ):
+    return self._invert > 0.0
+
+  @invert.setter
+  def invert( self, aValue ):
+    self._invert = -1.0 if aValue else 1.0
+
   def btntoname( self, aButton ):
     '''Abstraction interface for access to gamepad.btntoname()'''
     return gamepad.btntoname(aButton)
@@ -129,7 +150,7 @@ class sentrybot(object):
     # don't use the same sound object. Not worrying about that
     # because each button should be assigned a different sound anyway.
     if aButton == 'startup':
-      print('setting startup to', aFile)
+#      print('setting startup to', aFile)
       self.startupsound = aFile
     else:
       btnnum = gamepad.nametobtn(aButton)
@@ -212,15 +233,31 @@ class sentrybot(object):
   def _updateparts( self, aDelta ):
     '''Update all servos based on joystick input'''
 
-    rx = -self._joy(gamepad._RX)
+    rx = -self._joy(gamepad._RX)                #Negate cuz servo is backwards.
     ry = self._joy(gamepad._RY)
     lx = self._joy(gamepad._LX)
     ly = self._joy(gamepad._LY)
 
+    #todo: Move head and arms, then torso.
+
     t = body.getpart(body._TORSO)
     t.update(aDelta * rx)
     h = body.getpart(body._HEAD_V)
-    h.update(aDelta * ry)
+    h.update(aDelta * ry * self._invert)
+
+    rarmh = body.getpart(body._RARM_H)
+    rarmv = body.getpart(body._RARM_V)
+    larmh = body.getpart(body._LARM_H)
+    larmv = body.getpart(body._LARM_V)
+
+    #Rotate x,y by angle and apply to arms.
+    armx, army = angle.rotate((rx, ry), self._cossinl)
+    larmh.update(aDelta * armx)
+    larmv.update(aDelta * army )
+
+    armx, army = angle.rotate((rx, ry), self._cossinr)
+    rarmh.update(aDelta * armx)
+    rarmv.update(aDelta * army )
 
     #todo: Figure out how to disperse right stick movement into torso, head and arms.
 
@@ -231,7 +268,7 @@ class sentrybot(object):
     lleg = body.getpart(body._LLEG)
     rleg = body.getpart(body._RLEG)
 
-    print(vl, '    ', end='\r')
+#    print(vl, '    ', end='\r')
     lleg.speed = vl * lleg.maxspeed
     rleg.speed = vr * rleg.maxspeed
 

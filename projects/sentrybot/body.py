@@ -18,6 +18,9 @@ class part(object):
     self.value = 0.0                              #Set real value and write servo.
 
   @property
+  def index( self ): return self._index
+
+  @property
   def value( self ):
     return self._value
 

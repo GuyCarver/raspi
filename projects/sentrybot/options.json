@@ -1,6 +1,100 @@
 {
+  "armangle": 6.0,
+  "parts": [
+    [
+      "TORSO",
+      1,
+      0,
+      90.0,
+      90.0
+    ],
+    [
+      "HEAD_H",
+      2,
+      0,
+      90.0,
+      90.0
+    ],
+    [
+      "HEAD_V",
+      3,
+      0,
+      90.0,
+      30.0
+    ],
+    [
+      "LARM_H",
+      4,
+      0,
+      90.0,
+      90.0
+    ],
+    [
+      "LARM_V",
+      5,
+      0,
+      90.0,
+      90.0
+    ],
+    [
+      "RARM_H",
+      6,
+      0,
+      90.0,
+      90.0
+    ],
+    [
+      "RARM_V",
+      7,
+      0,
+      90.0,
+      90.0
+    ],
+    [
+      "LLEG",
+      8,
+      2,
+      20.0,
+      20.0
+    ],
+    [
+      "RLEG",
+      9,
+      2,
+      20.0,
+      20.0
+    ],
+    [
+      "GUN",
+      10,
+      2,
+      75.0,
+      20.0
+    ]
+  ],
+  "startup": "powerup",
   "controller": 1,
   "sounds": [
+    [
+      "DP_U",
+      2,
+      "warningviolation"
+    ],
+    [
+      "DP_R",
+      2,
+      "weaponsfree"
+    ],
+    [
+      "DP_D",
+      2,
+      "weaponslocked"
+    ],
+    [
+      "DP_L",
+      2,
+      "startup"
+    ],
     [
       "A",
       1,
@@ -27,14 +121,14 @@
       "hostiledetected2"
     ],
     [
-      "SLCT",
+      "L_SH",
       1,
-      "hostiles"
+      "privateproperty"
     ],
     [
-      "STRT",
+      "R_SH",
       1,
-      "movealong"
+      "systemreport"
     ],
     [
       "L_TR",
@@ -47,14 +141,14 @@
       "noncombatants"
     ],
     [
-      "L_SH",
+      "SLCT",
       1,
-      "privateproperty"
+      "hostiles"
     ],
     [
-      "R_SH",
+      "STRT",
       1,
-      "systemreport"
+      "movealong"
     ],
     [
       "L_TH",
@@ -65,27 +159,6 @@
       "R_TH",
       1,
       "warningsecurity"
-    ],
-    [
-      "DP_U",
-      2,
-      "warningviolation"
-    ],
-    [
-      "DP_R",
-      2,
-      "weaponsfree"
-    ],
-    [
-      "DP_D",
-      2,
-      "weaponslocked"
-    ],
-    [
-      "DP_L",
-      2,
-      "startup"
     ]
-  ],
-  "startup": "powerup"
+  ]
 }

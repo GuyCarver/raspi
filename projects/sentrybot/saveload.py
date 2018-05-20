@@ -23,21 +23,21 @@ def jsonsounddata( aSource ):
 def saveproperties( bot ):
   '''Save options to json file.'''
   try:
+    data = {}
+    data['controller'] = bot.controller
+    data['armangle'] = bot.armangle
+    data['startup'] = bot.startupsound.filename if bot.startupsound else None
+
+    #Save sound button mappings.
+    #Get sounds and convert from:
+    # ecode.btn, soundobj to (btnname, group, basefilename)
+    data['sounds'] = jsonsounddata(bot.buttonsounds)
+    saveparts(data)                           #Save body part data to json.
+
     with open(savename, 'w+') as f:
-      data = {}
-      data['controller'] = bot.controller
-      data['startup'] = bot.startupsound.filename if bot.startupsound else None
-
-      #Save sound button mappings.
-      #Get sounds and convert from:
-      # ecode.btn, soundobj to (btnname, group, basefilename)
-      data['sounds'] = jsonsounddata(bot.buttonsounds)
-
-      saveparts(data)                           #Save body part data to json.
-
       dump(data, f, indent = 2)
-  except:
-    pass
+  except Exception as e:
+    print('option save error:', e)
 
 def loadproperties( bot ):
   '''Load options from json file.'''
@@ -45,6 +45,7 @@ def loadproperties( bot ):
     with open(savename, 'r') as f:
       data = load(f)
       bot.controller = data['controller']
+      bot.armangle = data['armangle']
       bot.startupsound = data['startup']
       bot.initsounds(data['sounds'])
       loadparts(data)                           #Load body part data from json.
