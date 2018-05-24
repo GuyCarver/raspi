@@ -27,7 +27,7 @@ class part(object):
   @value.setter
   def value( self, aValue ):
     if aValue != self._value:
-      self._value = aValue
+      self._value = min(max(aValue, self._minmax[0]), self._minmax[1])
       self.setservo()
 
   @property
@@ -64,23 +64,21 @@ class part(object):
     '''Turn the servo off.'''
     self._pca.off(self._index)
 
-  def clamp( self, aValue ):
-    return min(max(aValue, self._minmax[0]), self._minmax[1])
-
   def update( self, aDelta ):
     '''Update speed towards target given delta time in seconds.'''
     if self._rate > 0.0:
       if aDelta != 0.0:
         diff = self.rate * aDelta
-        self.value = self.clamp(self.value + diff)
+        self.value = self.value + diff
     else:
-      self.value = self.clamp(self.value)
+      self.value = self.value
 
 #------------------------------------------------------------------------
 class anglepart(part):
+  _defminmax = (-90.0, 90.0)
+
   '''Body part that uses an angle value from -90 to 90.'''
   def __init__( self, aPCA, aIndex ):
-    self._defminmax = (-90.0, 90.0)
     super(anglepart, self).__init__(aPCA, aIndex)
 
   def setservo( self ):
@@ -89,9 +87,10 @@ class anglepart(part):
 
 #------------------------------------------------------------------------
 class speedpart(part):
+  _defminmax = (0.0, 100.0)
+
   '''Body part that uses a speed value from 0-100.'''
   def __init__( self, aPCA, aIndex ):
-    self._defminmax = (0.0, 100.0)
     super(speedpart, self).__init__(aPCA, aIndex)
 
   def setservo( self ):
@@ -104,20 +103,23 @@ _ANGLE, _SPEED, _MOTOR = range(3)
 
 _CONSTRUCTORS = {_ANGLE : anglepart, _SPEED : speedpart, _MOTOR : quicrun}
 
-_partnames = [
-  "TORSO",
-  "HEAD_H",
-  "HEAD_V",
-  "LARM_H",
-  "LARM_V",
-  "RARM_H",
-  "RARM_V",
-  "LLEG",
-  "RLEG",
-  "GUN",
-]
+#Default data used to initialize the parts.  This will be
+# modified by the json data.
+#Name, Servo #, Type, Rate, Range (min, max) or minmax.
+_defaultdata = (
+ ("TORSO", 1, _ANGLE, 0.0, 90.0),
+ ("HEAD_H", 2, _ANGLE, 0.0, 90.0),
+ ("HEAD_V", 3, _ANGLE, 0.0, 30.0),
+ ("LARM_H", 4, _ANGLE, 0.0, 90.0),
+ ("LARM_V", 5, _ANGLE, 0.0, 90.0),
+ ("RARM_H", 6, _ANGLE, 0.0, 90.0),
+ ("RARM_V", 7, _ANGLE, 0.0, 90.0),
+ ("LLEG", 8, _MOTOR, 20.0, 20.0),
+ ("RLEG", 9, _MOTOR, 20.0, 20.0),
+ ("GUN", 10, _MOTOR, 75.0, 20.0),
+)
 
-_numparts = len(_partnames)
+_numparts = len(_defaultdata)
 
 _TORSO, _HEAD_H, _HEAD_V, \
 _LARM_H, _LARM_V, _RARM_H, _RARM_V, \
@@ -125,23 +127,13 @@ _LLEG, _RLEG, _GUN = range(_numparts)
 
 _parts = [None] * _numparts
 
-#Default data used to initialize the parts.  This will be
-# modified by the json data.
-#Name, Servo #, Type, Rate, Range (min, max) or minmax.
-_defaultdata = (
- ("TORSO", 1, _ANGLE, 90.0, 90.0),
- ("HEAD_H", 2, _ANGLE, 90.0, 90.0),
- ("HEAD_V", 3, _ANGLE, 90.0, 30.0),
- ("LARM_H", 4, _ANGLE, 90.0, 90.0),
- ("LARM_V", 5, _ANGLE, 90.0, 90.0),
- ("RARM_H", 6, _ANGLE, 90.0, 90.0),
- ("RARM_V", 7, _ANGLE, 90.0, 90.0),
- ("LLEG", 8, _MOTOR, 20.0, 20.0),
- ("RLEG", 9, _MOTOR, 20.0, 20.0),
- ("GUN", 10, _MOTOR, 75.0, 20.0),
-)
-
 _initdata = None
+
+def partindex( aName ):
+  for i, v in enumerate(_defaultdata):
+    if v[0] == aName:
+      return i
+  raise Exception("Part {} not found.".format(aName))
 
 def getpart( aIndex ):
   return _parts[aIndex]
@@ -154,6 +146,14 @@ def parttype( aPart ):
       return t[0]
 
   raise Exception('Unknown part type {}.', tp)
+
+def saveparts( aData ):
+  '''Save part data for each part into the given json dictionary.'''
+  def makeentry(i, p):
+    return (_defaultdata[i][0], p.index, parttype(p), p.rate, p.minmaxforjson)
+
+  data = [makeentry(i, p) for i, p in enumerate(_parts)]
+  aData['parts'] = data
 
 def loadparts( aData ):
   '''Load data from given json dictionary.'''
@@ -173,22 +173,13 @@ def initparts( aPCA ):
     _initdata = _defaultdata
 
   #Create part for given part data.
-
   for pdata in _initdata:
-    name, index, tp, rate, minmax = pdata
-    pi = _partnames.index(name)
-    part = _CONSTRUCTORS[tp](aPCA, index)
+    name, index, typ, rate, minmax = pdata
+    part = _CONSTRUCTORS[typ](aPCA, index)
     part.rate = rate
     part.minmax = minmax
+    pi = partindex(name)
     _parts[pi]  = part
-
-def saveparts( aData ):
-  '''Save part data for each part into the given json dictionary.'''
-  def makeentry(i, p):
-    return (_partnames[i], p.index, parttype(p), p.rate, p.minmaxforjson)
-
-  data = [makeentry(i, p) for i, p in enumerate(_parts)]
-  aData['parts'] = data
 
 def setmotordata( aIndex, aRate, aMinMax ):
   '''Set the motor data on a part.'''

@@ -26,6 +26,7 @@ def saveproperties( bot ):
     data = {}
     data['controller'] = bot.controller
     data['armangle'] = bot.armangle
+    data['rate'] = bot.rate
     data['startup'] = bot.startupsound.filename if bot.startupsound else None
 
     #Save sound button mappings.
@@ -46,6 +47,7 @@ def loadproperties( bot ):
       data = load(f)
       bot.controller = data['controller']
       bot.armangle = data['armangle']
+      bot.rate = data['rate']
       bot.startupsound = data['startup']
       bot.initsounds(data['sounds'])
       loadparts(data)                           #Load body part data from json.

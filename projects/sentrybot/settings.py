@@ -13,6 +13,8 @@ import webbrowser
 from os import listdir
 from os.path import isfile, join, splitext
 
+lastpart = 0
+
 class settings(BaseHTTPRequestHandler):
 
   HTML = None                                   #HTML contents loaded for setting.html file.
@@ -35,6 +37,15 @@ class settings(BaseHTTPRequestHandler):
     self.soundFiles = [splitext(f)[0] for f in listdir(self.sounddir) if isfile(join(self.sounddir, f))]
     self.soundFiles.sort()
     self.soundFiles.insert(0, 'None')
+
+  @classmethod
+  def getparts( self ):
+    curindex = lastpart
+    def makeit(index, p):
+      selected = ' selected' if index == curindex else ''
+      return '<option value="{0}"{1}>{2}</option>'.format(index, selected, p)
+
+    return '\r\n\t'.join([makeit(i, p[0]) for i, p in enumerate(self.target.partdata)])
 
   @classmethod
   def makesoundlist( self ):
@@ -94,13 +105,22 @@ class settings(BaseHTTPRequestHandler):
     if self.testing:
       self.readHTML()
 
+    pmin, pmax = self.target.partminmax(lastpart)
+
+    minv, maxv = self.target.partdefminmax(lastpart)
+
 #    print('getting ' + self.path)
     subs = { self.determinecontroller() : 'selected',
-      'angle' : self.target.armangle,
-      'accel' : 1.0,
+      'armangle' : self.target.armangle,
+      'rate' : self.target.rate,
       'soundlist' : self.makesoundlist(),
       'buttons' : self.makebuttonlist(),
-      'headturn' : 1.0
+      'parts' : self.getparts(),
+      'partrate' : self.target.partrate(lastpart),
+      'partmin' : pmin,
+      'partmax' : pmax,
+      'minv' : minv,
+      'maxv' : maxv,
     }
 
     self.send_response(200)
@@ -111,6 +131,8 @@ class settings(BaseHTTPRequestHandler):
 
   #--------------------------------------------------------------
   def do_POST( self ):  #process requests
+    global lastpart
+
     #read form data
     form = cgi.FieldStorage(fp = self.rfile, headers = self.headers,
                             environ = {'REQUEST_METHOD':'POST',
@@ -118,12 +140,12 @@ class settings(BaseHTTPRequestHandler):
 
     #Read data from forms into variables.
     con = form.getfirst('controller')
-    angle = form.getfirst('angle')
-    accel = form.getfirst('accel')
+    armangle = form.getfirst('armangle')
+    rate = form.getfirst('rate')
+    sb = form.getfirst('Submit')
     sv = form.getfirst('Save')
     pl = form.getfirst('Play')
     setsound = form.getfirst('setsound')
-    headturnlimit = form.getvalue('headturn')
     self.lastsound = form.getvalue('sound')
     self.lastbutton = form.getvalue('button')
 
@@ -138,8 +160,16 @@ class settings(BaseHTTPRequestHandler):
 
     #if have a target clock write data to it.
     self.target.setcontroller(int(con))
-#    self.target.headturnlimit = float(headturnlimit)
-    self.target.armangle = float(angle)
+    self.target.armangle = float(armangle)
+    self.target.rate = float(rate)
+
+    partrate = form.getfirst('partrate')
+    partmin = form.getfirst('partmin')
+    partmax = form.getfirst('partmax')
+    self.target.setpartdata(lastpart, float(partrate), (float(partmin), float(partmax)))
+
+    #After setting value on the previous part, read in new part value.
+    lastpart = int(form.getfirst('part'))
 
     #If save button pressed then save settings to json file.
     if sv != None:
@@ -187,6 +217,22 @@ if __name__ == '__main__':  #Run settings test with dummy data.
 
   class testtarget(object):
 
+    _ANGLE = 0
+    _MOTOR = 1
+
+    partdata = [
+     ("TORSO", 1, _ANGLE, 0.0, 90.0),
+     ("HEAD_H", 2, _ANGLE, 0.0, 90.0),
+     ("HEAD_V", 3, _ANGLE, 0.0, 30.0),
+     ("LARM_H", 4, _ANGLE, 0.0, 90.0),
+     ("LARM_V", 5, _ANGLE, 0.0, 90.0),
+     ("RARM_H", 6, _ANGLE, 0.0, 90.0),
+     ("RARM_V", 7, _ANGLE, 0.0, 90.0),
+     ("LLEG", 8, _MOTOR, 20.0, 20.0),
+     ("RLEG", 9, _MOTOR, 20.0, 20.0),
+     ("GUN", 10, _MOTOR, 75.0, 20.0),
+    ]
+
     _buttonnames = {
      'A' : 304,
      'B' : 305,
@@ -228,6 +274,33 @@ if __name__ == '__main__':  #Run settings test with dummy data.
     }
 
     @classmethod
+    def partrate( self, aIndex ):
+      '''  '''
+      return self.partdata[aIndex][3]
+
+    @classmethod
+    def partminmax( self, aIndex ):
+      '''  '''
+      print(self.partdata[aIndex])
+      rng = self.partdata[aIndex][4]
+      return rng if type(rng) == tuple else (-rng, rng)
+
+    @classmethod
+    def partdefminmax( self, aIndex ):
+      if aIndex == 9:
+        return (0.0, 100.0)
+      elif aIndex > 6:
+        return (-100.0, 100.0)
+      else:
+        return (-90.0, 90.0)
+
+    @classmethod
+    def setpartdata( self, aIndex, aRate, aMinMax ):
+      '''  '''
+      a, b, c, d, e = self.partdata[aIndex]
+      self.partdata[aIndex] = (a, b, c, aRate, aMinMax)
+
+    @classmethod
     def nametobtn( self, aValue ):
       '''Get button # of given button name'''
       return self._buttonnames[aValue] if aValue in self._buttonnames else -1
@@ -243,9 +316,8 @@ if __name__ == '__main__':  #Run settings test with dummy data.
 
     def __init__( self ):
       self.controller = 1
-      self.armangle = 50.0
-      self.accel = 4.0
-      self.headturnlimit = 90.0
+      self.armangle = 8.0
+      self.rate = 90.0
       self.running = True
       self.startupsound = None
 
@@ -254,6 +326,10 @@ if __name__ == '__main__':  #Run settings test with dummy data.
 
     def save( self ):
       print('Saving')
+
+    def setcontroller( self, aArg ):
+      '''  '''
+      self.controller = aArg
 
     def setbuttonsound( self, aButton, aFile ):
       print('Button sound:', aButton, aFile)

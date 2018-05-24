@@ -18,6 +18,9 @@ import keyboard
 
 #todo: Remove testing flag from settings server creation.
 
+def deadzone( aValue, aLimit ):
+  return aValue if abs(aValue) >= 0.01 else 0.0
+
 #------------------------------------------------------------------------
 class sentrybot(object):
 
@@ -73,7 +76,10 @@ class sentrybot(object):
     self._controllernum = 0                     #Type of controller 0=FC30, 1=ps2
     self._controller = None                     #Start out with no controller. Will set once we no which type.
     self._startupsound = None
-    self.amrangle = 0.0
+    self._rotx = 0.0
+    self._roty = 0.0
+    self._rate = 90.0
+    self.armangle = 0.0
     self.invert = False
     self._pca = pca9865()
 
@@ -99,7 +105,18 @@ class sentrybot(object):
     self._contoller = None
 
   @property
+  def partdata( self ): return body._initdata
+
+  @property
   def running( self ): return self._running
+
+  @property
+  def rate( self ):
+    return self._rate
+
+  @rate.setter
+  def rate( self, aValue ):
+    self._rate = aValue
 
   @property
   def buttonsounds( self ):
@@ -194,6 +211,28 @@ class sentrybot(object):
 #    print('Done:', aSound.source)
     pass
 
+  def partrate( self, aIndex ):
+    '''Get rate for given part.'''
+    p = body.getpart(aIndex)
+    return p.rate if p else 0.0
+
+  def partminmax( self, aIndex ):
+    '''Get min/max for given part.'''
+    p = body.getpart(aIndex)
+    return p.minmax if p else (0.0, 100.0)
+
+  def partdefminmax( self, aIndex ):
+    '''Get min/max for given part.'''
+    p = body.getpart(aIndex)
+    return p._defminmax if p else (-100.0, 100.0)
+
+  def setpartdata( self, aIndex, aRate, aMinMax ):
+    '''Set the rate and min/max values for given part.'''
+    p = body.getpart(aIndex)
+    if p:
+      p.rate = aRate
+      p.minmax = aMinMax
+
   def _joy( self, aIndex ):
     '''Get joystick value in range 0.0-100.0'''
     if self._controllernum == 1:
@@ -234,16 +273,37 @@ class sentrybot(object):
     '''Update all servos based on joystick input'''
 
     rx = -self._joy(gamepad._RX)                #Negate cuz servo is backwards.
-    ry = self._joy(gamepad._RY)
-    lx = self._joy(gamepad._LX)
-    ly = self._joy(gamepad._LY)
+    ry = self._joy(gamepad._RY) * self._invert
+    rx = deadzone(rx, 0.01)
+    ry = deadzone(ry, 0.01)
 
-    #todo: Move head and arms, then torso.
+    lx = self._joy(gamepad._LX)
+    lx = deadzone(lx, 0.01)
+    ly = self._joy(gamepad._LY)
+    ly = deadzone(ly, 0.01)
+
+    if self._rate > 0.0:
+      if aDelta != 0.0:
+        d = self._rate * aDelta
+        v = self._rotx + (rx * d)
+        self._rotx = min(max(v, -90.0), 90.0)
+        v = self._roty + (ry * d)
+        self._roty = min(max(v, -90.0), 90.0)
+    else:
+      v = rx * 90.0
+      self._rotx = min(max(v, -90.0), 90.0)
+      v = ry * 90.0
+      self._roty = min(max(v, -90.0), 90.0)
+
+#    print(self._rotx, self._roty, '                ', end='\r')
+#    print(rx, ry, '                ', end='\r')
+
+    #todo: Figure out how to disperse right stick movement into torso, head and arms.
 
     t = body.getpart(body._TORSO)
-    t.update(aDelta * rx)
+    t.value = (self._rotx)
     h = body.getpart(body._HEAD_V)
-    h.update(aDelta * ry * self._invert)
+    h.value = (self._roty)
 
     rarmh = body.getpart(body._RARM_H)
     rarmv = body.getpart(body._RARM_V)
@@ -251,15 +311,13 @@ class sentrybot(object):
     larmv = body.getpart(body._LARM_V)
 
     #Rotate x,y by angle and apply to arms.
-    armx, army = angle.rotate((rx, ry), self._cossinl)
-    larmh.update(aDelta * armx)
-    larmv.update(aDelta * army )
+    armx, army = angle.rotate((self._rotx, self._roty), self._cossinl)
+    larmh.value = (armx)
+    larmv.value =(army)
 
-    armx, army = angle.rotate((rx, ry), self._cossinr)
-    rarmh.update(aDelta * armx)
-    rarmv.update(aDelta * army )
-
-    #todo: Figure out how to disperse right stick movement into torso, head and arms.
+    armx, army = angle.rotate((self._rotx, self._roty), self._cossinr)
+    rarmh.value = (armx)
+    rarmv.value = (army)
 
     #todo: Update gun servo based on a button input.
 

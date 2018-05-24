@@ -17,6 +17,8 @@ class quicrun(object):
   _BACKWARD_MIN = 48
   _BACKWARD_INIT = 45
 
+  _defminmax = (-100.0, 100.0)
+
   @staticmethod
   def getperc( aMin, aMax, aPerc  ) :
     '''Interpolate between aMin and aMax by aPerc.
@@ -35,7 +37,7 @@ class quicrun(object):
     self._rate = 0.0
     self._speed = 0.0
     self._targetspeed = 0.0
-    self._minmax = (-100.0, 100.0)
+    self._minmax = self._defminmax
     self.reset()
 
   @property
@@ -60,7 +62,7 @@ class quicrun(object):
       self._minmax = aValue
     else:
       #otherwise it's considered a single # we use for both min/max.
-      self._minmax = (max(-aValue, -100.0), aValue)
+      self._minmax = (max(-aValue, self._defminmax[0]), aValue)
 
   @property
   def minspeed( self ): return self._minmax[0]
@@ -90,7 +92,6 @@ class quicrun(object):
     self._speed = 0.0
     self._prevspeed = 0.0
     self._targetspeed = 0.0
-    print('setup')
 
   def off( self ):
     '''Turn the esp off.'''
@@ -150,7 +151,6 @@ class quicrun(object):
     diff = self.distance()
 
     if diff != 0.0:
-      print(self._speed)
       #If no rate or diff too small just set directly.
       if (self._rate > 0.0) and (abs(diff) > 0.01):
         #Interpolate between src, target by delta.

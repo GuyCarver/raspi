@@ -11,6 +11,7 @@
     }
     .diva {
       margin-top: 6px;
+      margin-bottom: 6px;
     }
 
     .fa {
@@ -56,11 +57,25 @@
     <div class="w3-card-4 w3-container">
       <h4>Servos and Motors</h4>
       <div class="diva">
-        Angle: <input class="mynumber" type="number" name="angle" min="-90" max="90" value="${angle}">
-        &nbsp;Accel: <input class="mynumber" type="number" name="accel" min="1" max="100" value="${accel}">
+        Arm Angle: <input class="mynumber" type="number" name="armangle" min="-90" max="90" value="${armangle}">
+        &nbsp;Rate: <input class="mynumber" type="number" name="rate" min="0" max="1000" value="${rate}">
       </div>
       <div class="diva">
-        Head Turn Limit: <input class="mynumber" type="number" name="headturn" min="1" max="90" value="${headturn}">
+        Part: <select name="part" onchange="form.submit()">
+          ${parts}
+        </select>
+        Rate: <input class="mynumber" type="number" name="partrate" min="0" max="10000" value="${partrate}">
+        Min: <input class="mynumber" type="number" name="partmin" min="${minv}" max="${maxv}" value="${partmin}">
+        Max: <input class="mynumber" type="number" name="partmax" min="${minv}" max="${maxv}" value="${partmax}">
+      </div>
+<!--
+      <div class="diva">
+        Head Limit X: <input class="mynumber" type="number" name="headturn" min="0" max="90" value="${headx}">
+        Y: <input class="mynumber" type="number" name="headtilt" min="0" max="90" value="${heady}">
+      </div>
+!-->
+      <div class="diva">
+        <input type="submit" name="Submit" value="Submit">
       </div>
 <!--      <div>
       <datalist id="ticks">
