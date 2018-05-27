@@ -13,7 +13,7 @@ import webbrowser
 from os import listdir
 from os.path import isfile, join, splitext
 
-lastpart = 0
+settingsfile = 'settings.html'
 
 class settings(BaseHTTPRequestHandler):
 
@@ -24,6 +24,7 @@ class settings(BaseHTTPRequestHandler):
   soundFiles = []                               #List of sound files in sounds directory.
   lastsound = None                              #Name of last selected sound in list.
   lastbutton = None                             #Name of last button selected in list.
+  lastpart = 0                                  #Index of part currently selected.
   used = {}                                     #Set of used sound names.
 
   @classmethod
@@ -40,7 +41,7 @@ class settings(BaseHTTPRequestHandler):
 
   @classmethod
   def getparts( self ):
-    curindex = lastpart
+    curindex = settings.lastpart
     def makeit(index, p):
       selected = ' selected' if index == curindex else ''
       return '<option value="{0}"{1}>{2}</option>'.format(index, selected, p)
@@ -51,7 +52,7 @@ class settings(BaseHTTPRequestHandler):
   def makesoundlist( self ):
     '''Create html entries for list of sounds. Tag used sounds.'''
     def makeit(f):
-      selected = ' selected' if self.lastsound == f else ''
+      selected = ' selected' if settings.lastsound == f else ''
       #If used set tag.
       if f in self.used:
         tag = 'X: '
@@ -82,7 +83,7 @@ class settings(BaseHTTPRequestHandler):
         f = 'None'
         color = ' class="w3-text-gray" '
 
-      selected = ' selected' if self.lastbutton == btnname else ''
+      selected = ' selected' if settings.lastbutton == btnname else ''
 
       return '<option {3} value="{0}"{1}>{0} - {2}</option>'.format(btnname, selected, f, color)
 
@@ -95,7 +96,7 @@ class settings(BaseHTTPRequestHandler):
   @classmethod
   def readHTML( self ):
     '''Read HTML content from file.'''
-    with open('settings.html', 'r') as f:
+    with open(settingsfile, 'r') as f:
       htdata = f.read()
     self.HTML = Template(htdata)
 
@@ -105,9 +106,8 @@ class settings(BaseHTTPRequestHandler):
     if self.testing:
       self.readHTML()
 
-    pmin, pmax = self.target.partminmax(lastpart)
-
-    minv, maxv = self.target.partdefminmax(lastpart)
+    pmin, pmax = self.target.partminmax(settings.lastpart)
+    minv, maxv = self.target.partdefminmax(settings.lastpart)
 
 #    print('getting ' + self.path)
     subs = { self.determinecontroller() : 'selected',
@@ -116,7 +116,7 @@ class settings(BaseHTTPRequestHandler):
       'soundlist' : self.makesoundlist(),
       'buttons' : self.makebuttonlist(),
       'parts' : self.getparts(),
-      'partrate' : self.target.partrate(lastpart),
+      'partrate' : self.target.partrate(settings.lastpart),
       'partmin' : pmin,
       'partmax' : pmax,
       'minv' : minv,
@@ -131,8 +131,6 @@ class settings(BaseHTTPRequestHandler):
 
   #--------------------------------------------------------------
   def do_POST( self ):  #process requests
-    global lastpart
-
     #read form data
     form = cgi.FieldStorage(fp = self.rfile, headers = self.headers,
                             environ = {'REQUEST_METHOD':'POST',
@@ -146,16 +144,16 @@ class settings(BaseHTTPRequestHandler):
     sv = form.getfirst('Save')
     pl = form.getfirst('Play')
     setsound = form.getfirst('setsound')
-    self.lastsound = form.getvalue('sound')
-    self.lastbutton = form.getvalue('button')
+    settings.lastsound = form.getvalue('sound')
+    settings.lastbutton = form.getvalue('button')
 
     if pl and self.lastsound:
-      if self.lastsound != 'None':
+      if settings.lastsound != 'None':
         self.target.previewsound(self.lastsound)
 
     if setsound != None:
-      if self.lastbutton and self.lastsound :
-        self.target.setbuttonsound(self.lastbutton, self.lastsound)
+      if settings.lastbutton and settings.lastsound :
+        self.target.setbuttonsound(settings.lastbutton, settings.lastsound)
         self.updateused()
 
     #if have a target clock write data to it.
@@ -166,10 +164,10 @@ class settings(BaseHTTPRequestHandler):
     partrate = form.getfirst('partrate')
     partmin = form.getfirst('partmin')
     partmax = form.getfirst('partmax')
-    self.target.setpartdata(lastpart, float(partrate), (float(partmin), float(partmax)))
+    self.target.setpartdata(settings.lastpart, float(partrate), (float(partmin), float(partmax)))
 
     #After setting value on the previous part, read in new part value.
-    lastpart = int(form.getfirst('part'))
+    settings.lastpart = int(form.getfirst('part'))
 
     #If save button pressed then save settings to json file.
     if sv != None:
