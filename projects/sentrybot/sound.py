@@ -11,7 +11,7 @@ from kivy.base import EventLoop
 # well as to report events such as on_stop.
 
 class sound(object):
-  '''docstring for sound'''
+  '''Use kivy to play sounds.  Sounds are also grouped so only certain ones may play at a time.'''
   _DIR = 'sounds/'
 
   _playinggroups = {  }
@@ -162,7 +162,7 @@ if __name__ == '__main__':
   #start Kivy sound event system.
   sound.start()
 
-  s = sound('startup.mp3', 0, MyStop)
+  s = sound('startup', 0, MyStop)
   s.play()
   cnt = 0
 
