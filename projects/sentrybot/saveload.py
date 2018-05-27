@@ -5,8 +5,6 @@ from sound import *
 from gamepad import *
 from body import saveparts, loadparts
 
-#NOTE: If running from crontab, may need to specify the exact address as CWD doesn't seem to be correct.
-#savename = '/home/pi/projects/sentrybot/options.json'
 savename = 'options.json'
 
 def jsonsounddata( aSource ):
@@ -14,9 +12,10 @@ def jsonsounddata( aSource ):
       list of (button name, group #, filename) entries'''
   dest = []
   for btn, snd in aSource.items():
-    name = gamepad.btntoname(btn)
-    if name != None:
-      dest.append((name, snd.group, snd.filename))
+    if snd != None:
+      name = gamepad.btntoname(btn)
+      if name != None:
+        dest.append((name, snd.group, snd.filename))
 
   return dest
 
