@@ -37,7 +37,7 @@ class part(object):
   @minmax.setter
   def minmax( self, aValue ):
     #If tuple just use directly without checking legitimate ranges.
-    if isinstance(aValue, tuple):
+    if isinstance(aValue, tuple) or isinstance(aValue, list):
       self._minmax = aValue
     else:
       #otherwise it's considered a single # we use for both min/max.
