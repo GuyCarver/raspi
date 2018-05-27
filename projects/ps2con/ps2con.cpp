@@ -76,10 +76,10 @@ enum BUTTONS {
 
 //_joys array indexes.
 enum JOYS {
-	RX = 0x10,									//This is just after BUTTONS::SQUARE.
-	RY,
-	LX,
-	LY
+	LX = 0x10,									//This is just after BUTTONS::SQUARE.
+	LY,
+	RX,
+	RY
 };
 
 const char *Names[] = {
@@ -99,10 +99,10 @@ const char *Names[] = {
 	"CIRCLE",
 	"CROSS",
 	"SQUARE",
-	"RX",
-	"RY",
 	"LX",
-	"LY"
+	"LY",
+	"RX",
+	"RY"
 };
 
 class ps2con;
@@ -541,10 +541,10 @@ extern "C" {
 		PyModule_AddIntMacro(pmodule, CIRCLE);
 		PyModule_AddIntMacro(pmodule, CROSS);
 		PyModule_AddIntMacro(pmodule, SQUARE);
-		PyModule_AddIntMacro(pmodule, RX);
-		PyModule_AddIntMacro(pmodule, RY);
 		PyModule_AddIntMacro(pmodule, LX);
 		PyModule_AddIntMacro(pmodule, LY);
+		PyModule_AddIntMacro(pmodule, RX);
+		PyModule_AddIntMacro(pmodule, RY);
 
 		return pmodule;
 	}
