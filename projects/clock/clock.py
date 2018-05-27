@@ -5,7 +5,7 @@
 #This module must be run under sudo or the settings server will fail from permission exception.
 #Auto start using Crontab.  Added the following line with the command:
 # crontab -e (to edit the crontab file)
-# @reboot sudo /home/pi/projects/clock/clock.py > /home/pi/projects/clock/clock.log
+# @reboot cd /home/pi/projects/clock && sudo clock.py > clock.log
 
 import os, sys
 import RPi.GPIO as GPIO
@@ -104,7 +104,7 @@ class Clock:
   tmconvert = '{:02d}:{:02d}'
   dtconvert = '{}-{:02d}-{:02d}'
   colorconvert = '#{:06x}'
-  savename = '/home/pi/projects/clock/clock.json'
+  savename = 'clock.json'
 
   #Snooze, Alarm On/Off Switch, Alarm Set, Minute, Hour, Time Set (Update temp)
   buttonids = [12, 5, 6, 13, 19, 26]
