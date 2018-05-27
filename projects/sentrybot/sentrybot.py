@@ -65,13 +65,6 @@ class sentrybot(object):
     ps2con.DPAD_L : gamepad.BTN_DPADL
   }
 
-  _ps2joymap = {
-    gamepad._LX : ps2con.LX,
-    gamepad._LY : ps2con.LY,
-    gamepad._RX : ps2con.RX,
-    gamepad._RY : ps2con.RY,
-  }
-
   def __init__( self ):
     self._controllernum = 0                     #Type of controller 0=FC30, 1=ps2
     self._controller = None                     #Start out with no controller. Will set once we no which type.
@@ -81,7 +74,7 @@ class sentrybot(object):
     self._rate = 90.0
     self.armangle = 0.0
     self.invert = False
-    self._pca = pca9865()
+    self._pca = pca9865(100)
 
     self.load()                                 #load settings json
 
@@ -235,9 +228,6 @@ class sentrybot(object):
 
   def _joy( self, aIndex ):
     '''Get joystick value in range 0.0-100.0'''
-    if self._controllernum == 1:
-      aIndex = self._ps2joymap[aIndex]
-
     return self._controller.getjoy(aIndex) / 255.0
 
   def _ps2action( self, aButton, aValue ):
@@ -301,9 +291,11 @@ class sentrybot(object):
     #todo: Figure out how to disperse right stick movement into torso, head and arms.
 
     t = body.getpart(body._TORSO)
-    t.value = (self._rotx)
-    h = body.getpart(body._HEAD_V)
-    h.value = (self._roty)
+    t.value = self._rotx #/ 8.0
+    hh = body.getpart(body._HEAD_H)
+    hh.value = -self._rotx #/ 4.0
+    hv = body.getpart(body._HEAD_V)
+    hv.value = -self._roty
 
     rarmh = body.getpart(body._RARM_H)
     rarmv = body.getpart(body._RARM_V)
@@ -312,17 +304,19 @@ class sentrybot(object):
 
     #Rotate x,y by angle and apply to arms.
     armx, army = angle.rotate((self._rotx, self._roty), self._cossinl)
-    larmh.value = (armx)
-    larmv.value =(army)
+    larmh.value = armx
+    larmv.value = army
 
-    armx, army = angle.rotate((self._rotx, self._roty), self._cossinr)
-    rarmh.value = (armx)
-    rarmv.value = (army)
+    #Note, to invert the right arm use _cossinr.
+    armx, army = angle.rotate((self._rotx, -self._roty), self._cossinl)
+    rarmh.value = armx
+    rarmv.value = army
 
     #todo: Update gun servo based on a button input.
 
-    vl, vr = legs.vels(lx, ly)
-
+#    vl, vr = legs.vels(lx, ly)
+    vl = ly
+    vr = ry
     lleg = body.getpart(body._LLEG)
     rleg = body.getpart(body._RLEG)
 
@@ -346,26 +340,36 @@ class sentrybot(object):
 
     prevtime = perf_counter()
 
-    while self.running:
-      if self._haskeyboard and keyboard.is_pressed('q'):
-        self._running = False
-        print("quitting.")
-      else:
-        nexttime = perf_counter()
-        delta = max(0.001, nexttime - prevtime)
-        prevtime = nexttime
+    try:
+      while self.running:
+        if self._haskeyboard and keyboard.is_pressed('q'):
+          self._running = False
+          print("quitting.")
+        else:
+          nexttime = perf_counter()
+          delta = max(0.001, nexttime - prevtime)
+          prevtime = nexttime
+#          if delta > 0.07:
+#            print("Clamping delta: ", delta)
+          delta = min(delta, 0.07)
 
-        if self._controller:
-          self._controller.update()
-        self._updateparts(delta)
-        sound.update()                          #Update sound event listener
+          if self._controller:
+            self._controller.update()
+          self._updateparts(delta)
+          sound.update()                          #Update sound event listener
 
-        #Get how much time has passed since beginning of frame and subtract
-        # that from the sleep time.
-        nexttime = perf_counter()
-        delta = nexttime - prevtime
+          #Get how much time has passed since beginning of frame and subtract
+          # that from the sleep time.
+          nexttime = perf_counter()
+          delta = nexttime - prevtime
 
-        sleep(max(0.01, 0.03 - delta))         #Update 30fps
+          sleep(max(0.01, 0.03 - delta))         #Update 30fps
+    except Exception as e:
+      body.off()                                #Make sure motors and servos are off.
+      c = sound('corrupt')                      #Play corruption audio.
+      c.play()
+      print("Error!")
+      raise e
 
 #------------------------------------------------------------------------
 if __name__ == '__main__':
