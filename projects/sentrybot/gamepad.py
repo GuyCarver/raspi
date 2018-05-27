@@ -250,4 +250,6 @@ if __name__ == '__main__':  #start server
   p = gamepad(aCallback = mytest)
   while 1:
     p.update()
+    j1 = p.getjoy(p._RY)
+    print("Joy: ", j1, "      ", end="\r")
     sleep(0.1)
