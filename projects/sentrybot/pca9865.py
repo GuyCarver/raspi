@@ -40,6 +40,7 @@ class pca9865(object):
     self._min = aMin
     self._max = aMax
     self._range = aMax - aMin
+    self._end = 4095 - self._range
 
   def _read( self, aLoc ) :
     '''Read 8 bit value and return.'''
@@ -56,6 +57,10 @@ class pca9865(object):
   def reset( self ):
     '''Reset the controller and set default frequency.'''
     self._write(0, self._MODE1)
+#These do a reset, but that causes the servos to go to 0.
+#    sleep(0.050)
+#    self._write(0, 0x06)
+#    sleep(0.050)
     self.setfreq(self._DEFAULTFREQ)
 
   def setfreq( self, aFreq ):
@@ -103,8 +108,11 @@ class pca9865(object):
     if aPerc < 0 :
       self.off(aServo)
     else:
+      base = self._range * aServo
+      if base > self._end:
+        base = 0
       val = self._min + ((self._range * aPerc) // 100)
-      self._setpwm(aServo, 0, val)
+      self._setpwm(aServo, base, base + val)
 
   def setangle( self, aServo, aAngle ):
     '''Set angle -90 to +90.  < -90 is off.'''
