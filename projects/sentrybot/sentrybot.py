@@ -326,10 +326,12 @@ class sentrybot(object):
     lx = deadzone(lx, 0.01)
     ly = deadzone(ly, 0.01)
 
-    #rx = head, torso, arm horizontal
-    #ry = right wheel front/back
-    #lx = Nothing at the moment
-    #ly = left wheel front/back
+    '''
+      rx = head, torso, arm horizontal
+      ry = right wheel front/back
+      lx = Nothing at the moment
+      ly = left wheel front/back
+    '''
 
     #If we have a change limit, then use it.
     if self._rate > 0.0:
@@ -406,8 +408,8 @@ class sentrybot(object):
           nexttime = perf_counter()
           delta = max(0.001, nexttime - prevtime)
           prevtime = nexttime
-#          if delta > 0.07:
-#            print("Clamping delta: ", delta)
+          if delta > 0.07:
+            print("Clamping delta: ", delta)
           delta = min(delta, 0.07)
 
           if self._controller:

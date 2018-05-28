@@ -24,6 +24,9 @@ class quicrun(object):
   _BACKWARD_MIN = 48
   _BACKWARD_INIT = 45
 
+  #States for reverse initialization over time.
+  _REVERSE_INIT_1, _REVERSE_INIT_2, _REVERSE_INIT_3, _REVERSE = range(4)
+
   _defminmax = (-100.0, 100.0)
 
   @staticmethod
@@ -42,6 +45,7 @@ class quicrun(object):
     self._pca = aPCA
     self._index = aIndex
     self._rate = 0.0
+    self._delay = 0.0                           #Delay value used for reverse init state changes.
     self._speed = 0.0
     self._scale = 1.0                           #Additional scaler used for temporary throttling.
     self._targetspeed = 0.0
@@ -117,32 +121,74 @@ class quicrun(object):
     '''Set the ESP speed.'''
     self._pca.set(self._index, aValue)
 
-  def _reverse( self ) :
+  def _immediatereverse( self ):
+    '''Perform immediate reverse action.  This causes a delay but is
+       necessary if update loop isn't being used.'''
+    self._set(self._STOP)
+    sleep(0.03)
+    self._set(self._BACKWARD_INIT)
+    sleep(0.03)
+    self._set(self._STOP)
+    sleep(0.02)
+
+  def _reverse( self, aDelta ) :
     '''To reverse the ESP we have to go full stop, then backward, then stop again.
         After that, sending reverse values will actually reverse the motor.  If
-        we dont do this, reverse values are just brakes.'''
+        we dont do this, reverse values are just brakes.  This system uses 4 states
+        that are updated over time to spread the reverse timing out over multiple
+        frames. If aDelta is 0, immediate reverse is performed instead.'''
 
     #Don't reverse unless previous speed was forward or stop.
     if self._prevspeed >= 0.0 :
-      print('reversing')
-      self._set(self._STOP)
-      sleep(0.025)
-      self._set(self._BACKWARD_INIT)
-      sleep(0.025)
-      self._set(self._STOP)
-      sleep(0.015)
+      #If no delta, we can't do reverse over time.  So do immediately.
+      if aDelta <= 0.0:
+        self._immediatereverse()
+        self._state = quicrun._REVERSE
+        self._delay = 0.0
+      else:
+        #Start with reverse init1 state.
+        self._state = quicrun._REVERSE_INIT_1
+        self._delay = 0.03
+        self._set(self._STOP)
+        return                                    #Exit, don't set speed while in init1.
+    else:
+      self._delay -= aDelta
+      if self._state == quicrun._REVERSE_INIT_1:
+        #Stay in init 1 state until time is up.
+        if self._delay <= 0.0:
+          #Switch to init 2 state.
+          self._state = quicrun._REVERSE_INIT_2
+          self._delay = 0.03
+          self._set(self._BACKWARD_INIT)
+        return                                    #Exit, don't set speed while in init1 or 2.
+      elif self._state == quicrun._REVERSE_INIT_2:
+        #Stay in init 2 state until time is up.
+        if self._delay <= 0.0:
+          #Switch to init 3 state.
+          self._state = quicrun._REVERSE_INIT_3
+          self._delay = 0.02
+          self._set(self._STOP)
+        return                                    #Exit, don't set speed while in init2 or 3.
+      elif self._state == quicrun._REVERSE_INIT_3:
+        #Stay in init 3 state until time is up.
+        if self._delay <= 0.0:
+          #Switch to reverse state and fall through to speed setting.
+          self._state = quicrun._REVERSE
+        else:
+          return                                  #Exit, don't set speed while in init3.
 
-  def _setesp( self ) :
-    '''Set the speed value on the esp.'''
+    #100 + self._speed because we go backwards from backward min to backward max.
+    self._set(quicrun.getperc(self._BACKWARD_MAX, self._BACKWARD_MIN, 100.0 + self._speed))
+
+  def _setesp( self, aDelta = 0.0 ) :
+    '''Set the speed value on the esp. aDelta isnt needed if self._rate == 0.'''
     if self._speed == 0.0 :
       self._set(self._STOP)
     else:
-      if self._speed > 0.0 :
+      if self._speed >= 0.0 :
         self._set(quicrun.getperc(self._FORWARD_MIN, self._FORWARD_MAX, self._speed))
       else:
-        self._reverse()
-        #100 + self._speed because we go backwards from backward min to backward max.
-        self._set(quicrun.getperc(self._BACKWARD_MAX, self._BACKWARD_MIN, 100.0 + self._speed))
+        self._reverse(aDelta)
 
     self._prevspeed = self._speed
 
@@ -174,17 +220,20 @@ class quicrun(object):
         #Interpolate between src, target by delta.
         if diff < 0.0:
           mm = max
-          aDelta *= -1.0
+          d = -aDelta
         else:
           mm = min
+          d = aDelta
 
-        diff = mm(self._rate * aDelta, diff)
+        diff = mm(self._rate * d, diff)
         newspeed = self._speed + diff
         self._speed = mm(newspeed, self._targetspeed)
       else:
         self._speed = self._targetspeed
 
-      self._setesp()
+    #update every call even if value hasn't changed because some state systems
+    # (for reverse) require it.
+    self._setesp(aDelta)
 
 #from pca9865 import *
 #p = pca9865()
