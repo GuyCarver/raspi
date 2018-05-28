@@ -124,12 +124,13 @@ class quicrun(object):
 
     #Don't reverse unless previous speed was forward or stop.
     if self._prevspeed >= 0.0 :
+      print('reversing')
       self._set(self._STOP)
-      sleep(0.1)
+      sleep(0.025)
       self._set(self._BACKWARD_INIT)
-      sleep(0.1)
+      sleep(0.025)
       self._set(self._STOP)
-      sleep(0.1)
+      sleep(0.015)
 
   def _setesp( self ) :
     '''Set the speed value on the esp.'''
