@@ -16,6 +16,7 @@ class part(object):
                                                   #This is in units/second.  IE: 180 is 180 degrees a second.
     self._minmax = self._defminmax
     self.value = 0.0                              #Set real value and write servo.
+    self.scale = 1.0                              #Scale value
 
   @property
   def index( self ): return self._index
@@ -107,22 +108,25 @@ _CONSTRUCTORS = {_ANGLE : anglepart, _SPEED : speedpart, _MOTOR : quicrun}
 # modified by the json data.
 #Name, Servo #, Type, Rate, Range (min, max) or minmax.
 _defaultdata = (
- ("TORSO", 1, _ANGLE, 0.0, 90.0),
- ("HEAD_H", 2, _ANGLE, 0.0, 90.0),
- ("HEAD_V", 3, _ANGLE, 0.0, 30.0),
- ("LARM_H", 4, _ANGLE, 0.0, 90.0),
- ("LARM_V", 5, _ANGLE, 0.0, 90.0),
- ("RARM_H", 6, _ANGLE, 0.0, 90.0),
- ("RARM_V", 7, _ANGLE, 0.0, 90.0),
- ("LLEG", 8, _MOTOR, 20.0, 20.0),
- ("RLEG", 9, _MOTOR, 20.0, 20.0),
- ("GUN", 10, _MOTOR, 75.0, 20.0),
+ ("TORSO", 8, _ANGLE, 0.0, 90.0),
+ ("HEAD_H", 0, _ANGLE, 0.0, 90.0),
+ ("HEAD_V", 1, _ANGLE, 0.0, 30.0),
+ ("LARM_H", 2, _ANGLE, 0.0, 90.0),
+ ("LARM_V", 3, _ANGLE, 0.0, 90.0),
+ ("LARM_T", 4, _ANGLE, 0.0, 90.0),
+ ("RARM_H", 5, _ANGLE, 0.0, 90.0),
+ ("RARM_V", 6, _ANGLE, 0.0, 90.0),
+ ("RARM_T", 7, _ANGLE, 0.0, 90.0),
+ ("LLEG", 9, _MOTOR, 20.0, 20.0),
+ ("RLEG", 10, _MOTOR, 20.0, 20.0),
+ ("GUN", 11, _MOTOR, 75.0, 20.0),
 )
 
 _numparts = len(_defaultdata)
 
 _TORSO, _HEAD_H, _HEAD_V, \
-_LARM_H, _LARM_V, _RARM_H, _RARM_V, \
+_LARM_H, _LARM_V, _LARM_T, \
+_RARM_H, _RARM_V, _RARM_T, \
 _LLEG, _RLEG, _GUN = range(_numparts)
 
 _parts = [None] * _numparts
