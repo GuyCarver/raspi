@@ -147,6 +147,9 @@ class gamepad(object):
 
   @callback.setter
   def callback( self, aCallback ):
+    '''Set the callback.  Callback is func(button, value)
+       value is 1 if pressed else released.  On disconnect
+       button = gamepad.GAMEPAD_DISCONNECT and value = 0.'''
     self._callback = aCallback
 
   @property
@@ -195,7 +198,8 @@ class gamepad(object):
       self._callback(aEvent.code, aEvent.value)
 
   def getjoy( self, aIndex ):
-    '''Get joystick value for given index _LX, _LY, _RX or _RY'''
+    '''Get joystick value for given index _LX, _LY, _RX or _RY
+       Value is range +/- 255.'''
     return self._joys[aIndex]
 
   def update( self ):
@@ -223,6 +227,8 @@ class gamepad(object):
               self._joys[event.code] = gamepad._translate(event.value, event.code & 1)
         self._errcount = 0
       except Exception as e:
+        #When not getting values we get resource unavailable messages.  Count them
+        # and run reconnect if we get too many.
         self._errcount += 1
         if self._errcount > 2000:
           self._errcount = 1000
