@@ -22,7 +22,7 @@ class pca9865(object):
 #  _ALLLED_OFF_L = const(0xFC)
 #  _ALLLED_OFF_H = const(0xFD)
 
-  _DEFAULTFREQ = 60
+  _DEFAULTFREQ = 100
   _MINPULSE = 120
   _MAXPULSE = 600
 
@@ -31,9 +31,11 @@ class pca9865(object):
     self.i2c = SMBus(aLoc)
     self._buffer = [0] * 4 #Can't use a bytearray with the write function.
     sleep(.050)
-    self.reset()
+    self._write(0, self._MODE1)
+#    self.reset()
     self._minmax(self._MINPULSE, self._MAXPULSE)
     self.setfreq(aFreq)
+    self.alloff()                               #Make sure we don't move to zero.
 
   def _minmax( self, aMin, aMax ):
     '''Set min/max and calculate range.'''
@@ -54,14 +56,14 @@ class pca9865(object):
     """Write buffer to given address."""
     self.i2c.write_i2c_block_data(self._ADDRESS, aLoc, aBuffer)
 
-  def reset( self ):
-    '''Reset the controller and set default frequency.'''
-    self._write(0, self._MODE1)
+#  def reset( self ):
+#    '''Reset the controller and set default frequency.'''
+#    self._write(0, self._MODE1)
 #These do a reset, but that causes the servos to go to 0.
 #    sleep(0.050)
 #    self._write(0, 0x06)
 #    sleep(0.050)
-    self.setfreq(self._DEFAULTFREQ)
+#    self.setfreq(self._DEFAULTFREQ)
 
   def setfreq( self, aFreq ):
     '''Set frequency for all servos.  A good value is 60hz (default).'''
