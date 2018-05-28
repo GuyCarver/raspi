@@ -10,6 +10,13 @@ class quicrun(object):
   '''Controller for quicrun 1060 ESP.
      This controller works through the pca9865 servo controller.'''
 
+#  _STOP = 40
+#  _FORWARD_MAX = 58
+#  _FORWARD_MIN = 42
+#  _BACKWARD_MAX = 25
+#  _BACKWARD_MIN = 38
+#  _BACKWARD_INIT = 35
+
   _STOP = 50
   _FORWARD_MAX = 68
   _FORWARD_MIN = 52
@@ -36,6 +43,7 @@ class quicrun(object):
     self._index = aIndex
     self._rate = 0.0
     self._speed = 0.0
+    self._scale = 1.0                           #Additional scaler used for temporary throttling.
     self._targetspeed = 0.0
     self._minmax = self._defminmax
     self.reset()
@@ -50,6 +58,14 @@ class quicrun(object):
   @rate.setter
   def rate( self, aValue ):
     self._rate = aValue
+
+  @property
+  def scale( self ):
+    return self._scale
+
+  @scale.setter
+  def scale( self, aValue ):
+    self._scale = aValue
 
   @property
   def minmax( self ):
@@ -88,7 +104,7 @@ class quicrun(object):
 #    sleep(0.5)
 #    self._set(100)
 #    sleep(0.5)
-#    self._set(self._STOP)
+    self._set(self._STOP)
     self._speed = 0.0
     self._prevspeed = 0.0
     self._targetspeed = 0.0
@@ -135,7 +151,8 @@ class quicrun(object):
 
   @speed.setter
   def speed( self, aValue ):
-    self._targetspeed = self.clamp(aValue)
+    #Set target speed and scale it based on the scale value.
+    self._targetspeed = self.clamp(aValue) * self._scale
     #If rate is 0, we just set speed to target speed and send to ESP.
     #  This way update() doesn't need to be called.
     if self._rate == 0.0:
