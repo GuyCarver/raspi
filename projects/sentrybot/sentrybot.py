@@ -65,6 +65,9 @@ class sentrybot(object):
     ps2con.DPAD_L : gamepad.BTN_DPADL
   }
 
+  _speeds = (.25, .5, 1.0)
+  _speedsounds = ('speed1', 'speed2', 'speed3')
+
   def __init__( self ):
     self._controllernum = 0                     #Type of controller 0=FC30, 1=ps2
     self._controller = None                     #Start out with no controller. Will set once we no which type.
@@ -72,6 +75,9 @@ class sentrybot(object):
     self._rotx = 0.0
     self._roty = 0.0
     self._rate = 90.0
+    self._speed = len(sentrybot._speeds) - 1
+    self._speedchange = 0
+    self._hy = 0.0
     self.armangle = 0.0
     self.invert = False
     self._pca = pca9865(100)
@@ -227,7 +233,7 @@ class sentrybot(object):
       p.minmax = aMinMax
 
   def _joy( self, aIndex ):
-    '''Get joystick value in range 0.0-100.0'''
+    '''Get joystick value in range -1.0 to 1.0'''
     return self._controller.getjoy(aIndex) / 255.0
 
   def _ps2action( self, aButton, aValue ):
@@ -239,14 +245,37 @@ class sentrybot(object):
       self._buttonaction(k, aValue)
 
   def _buttonaction( self, aButton, aValue ):
-    '''Callback function for nintendo controller.'''
+    '''Callback function for 8Bitdo FC30 Pro controller.'''
+
+    #If button pressed
     if aValue & 0x01:
-      s = sentrybot._buttonsounds[aButton]
-      if s != None:
-        s.play()
-#        print('playing', s.source)
+      if aButton == ecodes.BTN_TL2:
+        self._hy += 1.0
+      elif aButton == ecodes.BTN_TR2:
+        self._hy -= 1.0
+      elif aButton == ecodes.BTN_START or aButton == ecodes.BTN_SELECT:
+        self._speedchange += 1
+        if self._speedchange > 1:
+          self._nextspeed()
     elif aButton == gamepad.GAMEPAD_DISCONNECT:
       print('Disconnected controller!')
+    else: #Play sound on release.
+      if aButton == ecodes.BTN_TL2:
+        self._hy -= 1.0
+      elif aButton == ecodes.BTN_TR2:
+        self._hy += 1.0
+      else:
+        if aButton == ecodes.BTN_START or aButton == ecodes.BTN_SELECT:
+          self._speedchange -= 1
+          if self._speedchange > 1:
+            #If 2 then we changed sound and both buttons were released, so clear.
+            if self._speedchange == 2:
+              self._speedchange = 0
+            return #Button combo, so don't play a sound.
+        s = sentrybot._buttonsounds[aButton]
+        if s != None:
+          s.play()
+#          print('playing', s.source)
 
   def save( self ):
     '''Do save of properites.'''
@@ -256,33 +285,64 @@ class sentrybot(object):
     '''Do load of properties.'''
     saveload.loadproperties(self)
 
+  def setspeed( self ):
+    '''Set the speed scale value on the legs to the current _speed setting'''
+    #todo: set the speeds on the motors.
+    lleg = body.getpart(body._LLEG)
+    rleg = body.getpart(body._RLEG)
+    lleg.scale = rleg.scale = sentrybot._speeds[self._speed]
+
+  def _nextspeed( self ):
+    '''Increment to the next speed.'''
+    self._speedchange += 2 #This will make it 4.  Used to determine debounce actions.
+    self._speed += 1
+    if self._speed >= len(sentrybot._speeds):
+      self._speed = 0
+
+    #Play corresponding sound.
+    snd = sound(sentrybot._speedsounds[self._speed], 1)
+    snd.play()
+    self.setspeed()
+
   def _initparts( self ):
+    #Initialize all of the parts.
     body.initparts(self._pca)
+    lleg = body.getpart(body._LLEG)
+    rleg = body.getpart(body._RLEG)
+    self.setspeed()
 
   def _updateparts( self, aDelta ):
     '''Update all servos based on joystick input'''
 
     rx = -self._joy(gamepad._RX)                #Negate cuz servo is backwards.
-    ry = self._joy(gamepad._RY) * self._invert
+    ry = self._joy(gamepad._RY)
+
     rx = deadzone(rx, 0.01)
     ry = deadzone(ry, 0.01)
 
     lx = self._joy(gamepad._LX)
-    lx = deadzone(lx, 0.01)
     ly = self._joy(gamepad._LY)
+
+    lx = deadzone(lx, 0.01)
     ly = deadzone(ly, 0.01)
 
+    #rx = head, torso, arm horizontal
+    #ry = right wheel front/back
+    #lx = Nothing at the moment
+    #ly = left wheel front/back
+
+    #If we have a change limit, then use it.
     if self._rate > 0.0:
       if aDelta != 0.0:
         d = self._rate * aDelta
         v = self._rotx + (rx * d)
         self._rotx = min(max(v, -90.0), 90.0)
-        v = self._roty + (ry * d)
+        v = self._roty + (self._hy * d)
         self._roty = min(max(v, -90.0), 90.0)
     else:
       v = rx * 90.0
       self._rotx = min(max(v, -90.0), 90.0)
-      v = ry * 90.0
+      v = self._hy * 90.0
       self._roty = min(max(v, -90.0), 90.0)
 
 #    print(self._rotx, self._roty, '                ', end='\r')
@@ -302,6 +362,7 @@ class sentrybot(object):
     larmh = body.getpart(body._LARM_H)
     larmv = body.getpart(body._LARM_V)
 
+    #todo: Add arm twist.
     #Rotate x,y by angle and apply to arms.
     armx, army = angle.rotate((self._rotx, self._roty), self._cossinl)
     larmh.value = armx
@@ -314,15 +375,11 @@ class sentrybot(object):
 
     #todo: Update gun servo based on a button input.
 
-#    vl, vr = legs.vels(lx, ly)
-    vl = ly
-    vr = ry
     lleg = body.getpart(body._LLEG)
     rleg = body.getpart(body._RLEG)
 
-#    print(vl, '    ', end='\r')
-    lleg.speed = vl * lleg.maxspeed
-    rleg.speed = vr * rleg.maxspeed
+    lleg.speed = ly * lleg.maxspeed
+    rleg.speed = ry * rleg.maxspeed
 
     lleg.update(aDelta)
     rleg.update(aDelta)
