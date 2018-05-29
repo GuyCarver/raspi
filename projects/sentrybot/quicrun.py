@@ -130,6 +130,8 @@ class quicrun(object):
     sleep(0.03)
     self._set(self._STOP)
     sleep(0.02)
+    self._state = quicrun._REVERSE
+    self._delay = 0.0
 
   def _reverse( self, aDelta ) :
     '''To reverse the ESP we have to go full stop, then backward, then stop again.
@@ -143,8 +145,6 @@ class quicrun(object):
       #If no delta, we can't do reverse over time.  So do immediately.
       if aDelta <= 0.0:
         self._immediatereverse()
-        self._state = quicrun._REVERSE
-        self._delay = 0.0
       else:
         #Start with reverse init1 state.
         self._state = quicrun._REVERSE_INIT_1
