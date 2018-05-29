@@ -115,6 +115,8 @@ class gamepad(object):
     self._callback = None
     self._device = None
     self._input = ''
+    self._dpadlr = 0
+    self._dpadud = 0
     self._connect()
     self.update()
     self._callback = aCallback
@@ -214,10 +216,14 @@ class gamepad(object):
           elif event.type == ecodes.EV_ABS:
             #turn hat x,y +/- values to dpad button events.
             if event.code == ecodes.ABS_HAT0X:
-              event.code = gamepad.BTN_DPADR if event.value > 0 else gamepad.BTN_DPADL
+              v = event.value if event.value != 0 else self._dpadlr
+              self._dpadlr = event.value
+              event.code = gamepad.BTN_DPADR if v > 0 else gamepad.BTN_DPADL
               self._docallback(event)
             elif event.code == ecodes.ABS_HAT0Y:
-              event.code = gamepad.BTN_DPADU if event.value > 0 else gamepad.BTN_DPADD
+              v = event.value if event.value != 0 else self._dpadud
+              self._dpadud = event.value
+              event.code = gamepad.BTN_DPADU if v > 0 else gamepad.BTN_DPADD
               self._docallback(event)
             elif event.code <= 5: #l/r triggers pass abs codes in as well as btn codes.
 #              print(event)
