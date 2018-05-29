@@ -57,6 +57,9 @@
     <div class="w3-card-4 w3-container">
       <h4>Servos and Motors</h4>
       <div class="diva">
+        Speeds: <input name="speeds" value="${speeds}">
+      </div>
+      <div class="diva">
         Arm Angle: <input class="mynumber" type="number" name="armangle" min="-90" max="90" value="${armangle}">
         &nbsp;Rate: <input class="mynumber" type="number" name="rate" min="0" max="1000" value="${rate}">
       </div>
@@ -68,35 +71,9 @@
         Min: <input class="mynumber" type="number" name="partmin" min="${minv}" max="${maxv}" value="${partmin}">
         Max: <input class="mynumber" type="number" name="partmax" min="${minv}" max="${maxv}" value="${partmax}">
       </div>
-<!--
-      <div class="diva">
-        Head Limit X: <input class="mynumber" type="number" name="headturn" min="0" max="90" value="${headx}">
-        Y: <input class="mynumber" type="number" name="headtilt" min="0" max="90" value="${heady}">
-      </div>
-!-->
       <div class="diva">
         <input type="submit" name="Submit" value="Submit">
       </div>
-<!--      <div>
-      <datalist id="ticks">
-        <option value="1" label="1">
-      <option value="25">
-        <option value="50" label="50">
-        <option value="75">
-        <option value="100" label="100">
-      </datalist>
-        Speed: ${speed}</br>
-        <input type="range" style="width:400px" min="1" max="100" value="${speed}" name="speed" onchange="form.submit()" list="ticks">
-      </div>
-      <div>
-        Accel: ${accel}</br>
-        <input type="range" style="width:400px" min="1" max="100" value="${accel}" name="accel" onchange="form.submit()" list="ticks">
-      </div>
-      <div>
-        Head Turn Limit: ${headturn}</br>
-        <input type="range" style="width:400px" min="0" max="90" value="${headturn}" name="headturn" onchange="form.submit()" list="ticks">
-      </div>
-!-->
     </div>
 
     <div class="w3-card-4 w3-container">

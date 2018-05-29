@@ -33,6 +33,7 @@ def saveproperties( bot ):
     # ecode.btn, soundobj to (btnname, group, basefilename)
     data['sounds'] = jsonsounddata(bot.buttonsounds)
     saveparts(data)                           #Save body part data to json.
+    data['speeds'] = bot.getspeeds()
 
     with open(savename, 'w+') as f:
       dump(data, f, indent = 2)
@@ -50,6 +51,7 @@ def loadproperties( bot ):
       bot.startupsound = data['startup']
       bot.initsounds(data['sounds'])
       loadparts(data)                           #Load body part data from json.
+      bot.setspeeds(data['speeds'])
   except Exception as e:
     print('option load error:', e)
 

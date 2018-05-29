@@ -102,6 +102,8 @@ class settings(BaseHTTPRequestHandler):
 
   #--------------------------------------------------------------
   def do_GET( self ):  #load initial page
+#    print('getting ', self.path)
+
     #When testing we reload this every get.
     if self.testing:
       self.readHTML()
@@ -109,7 +111,6 @@ class settings(BaseHTTPRequestHandler):
     pmin, pmax = self.target.partminmax(settings.lastpart)
     minv, maxv = self.target.partdefminmax(settings.lastpart)
 
-#    print('getting ' + self.path)
     subs = { self.determinecontroller() : 'selected',
       'armangle' : self.target.armangle,
       'rate' : self.target.rate,
@@ -121,6 +122,7 @@ class settings(BaseHTTPRequestHandler):
       'partmax' : pmax,
       'minv' : minv,
       'maxv' : maxv,
+      'speeds': self.target.getspeeds(),
     }
 
     self.send_response(200)
@@ -131,6 +133,8 @@ class settings(BaseHTTPRequestHandler):
 
   #--------------------------------------------------------------
   def do_POST( self ):  #process requests
+#    print('Posting')
+
     #read form data
     form = cgi.FieldStorage(fp = self.rfile, headers = self.headers,
                             environ = {'REQUEST_METHOD':'POST',
@@ -146,6 +150,10 @@ class settings(BaseHTTPRequestHandler):
     setsound = form.getfirst('setsound')
     settings.lastsound = form.getvalue('sound')
     settings.lastbutton = form.getvalue('button')
+
+    if sb != None:
+      speeds = form.getfirst('speeds')
+      self.target.setspeeds(speeds)
 
     if pl and self.lastsound:
       if settings.lastsound != 'None':
@@ -171,6 +179,7 @@ class settings(BaseHTTPRequestHandler):
 
     #If save button pressed then save settings to json file.
     if sv != None:
+      print('Saving settings.')
       self.target.save()
 
     self.do_GET()                               #Re-read the data.
@@ -271,6 +280,23 @@ if __name__ == '__main__':  #Run settings test with dummy data.
       320 : None
     }
 
+    _speeds = (0.25, 0.5, 1.0)
+
+    @classmethod
+    def getspeeds( self ):
+      '''  '''
+      return ', '.join(str(s) for s in self._speeds)
+
+    @classmethod
+    def setspeeds( self, aSpeeds ):
+      '''  '''
+      spds = aSpeeds.split(',')
+      try:
+        self._speeds = tuple(float(s) for s in spds)
+        print(self._speeds)
+      except Exception as e:
+        print(e)
+
     @classmethod
     def partrate( self, aIndex ):
       '''  '''
@@ -279,7 +305,7 @@ if __name__ == '__main__':  #Run settings test with dummy data.
     @classmethod
     def partminmax( self, aIndex ):
       '''  '''
-      print(self.partdata[aIndex])
+      print('part:', self.partdata[aIndex])
       rng = self.partdata[aIndex][4]
       return rng if type(rng) == tuple else (-rng, rng)
 

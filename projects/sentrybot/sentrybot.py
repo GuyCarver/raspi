@@ -258,6 +258,7 @@ class sentrybot(object):
         if self._speedchange > 1:
           self._nextspeed()
     elif aButton == gamepad.GAMEPAD_DISCONNECT:
+      body.off()
       print('Disconnected controller!')
     else: #Play sound on release.
       if aButton == ecodes.BTN_TL2:
@@ -285,7 +286,20 @@ class sentrybot(object):
     '''Do load of properties.'''
     saveload.loadproperties(self)
 
-  def setspeed( self ):
+  def getspeeds( self ):
+    '''Get tuple of speeds as comma separated string.'''
+    return ', '.join(str(s) for s in sentrybot._speeds)
+
+  def setspeeds( self, aSpeeds ):
+    '''Set tuple of speeds from comma separated string.'''
+    spds = aSpeeds.split(',')
+    try:
+      sentrybot._speeds = tuple(float(s) for s in spds)
+    except Exception as e:
+      #On error we print the exception and continue with default speed values.
+      print(e)
+
+  def _setspeed( self ):
     '''Set the speed scale value on the legs to the current _speed setting'''
     #todo: set the speeds on the motors.
     lleg = body.getpart(body._LLEG)
@@ -299,17 +313,18 @@ class sentrybot(object):
     if self._speed >= len(sentrybot._speeds):
       self._speed = 0
 
+#    print('speed:', self._speed)
+
     #Play corresponding sound.
-    snd = sound(sentrybot._speedsounds[self._speed], 1)
-    snd.play()
-    self.setspeed()
+    if self._speed < len(sentrybot._speedsounds):
+      snd = sound(sentrybot._speedsounds[self._speed], 1)
+      snd.play()
+    self._setspeed()
 
   def _initparts( self ):
     #Initialize all of the parts.
     body.initparts(self._pca)
-    lleg = body.getpart(body._LLEG)
-    rleg = body.getpart(body._RLEG)
-    self.setspeed()
+    self._setspeed()
 
   def _updateparts( self, aDelta ):
     '''Update all servos based on joystick input'''
