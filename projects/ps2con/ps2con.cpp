@@ -76,10 +76,10 @@ enum BUTTONS {
 
 //_joys array indexes.
 enum JOYS {
-	LX = 0x10,									//This is just after BUTTONS::SQUARE.
-	LY,
-	RX,
-	RY
+	RX = 0x10,									//This is just after BUTTONS::SQUARE.
+	RY,
+	LX,
+	LY
 };
 
 const char *Names[] = {
