@@ -10,11 +10,17 @@ from kivy.base import EventLoop
 # function must be called regularly.  This will enable sounds to loop as
 # well as to report events such as on_stop.
 
+#------------------------------------------------------------------------
 class sound(object):
   '''Use kivy to play sounds.  Sounds are also grouped so only certain ones may play at a time.'''
   _DIR = 'sounds/'
 
   _playinggroups = {  }
+  _defaultcallback = None
+
+  @classmethod
+  def setdefaultcallback( self, aCallback ):
+    self._defaultcallback = aCallback
 
   @classmethod
   def start( self ):
@@ -38,19 +44,27 @@ class sound(object):
     self._filename = aFile                      #Keep track of base file name.
     self._group = aGroup                        #Only 1 sound in a group may play at a time.
     self._keeploaded = False                    #When True sound will never be unloaded.
-    self._loaded = False;                       #When True the sound data is loaded.
+    self._loaded = False                        #When True the sound data is loaded.
+    self._next = None                           #Next sound to play in chain if any.
 
     #Make sure group exists in the dict.
     if not aGroup in sound._playinggroups:
       sound._playinggroups[aGroup] = None
 
+    fname = sound._DIR + aFile + '.mp3'
     #Create the sound object. This does not actually load the sound data.
-    self._sound = audio.SoundLoader.load(sound._DIR + aFile + '.mp3')
+    self._sound = audio.SoundLoader.load(fname)
 
     self._callback = aCallback                  #Sound stop callback function.
-    #If sound stop callback given, set it.
-    if aCallback != None:
-      self._sound.on_stop = self.stopping
+    self._sound.on_stop = self.stopping
+
+  @property
+  def next( self ):
+    return self._next
+
+  @next.setter
+  def next( self, aValue ):
+    self._next = aValue
 
   @property
   def keeploaded( self ):
@@ -148,28 +162,62 @@ class sound(object):
     if self._callback:
       self._callback(self)
 
+    if self.next:
+      self.next.play()
+
     self.unload(False)                            #Unload unless keeploaded set.
 
+#------------------------------------------------------------------------
+class soundchain(object):
+  '''Play a list of sounds one after the other.'''
+
+  def __init__( self, aFiles, aGroup ):
+    self._files = aFiles
+    self._index = 0
+    self._group = aGroup
+    self._sound = None
+
+  def play( self ):
+    '''  '''
+    self._sound = sound(self._files[self._index], self._group, self._sounddone)
+    self._sound.play()
+
+  def reset( self, aArg ):
+    '''  '''
+    self._index = 0
+    self._sound = None
+
+  def _sounddone( self, aSound ):
+    '''Callback function to play next sound.'''
+    self._index += 1
+    if self._index < len(self._files):
+      self.play()
+    else:
+      self._index = 0
+      self._sound = None
+
+#------------------------------------------------------------------------
 if __name__ == '__main__':
   from time import sleep
+  from kivy.clock import Clock
   running = True
 
   def MyStop( aSound ):
-    ''' '''
-#    print('Stopping', aSound.source)
-    running = False
+    '''  '''
+    print('Stopping', aSound.source)
+#    running = False
 
   #start Kivy sound event system.
   sound.start()
 
-  s = sound('startup', 0, MyStop)
+  s2 = soundchain(('sys\\startup', 'sys\\five', 'sys\\four', 'sys\\three', 'sys\\two', 'sys\\one'), 0)
+  s = sound('startup', 1, MyStop)
   s.play()
-  cnt = 0
+  def startsound( dt ):
+    s2.play()
+
+  Clock.schedule_once(startsound, 2.0)
 
   while running:
     EventLoop.idle()
-    cnt += 1
-    if cnt > 70:
-      s.stop()
-      break
     sleep(0.033)
