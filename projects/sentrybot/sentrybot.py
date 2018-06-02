@@ -5,6 +5,7 @@ from quicrun import *
 from gamepad import *
 from sound import *
 from settings import *
+from kivy.clock import Clock
 
 import angle
 import body
@@ -65,10 +66,18 @@ class sentrybot(object):
     ps2con.DPAD_L : gamepad.BTN_DPADL
   }
 
+  #PS2 joystick is RX, RY, LX, LY while gamepad is LX, LY, RX, RY.
+  _ps2joymap = (ps2con.LX, ps2con.LY, ps2con.RX, ps2con.RY)
+
+  _MACHINEGROUP = 20
   _speeds = (.25, .5, 1.0)
-  _speedsounds = ('speed1', 'speed2', 'speed3')
+  _startupsfx = 'sys/startup'
+  _combatsfx = 'sys/equipcombat'
+  _speedsounds = ('sys/one', 'sys/two', 'sys/three', 'sys/four', 'sys/five', 'sys/six')
 
   def __init__( self ):
+    sound.setdefaultcallback(self._sounddone)
+
     self._controllernum = 0                     #Type of controller 0=FC30, 1=ps2
     self._controller = None                     #Start out with no controller. Will set once we no which type.
     self._startupsound = None
@@ -80,7 +89,9 @@ class sentrybot(object):
     self._hy = 0.0
     self.armangle = 0.0
     self.invert = False
+    self._combatmode = False
     self._pca = pca9865(100)
+    self._buttonpressed = set()
 
     self.load()                                 #load settings json
 
@@ -203,10 +214,12 @@ class sentrybot(object):
     for s in aSounds:
       b = gamepad.nametobtn(s[0])               #Turn button name into button #.
       if b >= 0:
-        sentrybot._buttonsounds[b] = sound(s[2], s[1], self._sounddone)
+        sentrybot._buttonsounds[b] = sound(s[2], s[1])
 
   def _sounddone( self, aSound ):
     '''Callback function when sound file is done playing.'''
+    #NOTE: This does nothing, but it it's not set, we don't get events at all, and sound looping and stoping events
+    #  will not process.
 #    print('Done:', aSound.source)
     pass
 
@@ -232,52 +245,6 @@ class sentrybot(object):
       p.rate = aRate
       p.minmax = aMinMax
 
-  def _joy( self, aIndex ):
-    '''Get joystick value in range -1.0 to 1.0'''
-    return self._controller.getjoy(aIndex) / 255.0
-
-  def _ps2action( self, aButton, aValue ):
-    '''Callback for ps2 button events. They are remapped to FC30 events and sent
-       to the _buttonaction callback.'''
-    if aValue == 0x03:
-      k = sentrybot._ps2map[aButton]
-#     print(aButton, aValue, k)
-      self._buttonaction(k, aValue)
-
-  def _buttonaction( self, aButton, aValue ):
-    '''Callback function for 8Bitdo FC30 Pro controller.'''
-
-    #If button pressed
-    if aValue & 0x01:
-      if aButton == ecodes.BTN_TL2:
-        self._hy += 1.0
-      elif aButton == ecodes.BTN_TR2:
-        self._hy -= 1.0
-      elif aButton == ecodes.BTN_START or aButton == ecodes.BTN_SELECT:
-        self._speedchange += 1
-        if self._speedchange > 1:
-          self._nextspeed()
-    elif aButton == gamepad.GAMEPAD_DISCONNECT:
-      body.off()
-      print('Disconnected controller!')
-    else: #Play sound on release.
-      if aButton == ecodes.BTN_TL2:
-        self._hy -= 1.0
-      elif aButton == ecodes.BTN_TR2:
-        self._hy += 1.0
-      else:
-        if aButton == ecodes.BTN_START or aButton == ecodes.BTN_SELECT:
-          self._speedchange -= 1
-          if self._speedchange > 1:
-            #If 2 then we changed sound and both buttons were released, so clear.
-            if self._speedchange == 2:
-              self._speedchange = 0
-            return #Button combo, so don't play a sound.
-        s = sentrybot._buttonsounds[aButton]
-        if s != None:
-          s.play()
-#          print('playing', s.source)
-
   def save( self ):
     '''Do save of properites.'''
     saveload.saveproperties(self)
@@ -285,6 +252,19 @@ class sentrybot(object):
   def load( self ):
     '''Do load of properties.'''
     saveload.loadproperties(self)
+
+  def _initparts( self ):
+    #Initialize all of the parts.
+    body.initparts(self._pca)
+    self._setspeed()
+
+  def brake( self ):
+    '''  '''
+    lleg = body.getpart(body._LLEG)
+    rleg = body.getpart(body._RLEG)
+    lleg.brake()
+    rleg.brake()
+    sleep(0.3)
 
   def getspeeds( self ):
     '''Get tuple of speeds as comma separated string.'''
@@ -321,10 +301,86 @@ class sentrybot(object):
       snd.play()
     self._setspeed()
 
-  def _initparts( self ):
-    #Initialize all of the parts.
-    body.initparts(self._pca)
-    self._setspeed()
+  def _joy( self, aIndex ):
+    '''Get joystick value in range -1.0 to 1.0'''
+
+    #PS2 controller has different stick mappings.
+    if self._controllernum == 1:
+      aIndex = sentrybot._ps2joymap[aIndex & 0x03]  #Make sure value is in range.
+
+    return self._controller.getjoy(aIndex) / 255.0
+
+  def togglecombat( self ):
+    '''  '''
+
+    self._combatmode = not self._combatmode
+    if self._combatmode:
+      s = sound(sentrybot._combatsfx, sentrybot._MACHINEGROUP)
+      s.play()
+    else:
+      s = soundchain(('sys/six',
+                      'sys/five',
+                      'sys/four',
+                      'sys/three',
+                      'sys/two',
+                      'sys/one'), sentrybot._MACHINEGROUP)
+      s.play()
+
+  def _ps2action( self, aButton, aValue ):
+    '''Callback for ps2 button events. They are remapped to FC30 events and sent
+       to the _buttonaction callback.'''
+#    print('Action:', aButton, aValue)
+    if aValue & 0x02:
+      k = sentrybot._ps2map[aButton]
+#     print(aButton, aValue, k)
+      self._buttonaction(k, aValue)
+
+  def _buttonaction( self, aButton, aValue ):
+    '''Callback function for 8Bitdo FC30 Pro controller.'''
+
+    #If button pressed
+    if aValue & 0x01:
+      self._buttonpressed.add(aButton)
+#      if aButton == ecodes.BTN_THUMBL:
+#        self.brake()
+      if aButton == ecodes.BTN_TL2:
+        self._hy += 1.0
+      elif aButton == ecodes.BTN_TR2:
+        self._hy -= 1.0
+      elif aButton == ecodes.BTN_START or aButton == ecodes.BTN_SELECT:
+        chk = ecodes.BTN_SELECT if aButton == ecodes.BTN_START else ecodes.BTN_START
+        if chk in self._buttonpressed:
+          self._nextspeed()
+
+          #Remove these buttons from pressed list so we don't play sound on release.
+          self._buttonpressed.remove(chk)
+          self._buttonpressed.remove(aButton)
+      elif aButton == ecodes.BTN_TL or aButton == ecodes.BTN_TR:
+        chk = ecodes.BTN_TL if aButton == ecodes.BTN_TR else ecodes.BTN_TR
+        if chk in self._buttonpressed:
+          self.togglecombat()
+          self._buttonpressed.remove(chk)
+          self._buttonpressed.remove(aButton)
+
+    elif aButton == gamepad.GAMEPAD_DISCONNECT:
+      body.off()
+      print('Disconnected controller!')
+    else: #Handle release events.
+      if aButton == ecodes.BTN_TL2:
+        self._hy -= 1.0
+      elif aButton == ecodes.BTN_TR2:
+        self._hy += 1.0
+      else:
+        #If we recorded a button press and it wasn't consumed, then play sound on release.
+        if aButton in self._buttonpressed:
+          s = sentrybot._buttonsounds[aButton]
+          if s != None:
+            s.play()
+#            print('playing', s.source)
+
+      #On release, make sure to remove button from pressed state set.
+      if aButton in self._buttonpressed:
+        self._buttonpressed.remove(aButton)
 
   def _updateparts( self, aDelta ):
     '''Update all servos based on joystick input'''
@@ -403,18 +459,22 @@ class sentrybot(object):
 
   def run( self ):
     '''Main loop to run the robot.'''
-    self._settingsthread.start()
+    startsfx = sound(sentrybot._startupsfx, sentrybot._MACHINEGROUP)
+    startsfx.play()
+
     if self.startupsound != None:
-      self.startupsound.play()
-
-    #Save init of parts and controller until last second to ensure
-    # they get updates as quickly as possible after update.
-    self._initparts()
-    self._initcontroller()
-
-    prevtime = perf_counter()
+      Clock.schedule_once(lambda x: self.startupsound.play(), 2.0)
 
     try:
+      self._settingsthread.start()
+
+      #Save init of parts and controller until last second to ensure
+      # they get updates as quickly as possible after update.
+      self._initparts()
+      self._initcontroller()
+
+      prevtime = perf_counter()
+
       while self.running:
         if self._haskeyboard and keyboard.is_pressed('q'):
           self._running = False
@@ -423,9 +483,9 @@ class sentrybot(object):
           nexttime = perf_counter()
           delta = max(0.001, nexttime - prevtime)
           prevtime = nexttime
-          if delta > 0.07:
-            print("Clamping delta: ", delta)
-          delta = min(delta, 0.07)
+          if delta > 0.03:
+#            print("Clamping delta: ", delta)
+            delta = 0.03
 
           if self._controller:
             self._controller.update()
@@ -435,12 +495,13 @@ class sentrybot(object):
           #Get how much time has passed since beginning of frame and subtract
           # that from the sleep time.
           nexttime = perf_counter()
-          delta = nexttime - prevtime
+          sleeptime = 0.03 - nexttime - prevtime  #30fps - time we've already wasted.
+          if sleeptime > 0.0:
+            sleep(sleeptime)
 
-          sleep(max(0.01, 0.03 - delta))         #Update 30fps
     except Exception as e:
       body.off()                                #Make sure motors and servos are off.
-      c = sound('corrupt')                      #Play corruption audio.
+      c = sound('sys_corrupt')                  #Play corruption audio.
       c.play()
       print("Error!")
       raise e
