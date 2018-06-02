@@ -1,25 +1,26 @@
 {
   "rate": 180.0,
+  "startup": "sys_powerup",
   "sounds": [
     [
       "DP_U",
-      2,
+      1,
       "warningviolation"
     ],
     [
       "DP_R",
-      2,
+      1,
       "weaponsfree"
     ],
     [
       "DP_D",
-      2,
+      1,
       "weaponslocked"
     ],
     [
       "DP_L",
-      2,
-      "startup"
+      1,
+      "noncombatants"
     ],
     [
       "A",
@@ -57,11 +58,6 @@
       "systemreport"
     ],
     [
-      "L_TR",
-      1,
-      "nohostiles"
-    ],
-    [
       "SLCT",
       1,
       "hostiles"
@@ -83,8 +79,6 @@
     ]
   ],
   "armangle": 8.0,
-  "controller": 0,
-  "startup": "powerup",
   "parts": [
     [
       "TORSO",
@@ -170,5 +164,7 @@
       75.0,
       20.0
     ]
-  ]
+  ],
+  "speeds": "0.25, 0.5, 1.0",
+  "controller": 0
 }
