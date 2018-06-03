@@ -171,26 +171,20 @@ class gamepad(object):
     '''Attempt to connect to the gamepad and create the InputDevice'''
     self._disconnect()
 
-    for i in range(aTries):
-      if gamepad.debug:
-        print("connect attempt {} for {}".format(i, self._id))
-      try:
-        os.system('echo "power on \nconnect ' + self._id + ' \nquit" | sudo bluetoothctl')
-
-        for j in range(5):
-          sleep(1.0)
-          self._device = gamepad.finddevice()
-          if self.connected:
-            sleep(0.1)
-            print('connected!')
-            return self.connected
-      except Exception as e:
-        if gamepad.debug:
-          if gamepad.debug > 1:
-            raise(e)
-          print(e)
+    try:
+      os.system('echo "power on \nconnect ' + self._id + ' \nquit" | sudo bluetoothctl')
 
       sleep(1.0)
+      self._device = gamepad.finddevice()
+      if self.connected:
+        sleep(0.1)
+        print('connected!')
+        return self.connected
+    except Exception as e:
+      if gamepad.debug:
+        if gamepad.debug > 1:
+          raise(e)
+        print(e)
 
     return self.connected
 
@@ -235,10 +229,10 @@ class gamepad(object):
       except Exception as e:
         #When not getting values we get resource unavailable messages.  Count them
         # and run reconnect if we get too many.
-        self._errcount += 1
-        if self._errcount > 2000:
-          self._errcount = 1000
-          self._connect(1)
+#        self._errcount += 1
+#        if self._errcount > 200000:
+#          self._errcount = 1000
+#          self._connect(1)
         if gamepad.debug:
           if gamepad.debug > 1:
             raise e
