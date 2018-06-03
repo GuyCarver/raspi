@@ -23,7 +23,7 @@ def saveproperties( bot ):
   '''Save options to json file.'''
   try:
     data = {}
-    data['controller'] = bot.controller
+    data['controller'] = bot.controllernum
     data['armangle'] = bot.armangle
     data['rate'] = bot.rate
     data['startup'] = bot.startupsound.filename if bot.startupsound else None
@@ -45,7 +45,7 @@ def loadproperties( bot ):
   try:
     with open(savename, 'r') as f:
       data = load(f)
-      bot.controller = data['controller']
+      bot.controllernum = data['controller']
       bot.armangle = data['armangle']
       bot.rate = data['rate']
       bot.startupsound = data['startup']

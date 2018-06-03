@@ -29,7 +29,8 @@ class settings(BaseHTTPRequestHandler):
 
   @classmethod
   def determinecontroller( self ):
-    v = 'c_' + str(self.target.controller)
+    #Convert 0, 1 into c_0-1.
+    v = 'c_' + str(self.target.controllernum)
 #    print('controller is ', v)
     return v
 
@@ -165,7 +166,7 @@ class settings(BaseHTTPRequestHandler):
         self.updateused()
 
     #if have a target clock write data to it.
-    self.target.setcontroller(int(con))
+    self.target.controllernum = int(con)
     self.target.armangle = float(armangle)
     self.target.rate = float(rate)
 

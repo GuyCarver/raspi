@@ -6,6 +6,7 @@ from gamepad import *
 from sound import *
 from settings import *
 from kivy.clock import Clock
+from kivy.base import EventLoop
 
 import angle
 import body
@@ -186,10 +187,10 @@ class sentrybot(object):
       sentrybot._buttonsounds[btnnum] = aFile
 
   @property
-  def controller( self ): return self._controllernum
+  def controllernum( self ): return self._controllernum
 
-  @controller.setter
-  def controller( self, aValue ):
+  @controllernum.setter
+  def controllernum( self, aValue ):
     '''Set the controller #.'''
     self._controllernum = aValue
 #    print('Controller:', self._controllernum)
@@ -490,7 +491,7 @@ class sentrybot(object):
           if self._controller:
             self._controller.update()
           self._updateparts(delta)
-          sound.update()                          #Update sound event listener
+          EventLoop.idle()                      #Update kivy event listener
 
           #Get how much time has passed since beginning of frame and subtract
           # that from the sleep time.

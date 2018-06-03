@@ -28,11 +28,6 @@ class sound(object):
     EventLoop.add_event_listener(self)
     EventLoop.start()
 
-  @staticmethod
-  def update(  ):
-    '''Called once per frame to pump the sound event listener.'''
-    EventLoop.idle()
-
   @classmethod
   def on_start( self ):
     '''Empty even handler function.  This is here because we use
@@ -45,6 +40,8 @@ class sound(object):
     self._group = aGroup                        #Only 1 sound in a group may play at a time.
     self._keeploaded = False                    #When True sound will never be unloaded.
     self._loaded = False                        #When True the sound data is loaded.
+    self._loop = False                          #Keep a local looping state.
+    self._volume = 1                            #Keep a local volume level.
     self._next = None                           #Next sound to play in chain if any.
 
     #Make sure group exists in the dict.
@@ -78,6 +75,16 @@ class sound(object):
   def group( self ): return self._group
 
   @property
+  def volume( self ):
+    return self._volume
+
+  @volume.setter
+  def volume( self, aValue ):
+    self._volume = aValue
+    if self.playing:
+      self._sound.volume = aValue
+
+  @property
   def loaded( self ): return self._loaded
 
   @property
@@ -100,10 +107,11 @@ class sound(object):
 
   @property
   def loop( self ):
-    return self._sound.loop if self.loaded else False
+    return self._loop
 
   @loop.setter
   def loop( self, aValue ):
+    self._loop = aValue
     if self.loaded:
       self._sound.loop = aValue
 
@@ -128,6 +136,8 @@ class sound(object):
     sound._playinggroups[self.group] = self
     self.load()                                 #Make sure the sound is loaded.
     #NOTE: May need to rewind the sound here.
+    self._sound.loop = self._loop
+    self._sound.volume = self._volume
     self._sound.play()
 
   def stop( self ):
