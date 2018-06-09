@@ -11,11 +11,14 @@ def jsonsounddata( aSource ):
   '''Convert the map of evdev button ids: sound objects to
       list of (button name, group #, filename) entries'''
   dest = []
-  for btn, snd in aSource.items():
-    if snd != None:
+  for btn, snds in aSource.items():
+    peace, combat = snds
+    if peace != None or combat != None:
       name = gamepad.btntoname(btn)
       if name != None:
-        dest.append((name, snd.group, snd.filename))
+        pfilename = peace.filename if peace != None else ""
+        cfilename = combat.filename if combat != None else ""
+        dest.append((name, snd.group, pfilename, cfilename))
 
   return dest
 
@@ -57,6 +60,7 @@ def loadproperties( bot ):
 
 #------------------------------------------------------------------------
 if __name__ == '__main__':  #start server and open browser
+  savename = 'test.json'
   class testsnd(object):
     '''This is all testing support objects.'''
     def __init__( self, aGroup, aFile ):
@@ -66,23 +70,23 @@ if __name__ == '__main__':  #start server and open browser
   class testobj(object):
 
     buttonsounds = {
-      ecodes.BTN_A : testsnd(1, 'alertsafety'),
-      ecodes.BTN_B : testsnd(1, 'alertsecurity'),
-      ecodes.BTN_C : testsnd(1, 'allcitizenscalm'),
-      ecodes.BTN_X : testsnd(1, 'donotinterfere'),
-      ecodes.BTN_Y : testsnd(1, 'hostiledetected2'),
-      ecodes.BTN_SELECT : testsnd(1, 'hostiles'),
-      ecodes.BTN_START : testsnd(1, 'movealong'),
-      ecodes.BTN_TL2 : testsnd(1, 'nohostiles'),
-      ecodes.BTN_TR2 : testsnd(1, 'noncombatants'),
-      ecodes.BTN_TL : testsnd(1, 'privateproperty'),
-      ecodes.BTN_TR : testsnd(1, 'systemreport'),
-      ecodes.BTN_THUMBL : testsnd(1, 'warningleave'),
-      ecodes.BTN_THUMBR : testsnd(1, 'warningsecurity'),
-      gamepad.BTN_DPADU : testsnd(2, 'warningviolation'),
-      gamepad.BTN_DPADR : testsnd(2, 'weaponsfree'),
-      gamepad.BTN_DPADD : testsnd(2, 'weaponslocked'),
-      gamepad.BTN_DPADL : testsnd(2, 'startup')
+      ecodes.BTN_A : [testsnd(1, 'alertsafety'), None],
+      ecodes.BTN_B : [testsnd(1, 'alertsecurity'), None],
+      ecodes.BTN_C : [testsnd(1, 'allcitizenscalm'), None],
+      ecodes.BTN_X : [testsnd(1, 'donotinterfere'), None],
+      ecodes.BTN_Y : [testsnd(1, 'hostiledetected2'), None],
+      ecodes.BTN_SELECT : [testsnd(1, 'hostiles'), None],
+      ecodes.BTN_START : [testsnd(1, 'movealong'), None],
+      ecodes.BTN_TL2 : [testsnd(1, 'nohostiles'), None],
+      ecodes.BTN_TR2 : [testsnd(1, 'noncombatants'), testsnd(1, 'privateproperty')],
+      ecodes.BTN_TL : [testsnd(1, 'privateproperty'), None],
+      ecodes.BTN_TR : [testsnd(1, 'systemreport'), None],
+      ecodes.BTN_THUMBL : [testsnd(1, 'warningleave'), None],
+      ecodes.BTN_THUMBR : [testsnd(1, 'warningsecurity'), None],
+      gamepad.BTN_DPADU : [testsnd(2, 'warningviolation'), None],
+      gamepad.BTN_DPADR : [testsnd(2, 'weaponsfree'), None],
+      gamepad.BTN_DPADD : [testsnd(2, 'weaponslocked'), None],
+      gamepad.BTN_DPADL : [testsnd(2, 'startup'), None],
     }
 
     _startupsound = 'powerup'

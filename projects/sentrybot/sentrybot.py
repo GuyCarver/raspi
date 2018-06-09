@@ -26,25 +26,27 @@ def deadzone( aValue, aLimit ):
 #------------------------------------------------------------------------
 class sentrybot(object):
 
+  _PEACE, _COMBAT = range(2)
+
   #map of button to sound object.  This is loaded from a json file.
   _buttonsounds = {
-    ecodes.BTN_A : None,
-    ecodes.BTN_B : None,
-    ecodes.BTN_C : None,
-    ecodes.BTN_X : None,
-    ecodes.BTN_Y : None,
-    ecodes.BTN_SELECT : None,
-    ecodes.BTN_START : None,
-    ecodes.BTN_TL2 : None,
-    ecodes.BTN_TR2 : None,
-    ecodes.BTN_TL : None,
-    ecodes.BTN_TR : None,
-    ecodes.BTN_THUMBL : None,
-    ecodes.BTN_THUMBR : None,
-    gamepad.BTN_DPADU : None,
-    gamepad.BTN_DPADR : None,
-    gamepad.BTN_DPADD : None,
-    gamepad.BTN_DPADL : None
+    ecodes.BTN_A : [None, None],
+    ecodes.BTN_B : [None, None],
+    ecodes.BTN_C : [None, None],
+    ecodes.BTN_X : [None, None],
+    ecodes.BTN_Y : [None, None],
+    ecodes.BTN_SELECT : [None, None],
+    ecodes.BTN_START : [None, None],
+    ecodes.BTN_TL2 : [None, None],
+    ecodes.BTN_TR2 : [None, None],
+    ecodes.BTN_TL : [None, None],
+    ecodes.BTN_TR : [None, None],
+    ecodes.BTN_THUMBL : [None, None],
+    ecodes.BTN_THUMBR : [None, None],
+    gamepad.BTN_DPADU : [None, None],
+    gamepad.BTN_DPADR : [None, None],
+    gamepad.BTN_DPADD : [None, None],
+    gamepad.BTN_DPADL : [None, None]
   }
 
   #map of ps2 cotnroller buttons to 8Bitdo FC30 Pro retro controller buttons.
@@ -79,6 +81,7 @@ class sentrybot(object):
   def __init__( self ):
     sound.setdefaultcallback(self._sounddone)
 
+    self._stance = sentrybot._PEACE             #The combat stance used for animation and sound picking.
     self._controllernum = 0                     #Type of controller 0=FC30, 1=ps2
     self._controller = None                     #Start out with no controller. Will set once we no which type.
     self._startupsound = None
@@ -90,7 +93,6 @@ class sentrybot(object):
     self._hy = 0.0
     self.armangle = 0.0
     self.invert = False
-    self._combatmode = False
     self._pca = pca9865(100)
     self._buttonpressed = set()
 
@@ -122,6 +124,14 @@ class sentrybot(object):
   def running( self ): return self._running
 
   @property
+  def stance( self ):
+    return self._stance
+
+  @stance.setter
+  def stance( self, aValue ):
+    self._stance = aValue
+
+  @property
   def rate( self ):
     return self._rate
 
@@ -132,6 +142,15 @@ class sentrybot(object):
   @property
   def buttonsounds( self ):
     return sentrybot._buttonsounds
+
+  def getsound( self, aButton ):
+    '''Get sound assigned to given button and curent stance.'''
+    return sentrybot._buttonsounds[aButton][self._stance]
+
+  def setsound( self, aButton, aStance, aSound ):
+    '''Set sound for button.  If aStance < 0 then current stance is used. '''
+    s = self._stance if aStance < 0 else aStance
+    sentrybot._buttonsounds[aButton][s] = aSound
 
   @property
   def startupsound( self ):
@@ -170,8 +189,8 @@ class sentrybot(object):
     snd = sound(aFile, 10)             #Group 10.
     snd.play()
 
-  def setbuttonsound( self, aButton, aFile ):
-    '''Assign given sound by name to given button name.'''
+  def setbuttonsound( self, aButton, aStance, aFile ):
+    '''Assign given sound by name to given button name/stance.'''
 
     #NOTE: We create a new sound object for each call.
     # But if the same file is used for multiple buttons we
@@ -184,7 +203,7 @@ class sentrybot(object):
       btnnum = gamepad.nametobtn(aButton)
       if aFile:
         aFile = sound(aFile) if (aFile != 'None') else None
-      sentrybot._buttonsounds[btnnum] = aFile
+      self.setsound(btnnum, aStance, aFile)
 
   @property
   def controllernum( self ): return self._controllernum
@@ -214,8 +233,16 @@ class sentrybot(object):
     '''Temporary method to initialize sounds from a list of button, group, sound'''
     for s in aSounds:
       b = gamepad.nametobtn(s[0])               #Turn button name into button #.
+      def setit(aStance):
+        sname = s[2 + aStance]
+        if sname != "":
+          self.setsound(b, aStance, sound(sname, s[1]))
+        else:
+          self.setsound(b, aStance, None)
+
       if b >= 0:
-        sentrybot._buttonsounds[b] = sound(s[2], s[1])
+        setit(sentrybot._PEACE)
+        setit(sentrybot._COMBAT)
 
   def _sounddone( self, aSound ):
     '''Callback function when sound file is done playing.'''
@@ -314,8 +341,8 @@ class sentrybot(object):
   def togglecombat( self ):
     '''  '''
 
-    self._combatmode = not self._combatmode
-    if self._combatmode:
+    self._stance = 1 - self._stance
+    if self._stance == sentrybot._COMBAT:
       s = sound(sentrybot._combatsfx, sentrybot._MACHINEGROUP)
       s.play()
     else:
@@ -374,7 +401,7 @@ class sentrybot(object):
       else:
         #If we recorded a button press and it wasn't consumed, then play sound on release.
         if aButton in self._buttonpressed:
-          s = sentrybot._buttonsounds[aButton]
+          s = self.getsound(aButton)
           if s != None:
             s.play()
 #            print('playing', s.source)

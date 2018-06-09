@@ -25,6 +25,7 @@ class settings(BaseHTTPRequestHandler):
   lastsound = None                              #Name of last selected sound in list.
   lastbutton = None                             #Name of last button selected in list.
   lastpart = 0                                  #Index of part currently selected.
+  stance = 0                                    #Combat stance for animation and sound.
   used = {}                                     #Set of used sound names.
 
   @classmethod
@@ -32,6 +33,13 @@ class settings(BaseHTTPRequestHandler):
     #Convert 0, 1 into c_0-1.
     v = 'c_' + str(self.target.controllernum)
 #    print('controller is ', v)
+    return v
+
+  @classmethod
+  def determinestance( self ):
+    '''  '''
+    print('getstance:', settings.stance)
+    v = 'st_' + str(settings.stance)
     return v
 
   @classmethod
@@ -66,7 +74,7 @@ class settings(BaseHTTPRequestHandler):
   @classmethod
   def updateused( self ):
     '''Update set of used sound names'''
-    self.used = {v.filename for v in self.target.buttonsounds.values() if v != None }
+    self.used = {v[settings.stance].filename for v in self.target.buttonsounds.values() if v[settings.stance] != None }
     #Also add the startup sound.
     v = self.target.startupsound
     if v != None:
@@ -76,7 +84,8 @@ class settings(BaseHTTPRequestHandler):
   def makebuttonlist( self ):
     '''Create list of html entries for buttons by name.'''
     buttonsounds = self.target.buttonsounds
-    def makeit(btnname, s):
+    def makeit(btnname, aSounds):
+      s = aSounds[settings.stance]
       if s:
         f = s.filename
         color = ''
@@ -91,7 +100,7 @@ class settings(BaseHTTPRequestHandler):
     #todo: Sort buttonsounds by btn # before creating list?
     res = [makeit(self.target.btntoname(btn), snd) for btn, snd in buttonsounds.items()]
     res.sort()
-    res.append(makeit('startup', self.target.startupsound))
+#    res.append(makeit('startup', self.target.startupsound))
     return '\r\n'.join(res)
 
   @classmethod
@@ -124,6 +133,7 @@ class settings(BaseHTTPRequestHandler):
       'minv' : minv,
       'maxv' : maxv,
       'speeds': self.target.getspeeds(),
+      self.determinestance() : 'selected',
     }
 
     self.send_response(200)
@@ -151,6 +161,8 @@ class settings(BaseHTTPRequestHandler):
     setsound = form.getfirst('setsound')
     settings.lastsound = form.getvalue('sound')
     settings.lastbutton = form.getvalue('button')
+    settings.stance = int(form.getvalue('stance'))
+    print('stance', settings.stance)
 
     if sb != None:
       speeds = form.getfirst('speeds')
@@ -162,7 +174,7 @@ class settings(BaseHTTPRequestHandler):
 
     if setsound != None:
       if settings.lastbutton and settings.lastsound :
-        self.target.setbuttonsound(settings.lastbutton, settings.lastsound)
+        self.target.setbuttonsound(settings.lastbutton, settings.stance, settings.lastsound)
         self.updateused()
 
     #if have a target clock write data to it.
@@ -262,23 +274,23 @@ if __name__ == '__main__':  #Run settings test with dummy data.
     }
 
     buttonsounds = {
-      304 : testsnd('powerup'),
-      305 : None,
-      306 : None,
-      307 : testsnd('hostiles'),
-      308 : None,
-      309 : None,
-      310 : None,
-      311 : None,
-      312 : None,
-      313 : None,
-      314 : None,
-      315 : None,
-      316 : None,
-      317 : None,
-      318 : None,
-      319 : None,
-      320 : None
+      304 : [testsnd('powerup'), ""],
+      305 : [None, ""],
+      306 : [None, ""],
+      307 : [testsnd('hostiles'), ""],
+      308 : [None, ""],
+      309 : [None, ""],
+      310 : [None, ""],
+      311 : [None, ""],
+      312 : [None, ""],
+      313 : [None, ""],
+      314 : [None, ""],
+      315 : [None, ""],
+      316 : [None, ""],
+      317 : [None, ""],
+      318 : [None, ""],
+      319 : [None, ""],
+      320 : [None, ""]
     }
 
     _speeds = (0.25, 0.5, 1.0)
@@ -340,7 +352,7 @@ if __name__ == '__main__':  #Run settings test with dummy data.
       return None
 
     def __init__( self ):
-      self.controller = 1
+      self.controllernum = 1
       self.armangle = 8.0
       self.rate = 90.0
       self.running = True
@@ -356,7 +368,7 @@ if __name__ == '__main__':  #Run settings test with dummy data.
       '''  '''
       self.controller = aArg
 
-    def setbuttonsound( self, aButton, aFile ):
+    def setbuttonsound( self, aButton, aStatus, aFile ):
       print('Button sound:', aButton, aFile)
 
       if aFile:
@@ -366,7 +378,7 @@ if __name__ == '__main__':  #Run settings test with dummy data.
         self.startupsound = aFile
       else:
         btnnum = self.nametobtn(aButton)
-        self.buttonsounds[btnnum] = aFile
+        self.buttonsounds[btnnum][aStatus] = aFile
 
   settings.run(testtarget(), True)
   print('done')
