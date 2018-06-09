@@ -196,17 +196,7 @@ public:
 		GetData();
 		DelayUS(100);
 
-		SendReceive(cmd_enter_config, sizeof(cmd_enter_config));
-
-		DelayUS(3);
-		SendReceive(cmd_set_mode, sizeof(cmd_set_mode));
-		DelayUS(3);
-	//Put these in to enable rumble and variable pressure buttons.
-	//	SendReceive(cmd_enable_rumble, sizeof(cmd_enable_rumble));
-	//	DelayUS(3);
-	//	SendReceive(cmd_enable_analog, sizeof(cmd_enable_analog));
-	//	DelayUS(3);
-		SendReceive(cmd_exit_config, sizeof(cmd_exit_config));
+		DoConfig();
 		DelayUS(3);
 
 		//Read data a few times to settle out state changes.  Don't know why more than
@@ -219,6 +209,20 @@ public:
 		DoSetCallback(apCallback);
 
 		return true;
+	}
+
+	void DoConfig(  ) {
+		SendReceive(cmd_enter_config, sizeof(cmd_enter_config));
+
+		DelayUS(3);
+		SendReceive(cmd_set_mode, sizeof(cmd_set_mode));
+		DelayUS(3);
+	//Put these in to enable rumble and variable pressure buttons.
+	//	SendReceive(cmd_enable_rumble, sizeof(cmd_enable_rumble));
+	//	DelayUS(3);
+	//	SendReceive(cmd_enable_analog, sizeof(cmd_enable_analog));
+	//	DelayUS(3);
+		SendReceive(cmd_exit_config, sizeof(cmd_exit_config));
 	}
 
 	static void DelayUS( uint32_t us ) {
@@ -338,6 +342,11 @@ public:
 
 	static PyObject *Update( ps2con *apSelf ) {
 		apSelf->GetData();
+		Py_RETURN_NONE;
+	}
+
+	static PyObject *Config( ps2con *apSelf ) {
+		apSelf->DoConfig();
 		Py_RETURN_NONE;
 	}
 
@@ -464,6 +473,7 @@ extern "C" {
 	//List of methods for ps2con.ps2con object.
 	static PyMethodDef ps2con_methods[] = {
 		{"update", reinterpret_cast<PyCFunction>(ps2con::Update), METH_NOARGS, "Read controller input."},
+		{"config", reinterpret_cast<PyCFunction>(ps2con::Config), METH_NOARGS, "Do Configuration set."},
 		{"getbutton", reinterpret_cast<PyCFunction>(ps2con::GetButton), METH_O, "getbutton(index)"},
 		{"getjoy", reinterpret_cast<PyCFunction>(ps2con::GetJoy), METH_O, "getjoy(index)"},
 		{"getname", reinterpret_cast<PyCFunction>(ps2con::GetName), METH_O, "getname(index)"},
