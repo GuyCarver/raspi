@@ -30,6 +30,7 @@ def saveproperties( bot ):
     data['armangle'] = bot.armangle
     data['rate'] = bot.rate
     data['startup'] = bot.startupsound.filename if bot.startupsound else None
+    data['gun'] = bot._gunsfx
 
     #Save sound button mappings.
     #Get sounds and convert from:
@@ -43,18 +44,29 @@ def saveproperties( bot ):
   except Exception as e:
     print('option save error:', e)
 
+def doset( bot, data ):
+  bot.controllernum = data['controller']
+  bot.armangle = data['armangle']
+  bot.rate = data['rate']
+  bot.startupsound = data['startup']
+  bot.initsounds(data['sounds'])
+  bot._gunsfx = data['gun']
+  loadparts(data)                           #Load body part data from json.
+  bot.setspeeds(data['speeds'])
+
 def loadproperties( bot ):
   '''Load options from json file.'''
   try:
     with open(savename, 'r') as f:
       data = load(f)
-      bot.controllernum = data['controller']
-      bot.armangle = data['armangle']
-      bot.rate = data['rate']
-      bot.startupsound = data['startup']
-      bot.initsounds(data['sounds'])
-      loadparts(data)                           #Load body part data from json.
-      bot.setspeeds(data['speeds'])
+      doset(bot, data)
+  except Exception as e:
+    print('option load error:', e)
+
+def loadpropertiesfromstring( bot, astring ):
+  try:
+    data = loads(astring)
+    doset(bot, data)
   except Exception as e:
     print('option load error:', e)
 

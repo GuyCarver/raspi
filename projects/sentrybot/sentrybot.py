@@ -5,6 +5,7 @@ from quicrun import *
 from gamepad import *
 from sound import *
 from settings import *
+from buttons import *
 from kivy.clock import Clock
 from kivy.base import EventLoop
 
@@ -75,8 +76,10 @@ class sentrybot(object):
   _MACHINEGROUP = 20
   _speeds = (.25, .5, 1.0)
   _startupsfx = 'sys/startup'
+  _gunsfx = 'sys/gun'
   _combatsfx = 'sys/equipcombat'
   _speedsounds = ('sys/one', 'sys/two', 'sys/three', 'sys/four', 'sys/five', 'sys/six')
+  _GUNBUTTON = 26                               #GPIO # for button pin.
 
   def __init__( self ):
     sound.setdefaultcallback(self._sounddone)
@@ -85,6 +88,8 @@ class sentrybot(object):
     self._controllernum = 0                     #Type of controller 0=FC30, 1=ps2
     self._controller = None                     #Start out with no controller. Will set once we no which type.
     self._startupsound = None
+    self._gunsound = None
+    self._gunbutton = button(sentrybot._GUNBUTTON)
     self._rotx = 0.0
     self._roty = 0.0
     self._rate = 90.0
@@ -116,6 +121,9 @@ class sentrybot(object):
   def __del__( self ):
     self.save()
     self._contoller = None
+
+  @property
+  def optionsfile( self ): return saveload.savename
 
   @property
   def partdata( self ): return body._initdata
@@ -244,6 +252,9 @@ class sentrybot(object):
         setit(sentrybot._PEACE)
         setit(sentrybot._COMBAT)
 
+    #Initialize other sounds here.
+    self._gunsound = sound(sentrybot._gunsfx, 45)
+
   def _sounddone( self, aSound ):
     '''Callback function when sound file is done playing.'''
     #NOTE: This does nothing, but it it's not set, we don't get events at all, and sound looping and stoping events
@@ -280,6 +291,10 @@ class sentrybot(object):
   def load( self ):
     '''Do load of properties.'''
     saveload.loadproperties(self)
+
+  def loadfromstring( self, aString ):
+    '''  '''
+    saveload.loadpropertiesfromstring(self, aString)
 
   def _initparts( self ):
     #Initialize all of the parts.
@@ -484,6 +499,10 @@ class sentrybot(object):
 
     lleg.update(aDelta)
     rleg.update(aDelta)
+
+    self._gunbutton.update()
+    if self._gunbutton.pressed:
+      self._gunsound.play()
 
   def run( self ):
     '''Main loop to run the robot.'''
