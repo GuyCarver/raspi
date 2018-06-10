@@ -13,7 +13,7 @@ import webbrowser
 from os import listdir
 from os.path import isfile, join, splitext
 
-settingsfile = 'settings.html'
+settingsfile = ('settings.html', 'advsettings.html', 'log.html')
 
 class settings(BaseHTTPRequestHandler):
 
@@ -26,6 +26,7 @@ class settings(BaseHTTPRequestHandler):
   lastbutton = None                             #Name of last button selected in list.
   lastpart = 0                                  #Index of part currently selected.
   stance = 0                                    #Combat stance for animation and sound.
+  page = 0                                      #Settings page #.
   used = {}                                     #Set of used sound names.
 
   @classmethod
@@ -38,7 +39,7 @@ class settings(BaseHTTPRequestHandler):
   @classmethod
   def determinestance( self ):
     '''  '''
-    print('getstance:', settings.stance)
+#    print('getstance:', settings.stance)
     v = 'st_' + str(settings.stance)
     return v
 
@@ -106,9 +107,37 @@ class settings(BaseHTTPRequestHandler):
   @classmethod
   def readHTML( self ):
     '''Read HTML content from file.'''
-    with open(settingsfile, 'r') as f:
+    with open(settingsfile[settings.page], 'r') as f:
       htdata = f.read()
     self.HTML = Template(htdata)
+
+  @classmethod
+  def getoptions( self ):
+    '''Get options string from the options file.'''
+    try:
+      with open(self.target.optionsfile, 'r') as f:
+        d = f.read()
+        return d
+    except Exception as e:
+      print(e)
+      return ''
+
+  @classmethod
+  def saveoptions( self, aOptions ):
+    '''Load options into target from the given string, then save to file.'''
+    self.target.loadfromstring(aOptions)
+    self.target.save()
+
+  @classmethod
+  def getlog( self ):
+    '''  '''
+    try:
+      with open('logfile.txt', 'r') as f:
+        d = f.read()
+        return d
+    except Exception as e:
+      print(e)
+      return ''
 
   #--------------------------------------------------------------
   def do_GET( self ):  #load initial page
@@ -118,23 +147,32 @@ class settings(BaseHTTPRequestHandler):
     if self.testing:
       self.readHTML()
 
-    pmin, pmax = self.target.partminmax(settings.lastpart)
-    minv, maxv = self.target.partdefminmax(settings.lastpart)
+    if settings.page == 0:
+      pmin, pmax = self.target.partminmax(settings.lastpart)
+      minv, maxv = self.target.partdefminmax(settings.lastpart)
 
-    subs = { self.determinecontroller() : 'selected',
-      'armangle' : self.target.armangle,
-      'rate' : self.target.rate,
-      'soundlist' : self.makesoundlist(),
-      'buttons' : self.makebuttonlist(),
-      'parts' : self.getparts(),
-      'partrate' : self.target.partrate(settings.lastpart),
-      'partmin' : pmin,
-      'partmax' : pmax,
-      'minv' : minv,
-      'maxv' : maxv,
-      'speeds': self.target.getspeeds(),
-      self.determinestance() : 'selected',
-    }
+      subs = { self.determinecontroller() : 'selected',
+        'armangle' : self.target.armangle,
+        'rate' : self.target.rate,
+        'soundlist' : self.makesoundlist(),
+        'buttons' : self.makebuttonlist(),
+        'parts' : self.getparts(),
+        'partrate' : self.target.partrate(settings.lastpart),
+        'partmin' : pmin,
+        'partmax' : pmax,
+        'minv' : minv,
+        'maxv' : maxv,
+        'speeds': self.target.getspeeds(),
+        self.determinestance() : 'selected',
+      }
+    elif settings.page == 1:
+      subs = {
+        'options' : self.getoptions()
+      }
+    else:
+      subs = {
+        'log' : self.getlog()
+      }
 
     self.send_response(200)
     self.send_header('Content-Type', 'text/html')
@@ -151,49 +189,59 @@ class settings(BaseHTTPRequestHandler):
                             environ = {'REQUEST_METHOD':'POST',
                            'CONTENT_TYPE':self.headers['Content-Type']})
 
-    #Read data from forms into variables.
-    con = form.getfirst('controller')
-    armangle = form.getfirst('armangle')
-    rate = form.getfirst('rate')
-    sb = form.getfirst('Submit')
     sv = form.getfirst('Save')
-    pl = form.getfirst('Play')
-    setsound = form.getfirst('setsound')
-    settings.lastsound = form.getvalue('sound')
-    settings.lastbutton = form.getvalue('button')
-    settings.stance = int(form.getvalue('stance'))
-    print('stance', settings.stance)
 
-    if sb != None:
-      speeds = form.getfirst('speeds')
-      self.target.setspeeds(speeds)
+    #Read data from forms into variables.
+    if settings.page == 0:
+      con = form.getfirst('controller')
+      armangle = form.getfirst('armangle')
+      rate = form.getfirst('rate')
+      sb = form.getfirst('Submit')
+      pl = form.getfirst('Play')
+      setsound = form.getfirst('setsound')
+      settings.lastsound = form.getvalue('sound')
+      settings.lastbutton = form.getvalue('button')
+      settings.stance = int(form.getvalue('stance'))
 
-    if pl and self.lastsound:
-      if settings.lastsound != 'None':
-        self.target.previewsound(self.lastsound)
+      if sb != None:
+        speeds = form.getfirst('speeds')
+        self.target.setspeeds(speeds)
 
-    if setsound != None:
-      if settings.lastbutton and settings.lastsound :
-        self.target.setbuttonsound(settings.lastbutton, settings.stance, settings.lastsound)
-        self.updateused()
+      if pl and self.lastsound:
+        if settings.lastsound != 'None':
+          self.target.previewsound(self.lastsound)
 
-    #if have a target clock write data to it.
-    self.target.controllernum = int(con)
-    self.target.armangle = float(armangle)
-    self.target.rate = float(rate)
+      if setsound != None:
+        if settings.lastbutton and settings.lastsound :
+          self.target.setbuttonsound(settings.lastbutton, settings.stance, settings.lastsound)
+          self.updateused()
 
-    partrate = form.getfirst('partrate')
-    partmin = form.getfirst('partmin')
-    partmax = form.getfirst('partmax')
-    self.target.setpartdata(settings.lastpart, float(partrate), (float(partmin), float(partmax)))
+      #if have a target clock write data to it.
+      self.target.controllernum = int(con)
+      self.target.armangle = float(armangle)
+      self.target.rate = float(rate)
 
-    #After setting value on the previous part, read in new part value.
-    settings.lastpart = int(form.getfirst('part'))
+      partrate = form.getfirst('partrate')
+      partmin = form.getfirst('partmin')
+      partmax = form.getfirst('partmax')
+      self.target.setpartdata(settings.lastpart, float(partrate), (float(partmin), float(partmax)))
 
-    #If save button pressed then save settings to json file.
-    if sv != None:
-      print('Saving settings.')
-      self.target.save()
+      #After setting value on the previous part, read in new part value.
+      settings.lastpart = int(form.getfirst('part'))
+
+      #If save button pressed then save settings to json file.
+      if sv != None:
+        print('Saving settings.')
+        self.target.save()
+    elif settings.page == 1:
+      if sv != None:
+        opts = form.getfirst('options')
+        print('Saving options.')
+        self.saveoptions(opts)
+
+    page = form.getvalue('setpage')
+    if page != None:
+      settings.page = int(page)
 
     self.do_GET()                               #Re-read the data.
 
@@ -295,6 +343,8 @@ if __name__ == '__main__':  #Run settings test with dummy data.
 
     _speeds = (0.25, 0.5, 1.0)
 
+    optionsfile = 'options.json'
+
     @classmethod
     def getspeeds( self ):
       '''  '''
@@ -363,6 +413,10 @@ if __name__ == '__main__':  #Run settings test with dummy data.
 
     def save( self ):
       print('Saving')
+
+    def loadfromstring( self, aString ):
+      '''  '''
+      print('loading')
 
     def setcontroller( self, aArg ):
       '''  '''
