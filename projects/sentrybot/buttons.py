@@ -3,6 +3,10 @@
 
 import RPi.GPIO as GPIO
 
+def gpioinit(  ):
+  GPIO.setwarnings(False)
+  GPIO.setmode(GPIO.BCM)
+
 class button(object):
   """Handle input from a single button channel on GPIO."""
 

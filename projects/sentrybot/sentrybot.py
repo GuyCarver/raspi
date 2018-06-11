@@ -5,7 +5,7 @@ from quicrun import *
 from gamepad import *
 from sound import *
 from settings import *
-from buttons import *
+from buttons import gpioinit, button
 from kivy.clock import Clock
 from kivy.base import EventLoop
 
@@ -18,6 +18,8 @@ import legs
 from threading import Thread #,Lock
 from time import perf_counter, sleep
 import keyboard
+
+gpioinit()
 
 #todo: Remove testing flag from settings server creation.
 
@@ -381,6 +383,8 @@ class sentrybot(object):
   def _buttonaction( self, aButton, aValue ):
     '''Callback function for 8Bitdo FC30 Pro controller.'''
 
+#    print('Button:', gamepad.btntoname(aButton), aValue)
+
     #If button pressed
     if aValue & 0x01:
       self._buttonpressed.add(aButton)
@@ -548,7 +552,7 @@ class sentrybot(object):
 
     except Exception as e:
       body.off()                                #Make sure motors and servos are off.
-      c = sound('sys_corrupt')                  #Play corruption audio.
+      c = sound('sys/corrupt')                  #Play corruption audio.
       c.play()
       print("Error!")
       raise e
