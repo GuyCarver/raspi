@@ -1,81 +1,82 @@
 {
   "rate": 180.0,
-  "startup": "sys_powerup",
+  "startup": "sys/powerup",
+  "gun": "",
   "sounds": [
     [
       "DP_U",
       1,
-      ["warningviolation", ""]
+      "warningviolation", ""
     ],
     [
       "DP_R",
       1,
-      ["weaponsfree", ""]
+      "weaponsfree", ""
     ],
     [
       "DP_D",
       1,
-      ["weaponslocked",""]
+      "weaponslocked",""
     ],
     [
       "DP_L",
       1,
-      ["noncombatants",""]
+      "noncombatants",""
     ],
     [
       "A",
       1,
-      ["alertsafety",""]
+      "alertsafety",""
     ],
     [
       "B",
       1,
-      ["alertsecurity",""]
+      "alertsecurity",""
     ],
     [
       "C",
       1,
-      ["allcitizenscalm",""]
+      "allcitizenscalm",""
     ],
     [
       "X",
       1,
-      ["donotinterfere",""]
+      "donotinterfere",""
     ],
     [
       "Y",
       1,
-      ["hostiledetected2",""]
+      "hostiledetected2",""
     ],
     [
       "L_SH",
       1,
-      ["privateproperty",""]
+      "privateproperty",""
     ],
     [
       "R_SH",
       1,
-      ["systemreport",""]
+      "systemreport",""
     ],
     [
       "SLCT",
       1,
-      ["hostiles",""]
+      "hostiles",""
     ],
     [
       "STRT",
       1,
-      ["movealong",""]
+      "movealong",""
     ],
     [
       "L_TH",
       1,
-      ["warningleave",""]
+      "warningleave",""
     ],
     [
       "R_TH",
       1,
-      ["warningsecurity",""]
+      "warningsecurity",""
     ]
   ],
   "armangle": 8.0,
@@ -166,5 +167,5 @@
     ]
   ],
   "speeds": "0.25, 0.5, 1.0",
-  "controller": 0
+  "controller": 1
 }
