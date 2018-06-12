@@ -78,7 +78,7 @@ class sentrybot(object):
   _MACHINEGROUP = 20
   _speeds = (.25, .5, 1.0)
   _startupsfx = 'sys/startup'
-  _gunsfx = 'sys/gun'
+  _gunsfx = 'sys/gun2'
   _combatsfx = 'sys/equipcombat'
   _speedsounds = ('sys/one', 'sys/two', 'sys/three', 'sys/four', 'sys/five', 'sys/six')
   _GUNBUTTON = 26                               #GPIO # for button pin.
@@ -256,6 +256,8 @@ class sentrybot(object):
 
     #Initialize other sounds here.
     self._gunsound = sound(sentrybot._gunsfx, 45)
+    self._gunsound.keeploaded = True
+    self._gunsound.load()
 
   def _sounddone( self, aSound ):
     '''Callback function when sound file is done playing.'''
@@ -303,13 +305,12 @@ class sentrybot(object):
     body.initparts(self._pca)
     self._setspeed()
 
-  def brake( self ):
+  def brake( self, abTF ):
     '''  '''
     lleg = body.getpart(body._LLEG)
     rleg = body.getpart(body._RLEG)
-    lleg.brake()
-    rleg.brake()
-    sleep(0.3)
+    lleg.brake(abTF)
+    rleg.brake(abTF)
 
   def getspeeds( self ):
     '''Get tuple of speeds as comma separated string.'''
@@ -388,8 +389,9 @@ class sentrybot(object):
     #If button pressed
     if aValue & 0x01:
       self._buttonpressed.add(aButton)
-#      if aButton == ecodes.BTN_THUMBL:
-#        self.brake()
+      if aButton == ecodes.BTN_THUMBL:
+        self.brake(True)
+        self._buttonpressed.remove(aButton)
       if aButton == ecodes.BTN_TL2:
         self._hy += 1.0
       elif aButton == ecodes.BTN_TR2:
@@ -413,7 +415,9 @@ class sentrybot(object):
       body.off()
       print('Disconnected controller!')
     else: #Handle release events.
-      if aButton == ecodes.BTN_TL2:
+      if aButton == ecodes.BTN_THUMBL:
+        self.brake(False)
+      elif aButton == ecodes.BTN_TL2:
         self._hy -= 1.0
       elif aButton == ecodes.BTN_TR2:
         self._hy += 1.0
@@ -502,10 +506,11 @@ class sentrybot(object):
     rleg.speed = ry * rleg.maxspeed
 
     lleg.update(aDelta)
-    rleg.update(aDelta)
+#    rleg.update(aDelta)
 
     self._gunbutton.update()
     if self._gunbutton.pressed:
+      self._gunsound.stop()                     #Make sure sound is stopped so we can play it again.
       self._gunsound.play()
 
   def run( self ):
