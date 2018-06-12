@@ -132,7 +132,7 @@ class settings(BaseHTTPRequestHandler):
   def getlog( self ):
     '''  '''
     try:
-      with open('logfile.txt', 'r') as f:
+      with open('sentrybot.log', 'r') as f:
         d = f.read()
         return d
     except Exception as e:
