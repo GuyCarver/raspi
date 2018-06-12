@@ -4,28 +4,29 @@
 
 from time import sleep
 
-#todo: May need to move speed values over time if the battery cannot handle it.
+_GUY = True                                     #Set for my test hardware which has different setup.
 
 class quicrun(object):
   '''Controller for quicrun 1060 ESP.
      This controller works through the pca9865 servo controller.'''
 
-#  _STOP = 40
-#  _FORWARD_MAX = 58
-#  _FORWARD_MIN = 42
-#  _BACKWARD_MAX = 25
-#  _BACKWARD_MIN = 38
-#  _BACKWARD_INIT = 35
+  if _GUY:
+    _IDLE = 40
+    _FORWARD_MAX = 58
+    _FORWARD_MIN = 42
+    _BACKWARD_MAX = 25
+    _BACKWARD_MIN = 38
+    _BACKWARD_INIT = 35
+  else:
+    _IDLE = 50
+    _FORWARD_MAX = 68
+    _FORWARD_MIN = 52
+    _BACKWARD_MAX = 30
+    _BACKWARD_MIN = 48
+    _BACKWARD_INIT = 45
 
-  _STOP = 50
-  _FORWARD_MAX = 68
-  _FORWARD_MIN = 52
-  _BACKWARD_MAX = 30
-  _BACKWARD_MIN = 48
-  _BACKWARD_INIT = 45
-
-  #States for reverse initialization over time.
-  _REVERSE_INIT_1, _REVERSE_INIT_2, _REVERSE_INIT_3, _REVERSE = range(4)
+  #States
+  _STOPPED, _BRAKING, _FORWARD, _REVERSE_INIT_1, _REVERSE_INIT_2, _REVERSE_INIT_3, _REVERSE = range(7)
 
   _defminmax = (-100.0, 100.0)
 
@@ -50,6 +51,7 @@ class quicrun(object):
     self._scale = 1.0                           #Additional scaler used for temporary throttling.
     self._targetspeed = 0.0
     self._minmax = self._defminmax
+    self._state = quicrun._STOPPED
     self.reset()
 
   @property
@@ -108,7 +110,7 @@ class quicrun(object):
 #    sleep(0.5)
 #    self._set(100)
 #    sleep(0.5)
-    self._set(self._STOP)
+    self._set(quicrun._IDLE)
     self._speed = 0.0
     self._prevspeed = 0.0
     self._targetspeed = 0.0
@@ -124,73 +126,14 @@ class quicrun(object):
   def _immediatereverse( self ):
     '''Perform immediate reverse action.  This causes a delay but is
        necessary if update loop isn't being used.'''
-    self._set(self._STOP)
+    self._set(quicrun._IDLE)
     sleep(0.03)
-    self._set(self._BACKWARD_INIT)
+    self._set(quicrun._BACKWARD_INIT)
     sleep(0.03)
-    self._set(self._STOP)
+    self._set(quicrun._IDLE)
     sleep(0.02)
     self._state = quicrun._REVERSE
     self._delay = 0.0
-
-  def _reverse( self, aDelta ) :
-    '''To reverse the ESP we have to go full stop, then backward, then stop again.
-        After that, sending reverse values will actually reverse the motor.  If
-        we dont do this, reverse values are just brakes.  This system uses 4 states
-        that are updated over time to spread the reverse timing out over multiple
-        frames. If aDelta is 0, immediate reverse is performed instead.'''
-
-    #Don't reverse unless previous speed was forward or stop.
-    if self._prevspeed >= 0.0 :
-      #If no delta, we can't do reverse over time.  So do immediately.
-      if aDelta <= 0.0:
-        self._immediatereverse()
-      else:
-        #Start with reverse init1 state.
-        self._state = quicrun._REVERSE_INIT_1
-        self._delay = 0.03
-        self._set(self._STOP)
-        return                                    #Exit, don't set speed while in init1.
-    else:
-      self._delay -= aDelta
-      if self._state == quicrun._REVERSE_INIT_1:
-        #Stay in init 1 state until time is up.
-        if self._delay <= 0.0:
-          #Switch to init 2 state.
-          self._state = quicrun._REVERSE_INIT_2
-          self._delay = 0.03
-          self._set(self._BACKWARD_INIT)
-        return                                    #Exit, don't set speed while in init1 or 2.
-      elif self._state == quicrun._REVERSE_INIT_2:
-        #Stay in init 2 state until time is up.
-        if self._delay <= 0.0:
-          #Switch to init 3 state.
-          self._state = quicrun._REVERSE_INIT_3
-          self._delay = 0.02
-          self._set(self._STOP)
-        return                                    #Exit, don't set speed while in init2 or 3.
-      elif self._state == quicrun._REVERSE_INIT_3:
-        #Stay in init 3 state until time is up.
-        if self._delay <= 0.0:
-          #Switch to reverse state and fall through to speed setting.
-          self._state = quicrun._REVERSE
-        else:
-          return                                  #Exit, don't set speed while in init3.
-
-    #100 + self._speed because we go backwards from backward min to backward max.
-    self._set(quicrun.getperc(self._BACKWARD_MAX, self._BACKWARD_MIN, 100.0 + self._speed))
-
-  def _setesp( self, aDelta = 0.0 ) :
-    '''Set the speed value on the esp. aDelta isnt needed if self._rate == 0.'''
-    if self._speed == 0.0 :
-      self._set(self._STOP)
-    else:
-      if self._speed >= 0.0 :
-        self._set(quicrun.getperc(self._FORWARD_MIN, self._FORWARD_MAX, self._speed))
-      else:
-        self._reverse(aDelta)
-
-    self._prevspeed = self._speed
 
   @property
   def speed( self ):
@@ -204,11 +147,138 @@ class quicrun(object):
     #  This way update() doesn't need to be called.
     if self._rate == 0.0:
       self._speed = self._targetspeed
-      self._setesp()
+      self._updatestate()
 
   def distance( self ):
     '''return distance from speed to targetspeed.'''
     return self._targetspeed - self._speed
+
+  def brake( self, abTF ):
+    '''Full immediate stop.  Enter braking state and stay there until told to exit.'''
+    if abTF:
+      if self._state != quicrun._BRAKING:
+        self._state = quicrun._BRAKING
+        if self._speed >= 0.0:
+          self._set(quicrun._BACKWARD_MAX)
+          self._delay = 2.0                      #Maximum brake time is 2 seconds before we go to idle.
+        else:
+          self._delay = 0.0                      #If reverse we can't brake so just come to stop.
+        self._speed = self._targetspeed = 0.0
+      else:
+        self._delay = 2.0                        #Re-apply brake time.
+    else:
+      if self._state == quicrun._BRAKING:
+        self._state = quicrun._STOPPED
+
+  def _checkstop( self ):
+    '''  '''
+    if self._speed == 0.0:
+      self._state = quicrun._STOPPED
+      self._set(quicrun._IDLE)
+      return True
+    return False
+
+  def _checkforward( self ):
+    '''  '''
+    if self._speed > 0.0:
+      self._state = quicrun._FORWARD
+      return True
+    return False
+
+  def _checkreverse( self, aDelta ) :
+    '''To reverse the ESP we have to go full stop, then backward, then stop again.
+        After that, sending reverse values will actually reverse the motor.  If
+        we dont do this, reverse values are just brakes.  This system uses 4 states
+        that are updated over time to spread the reverse timing out over multiple
+        frames. If aDelta is 0, immediate reverse is performed instead.'''
+
+    if self._speed < 0.0:
+      #If no delta, we can't do reverse over time.  So do immediately.
+      if aDelta <= 0.0:
+        self._immediatereverse()
+      else:
+        #Start with reverse init1 state.
+        self._state = quicrun._REVERSE_INIT_1
+        self._delay = 0.03
+        self._set(quicrun._IDLE)
+      return True
+
+    return False
+
+  def ud_stopped( self, aDelta ):
+    '''Does nothing but look for forward/revurse state changes.'''
+    if not self._checkreverse(aDelta):
+      self._checkforward()
+    return
+
+  def ud_forward( self, aDelta ):
+    '''Update speed and look for reverse/stopped state changes.'''
+    self._set(quicrun.getperc(quicrun._FORWARD_MIN, quicrun._FORWARD_MAX, self._speed))
+    if not self._checkstop():
+      self._checkreverse(aDelta)
+
+  def ud_braking( self, aDelta ):
+    '''In braking state.  Wait until done then revert to stopped.'''
+    self._delay -= aDelta
+    #Stay in init 1 state until time is up.
+    if self._delay <= 0.0:
+      self._set(quicrun._IDLE)
+
+  def ud_reverse1( self, aDelta ):
+    '''1st of 4 braking states.  This is set to stop, and waits to set reverse2.'''
+    #If no delta, we can't do reverse over time.  So do immediately.
+    self._delay -= aDelta
+    #Stay in init 1 state until time is up.
+    if self._delay <= 0.0:
+      #Switch to init 2 state.
+      self._state = quicrun._REVERSE_INIT_2
+      self._delay = 0.03
+      self._set(quicrun._BACKWARD_INIT)
+
+    #Look for forward or stop state changes.
+    if not self._checkstop():
+      self._checkforward()
+
+  def ud_reverse2( self, aDelta ):
+    '''Phase 2, speed set to _BACKWARD_INIT. Wait to set reverse3.'''
+    #Stay in init 2 state until time is up.
+    self._delay -= aDelta
+
+    if self._delay <= 0.0:
+      #Switch to init 3 state.
+      self._state = quicrun._REVERSE_INIT_3
+      self._delay = 0.02
+      self._set(quicrun._IDLE)
+
+    #Look for forward or stop state changes.
+    if not self._checkstop():
+      self._checkforward()
+
+  def ud_reverse3( self, aDelta ):
+    '''Phase 3, speed set to _IDLE.  Wait to go in reverse.'''
+    #Stay in init 3 state until time is up.
+    self._delay -= aDelta
+
+    if self._delay <= 0.0:
+      #Switch to reverse state.
+      self._state = quicrun._REVERSE
+
+    #Look for forward or stop state changes.
+    if not self._checkstop():
+      self._checkforward()
+
+  def ud_reverse( self, aArg ):
+    '''In reverse.  Look to go to forward or stop.'''
+    self._set(quicrun.getperc(quicrun._BACKWARD_MAX, quicrun._BACKWARD_MIN, 100.0 + self._speed))
+    if not self._checkstop():
+      self._checkforward()
+
+  _STATEFUNCS = (ud_stopped, ud_braking, ud_forward, ud_reverse1, ud_reverse2, ud_reverse3, ud_reverse)
+
+  def _updatestate( self, aDelta = 0.0 ) :
+    '''Update based on the current state.'''
+    #Get the state function and call it.
+    quicrun._STATEFUNCS[self._state](self, aDelta)
 
   def update( self, aDelta ):
     '''Update speed towards target given delta time in seconds.'''
@@ -231,9 +301,7 @@ class quicrun(object):
       else:
         self._speed = self._targetspeed
 
-    #update every call even if value hasn't changed because some state systems
-    # (for reverse) require it.
-    self._setesp(aDelta)
+    self._updatestate(aDelta)                   #Update the state system.
 
 #from pca9865 import *
 #p = pca9865()
