@@ -186,11 +186,28 @@ class soundchain(object):
     self._index = 0
     self._group = aGroup
     self._sound = None
+    self._callback = None
+
+  @property
+  def callback( self ):
+    return self._callback
+
+  @callback.setter
+  def callback( self, aValue ):
+    self._callback = aValue
 
   def play( self ):
     '''  '''
     self._sound = sound(self._files[self._index], self._group, self._sounddone)
     self._sound.play()
+
+  def add( self, aSound ):
+    '''Add sound to end of list.'''
+    self._files.append(aSound)
+
+  def prepend( self, aSound ):
+    '''Add sound to beginning of list.'''
+    self._files.insert(0, aSound)
 
   def reset( self, aArg ):
     '''  '''
@@ -205,6 +222,8 @@ class soundchain(object):
     else:
       self._index = 0
       self._sound = None
+      if self._callback:
+        self._callback(self)
 
 #------------------------------------------------------------------------
 if __name__ == '__main__':
