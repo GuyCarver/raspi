@@ -113,7 +113,7 @@ class pca9865(object):
       base = self._range * aServo
       if base > self._end:
         base = 0
-      val = self._min + ((self._range * aPerc) // 100)
+      val = self._min + (int(self._range * aPerc) // 100)
       self._setpwm(aServo, base, base + val)
 
   def setangle( self, aServo, aAngle ):
