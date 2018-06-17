@@ -14,6 +14,7 @@ import body
 import saveload
 import ps2con
 import legs
+#import RPi.GPIO as GPIO
 
 from threading import Thread #,Lock
 from time import perf_counter, sleep
@@ -81,6 +82,8 @@ class sentrybot(object):
   _gunsfx = 'sys/gun2'
   _combatsfx = 'sys/equipcombat'
   _speedsounds = ('sys/one', 'sys/two', 'sys/three', 'sys/four', 'sys/five', 'sys/six')
+  _headlightindex = 14
+#  _laser = 12
   _GUNBUTTON = 26                               #GPIO # for button pin.
 
   def __init__( self ):
@@ -102,6 +105,8 @@ class sentrybot(object):
     self.invert = False
     self._pca = pca9865(100)
     self._buttonpressed = set()
+#    GPIO.setup(sentrybot._laser, GPIO.OUT)
+#    GPIO.output(sentrybot._laser, GPIO.HIGH)
 
     self.load()                                 #load settings json
 
@@ -178,9 +183,13 @@ class sentrybot(object):
 
   @armangle.setter
   def armangle( self, aValue ):
+    '''Set the arm angle, then set the cos/sin values and arm x,y limits.'''
     self._armangle = aValue
     self._cossinl = angle.cossin(aValue)
-    self._cossinr = angle.cossin(-aValue)
+    #Note: Negate aValue for my stuff.  The Sentrybot doesn't use it.
+    self._cossinr = angle.cossin(aValue)
+    #Calc the arm x,y ranges.  This is assuming max rotation limits.
+    self._armx, self._army = angle.calcbounds(aValue, (-90.0, 90.0), (-90.0, 90.0))
 
   @property
   def invert( self ):
@@ -433,6 +442,13 @@ class sentrybot(object):
       if aButton in self._buttonpressed:
         self._buttonpressed.remove(aButton)
 
+  def clamparms( self, aX, aY ):
+    '''  '''
+    aX = min(max(self._armx[0], aX), self._armx[1])
+    aY = min(max(self._army[0], aY), self._army[1])
+    return (aX, aY)
+
+
   def _updateparts( self, aDelta ):
     '''Update all servos based on joystick input'''
 
@@ -461,7 +477,7 @@ class sentrybot(object):
         d = self._rate * aDelta
         v = self._rotx + (rx * d)
         self._rotx = min(max(v, -90.0), 90.0)
-        v = self._roty + (self._hy * d)
+        v = self._roty + (self._hy * d)           #Use _hy, which is adjusted by l/r triggers.
         self._roty = min(max(v, -90.0), 90.0)
     else:
       v = rx * 90.0
@@ -475,9 +491,9 @@ class sentrybot(object):
     #todo: Figure out how to disperse right stick movement into torso, head and arms.
 
     t = body.getpart(body._TORSO)
-    t.value = self._rotx #/ 8.0
+    t.value = self._rotx / 8.0
     hh = body.getpart(body._HEAD_H)
-    hh.value = -self._rotx #/ 4.0
+    hh.value = -self._rotx / 4.0
     hv = body.getpart(body._HEAD_V)
     hv.value = -self._roty
 
@@ -486,14 +502,18 @@ class sentrybot(object):
     larmh = body.getpart(body._LARM_H)
     larmv = body.getpart(body._LARM_V)
 
+#    clampedxy = self.clamparms(self._rotx, self._roty)
+
     #todo: Add arm twist.
     #Rotate x,y by angle and apply to arms.
     armx, army = angle.rotate((self._rotx, self._roty), self._cossinl)
     larmh.value = armx
     larmv.value = army
 
+#    clampedxy = self.clamparms(self._rotx, -self._roty)
+
     #Note, to invert the right arm use _cossinr.
-    armx, army = angle.rotate((self._rotx, -self._roty), self._cossinl)
+    armx, army = angle.rotate((self._rotx, -self._roty), self._cossinr)
     rarmh.value = armx
     rarmv.value = army
 
@@ -506,7 +526,7 @@ class sentrybot(object):
     rleg.speed = ry * rleg.maxspeed
 
     lleg.update(aDelta)
-#    rleg.update(aDelta)
+    rleg.update(aDelta)
 
     self._gunbutton.update()
     if self._gunbutton.pressed:
@@ -530,6 +550,7 @@ class sentrybot(object):
       self._initcontroller()
 
       prevtime = perf_counter()
+      self._pca.set(sentrybot._headlightindex, 100)
 
       while self.running:
         if self._haskeyboard and keyboard.is_pressed('q'):
