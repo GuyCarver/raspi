@@ -4,7 +4,7 @@
 
 from time import sleep
 
-_GUY = True                                     #Set for my test hardware which has different setup.
+_GUY = False                                     #Set for my test hardware which has different setup.
 
 class quicrun(object):
   '''Controller for quicrun 1060 ESP.
@@ -50,7 +50,7 @@ class quicrun(object):
     self._speed = 0.0
     self._scale = 1.0                           #Additional scaler used for temporary throttling.
     self._targetspeed = 0.0
-    self._minmax = self._defminmax
+    self._minmax = quicrun._defminmax
     self._state = quicrun._STOPPED
     self.reset()
 
@@ -105,18 +105,16 @@ class quicrun(object):
     return min(max(aValue, self._minmax[0]), self._minmax[1])
 
   def reset( self ) :
-    '''Need to send range of values to the ESP to initialize it.'''
 #    self._set(75)
 #    sleep(0.5)
 #    self._set(100)
 #    sleep(0.5)
     self._set(quicrun._IDLE)
     self._speed = 0.0
-    self._prevspeed = 0.0
-    self._targetspeed = 0.0
+    self._targetspeed = self._speed
 
   def off( self ):
-    '''Turn the esp off.'''
+    '''Turn the ESP off.'''
     self._pca.off(self._index)
 
   def _set( self, aValue ) :
