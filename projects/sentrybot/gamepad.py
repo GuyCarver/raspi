@@ -104,7 +104,7 @@ class gamepad(object):
     '''  '''
     return gamepad.finddevice() != None
 
-  def __init__( self, aID = 'E4:17:D8:2C:08:68', aCallback = None ):
+  def __init__( self, aID, aCallback = None ):
     '''aID is the bluetooth device ID reported by bluetoothctl during pairing.
        aCallback is the callback function to call for processing button events.'''
     self.monitorconnections()
@@ -144,6 +144,14 @@ class gamepad(object):
     self._observer.start()
 
   @property
+  def macaddress( self ):
+    return self._id
+
+  @macaddress.setter
+  def macaddress( self, aValue ):
+    self._id = aValue
+
+  @property
   def callback( self ):
     return self._callback
 
@@ -174,7 +182,7 @@ class gamepad(object):
     try:
       os.system('echo "power on \nconnect ' + self._id + ' \nquit" | sudo bluetoothctl')
 
-      sleep(1.0)
+      sleep(2.0)
       self._device = gamepad.finddevice()
       if self.connected:
         sleep(0.1)
@@ -196,7 +204,7 @@ class gamepad(object):
   def getjoy( self, aIndex ):
     '''Get joystick value for given index _LX, _LY, _RX or _RY
        Value is range +/- 255.'''
-    return self._joys[aIndex]
+    return self._joys[aIndex & 0x03]
 
   def update( self ):
     '''Read events from the input device, update joy values
@@ -253,7 +261,7 @@ if __name__ == '__main__':  #start server
 
     print(btn, ('pressed' if aValue else 'released'))
 
-  p = gamepad(aCallback = mytest)
+  p = gamepad('E4:17:D8:2C:08:68', mytest)
   while 1:
     p.update()
     j1 = p.getjoy(p._RY)

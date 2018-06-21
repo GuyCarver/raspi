@@ -167,5 +167,6 @@
     ]
   ],
   "speeds": "0.25, 0.5, 1.0",
-  "controller": 1
+  "controller": 0,
+  "macaddress": "E4:17:D8:2C:08:68"
 }

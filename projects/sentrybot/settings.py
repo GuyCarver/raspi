@@ -6,6 +6,7 @@
 from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 from string import Template
+from bt import *
 import time
 import cgi
 import webbrowser
@@ -30,11 +31,33 @@ class settings(BaseHTTPRequestHandler):
   used = {}                                     #Set of used sound names.
 
   @classmethod
+  def paircontroller( self ):
+    '''Attempt to pair a new 8Bitdo controller.'''
+    bl = Bluetoothctl()
+    bl.start_scan()
+    #Try a few times to find and pair with 8Bitdo.
+    for i in range(5):
+      time.sleep(2.0)
+      devs = bl.availabledevices('8Bitdo')
+      #If found at least 1, then pair with 1st one.
+      if len(devs):
+        mad = devs[0]['mac_address']
+        if bl.pair(mad):
+          self.target.macaddress = mad
+          break
+    bl.stop_scan()
+
+  @classmethod
   def determinecontroller( self ):
     #Convert 0, 1 into c_0-1.
     v = 'c_' + str(self.target.controllernum)
 #    print('controller is ', v)
     return v
+
+  @classmethod
+  def determinepairon( self ):
+    '''Return disabled if pair button should not be enabled.'''
+    return 'disabled' if self.target.controllernum > 0 else ''
 
   @classmethod
   def determinestance( self ):
@@ -152,6 +175,7 @@ class settings(BaseHTTPRequestHandler):
       minv, maxv = self.target.partdefminmax(settings.lastpart)
 
       subs = { self.determinecontroller() : 'selected',
+        'pair_on' : self.determinepairon(),
         'armangle' : self.target.armangle,
         'rate' : self.target.rate,
         'soundlist' : self.makesoundlist(),
@@ -162,7 +186,8 @@ class settings(BaseHTTPRequestHandler):
         'partmax' : pmax,
         'minv' : minv,
         'maxv' : maxv,
-        'speeds': self.target.getspeeds(),
+        'speeds' : self.target.getspeeds(),
+        'macaddr' : self.target.macaddress,
         self.determinestance() : 'selected',
       }
     elif settings.page == 1:
@@ -198,6 +223,7 @@ class settings(BaseHTTPRequestHandler):
       rate = form.getfirst('rate')
       sb = form.getfirst('Submit')
       pl = form.getfirst('Play')
+      pair = form.getfirst('pair')
       setsound = form.getfirst('setsound')
       settings.lastsound = form.getvalue('sound')
       settings.lastbutton = form.getvalue('button')
@@ -216,8 +242,11 @@ class settings(BaseHTTPRequestHandler):
           self.target.setbuttonsound(settings.lastbutton, settings.stance, settings.lastsound)
           self.updateused()
 
+      if pair != None:
+        self.paircontroller()
+
       #if have a target clock write data to it.
-      self.target.controllernum = int(con)
+      self.target.setcontroller(int(con))
       self.target.armangle = float(armangle)
       self.target.rate = float(rate)
 
@@ -344,6 +373,7 @@ if __name__ == '__main__':  #Run settings test with dummy data.
     _speeds = (0.25, 0.5, 1.0)
 
     optionsfile = 'options.json'
+    macaddress = '1:2:3:4'
 
     @classmethod
     def getspeeds( self ):

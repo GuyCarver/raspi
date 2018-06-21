@@ -83,6 +83,7 @@
         <option value="0" ${c_0}>8Bitdo FC30 Pro</option>
         <option value="1" ${c_1}>PS2</option>
       </select>
+      <button name="pair" value="1" ${pair_on}>Pair</button>${macaddr}
     </div>
     <div class="w3-card-4 w3-container">
       <h4>Servos and Motors</h4>
@@ -112,12 +113,14 @@
         <option value="0" ${st_0}>Peaceful</option>
         <option value="1" ${st_1}>Combat</option>
       </select>
+    </div>
+    <div class="w3-card-4 w3-container">
       <div class="w3-col w3-left" style="width:40%">
         <h4>Buttons</h4>
         <select name="button" style="width:60%" size="21">
           ${buttons}
         </select>
-        <button class="w3-right w3-border w3-btn w3-light-blue w3-small" style="margin:auto" name="setsound" value="1"><i class="fa fa-angle-double-left"></i></button>
+        <button style="margin:auto" name="setsound" value="1"><i class="fa fa-angle-double-left"></i></button>
       </div>
 
       <div class="w3-rest">
@@ -125,7 +128,7 @@
         <select name="sound" style="width:32%" size="21">
           ${soundlist}
         </select>
-        <button class="w3-border w3-btn w3-green w3-small" style="margin:auto" name="Play" value="1"><i class="fa fa-play"></i></button>
+        <button style="margin:auto" name="Play" value="1"><i class="fa fa-play"></i></button>
       </div>
     </div>
   </nav>

@@ -18,7 +18,7 @@ def jsonsounddata( aSource ):
       if name != None:
         pfilename = peace.filename if peace != None else ""
         cfilename = combat.filename if combat != None else ""
-        dest.append((name, snd.group, pfilename, cfilename))
+        dest.append((name, peace.group, pfilename, cfilename))
 
   return dest
 
@@ -31,6 +31,7 @@ def saveproperties( bot ):
     data['rate'] = bot.rate
     data['startup'] = bot.startupsound.filename if bot.startupsound else None
     data['gun'] = bot._gunsfx
+    data['macaddress'] = bot.macaddress         #Mac address for the 8Bitdo gamepad.
 
     #Save sound button mappings.
     #Get sounds and convert from:
@@ -51,6 +52,7 @@ def doset( bot, data ):
   bot.startupsound = data['startup']
   bot.initsounds(data['sounds'])
   bot._gunsfx = data['gun']
+  bot.macaddress = data['macaddress']
   loadparts(data)                           #Load body part data from json.
   bot.setspeeds(data['speeds'])
 

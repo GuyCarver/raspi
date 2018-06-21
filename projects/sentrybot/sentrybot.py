@@ -98,9 +98,10 @@ class sentrybot(object):
     self._rotx = 0.0
     self._roty = 0.0
     self._rate = 90.0
-    self._speed = len(sentrybot._speeds) - 1
+    self._speed = 0                             #Start at lowest speed setting.
     self._speedchange = 0
     self._hy = 0.0
+    self._gpmacaddress = 'E4:17:D8:2C:08:68'
     self.armangle = 0.0
     self.invert = False
     self._pca = pca9865(100)
@@ -128,6 +129,16 @@ class sentrybot(object):
   def __del__( self ):
     self.save()
     self._contoller = None
+
+  @property
+  def macaddress( self ):
+    return self._gpmacaddress
+
+  @macaddress.setter
+  def macaddress( self, aValue ):
+    self._gpmacaddress = aValue
+    if self.controllernum == 0 and self._controller != None:
+      self._controller.macaddress = aValue
 
   @property
   def optionsfile( self ): return saveload.savename
@@ -240,12 +251,12 @@ class sentrybot(object):
       self._controller = ps2con.ps2con(27, 22, 18, 17, self._ps2action)
     else:
 #      print('starting Retro Controller')
-      self._controller = gamepad(aCallback = self._buttonaction)
+      self._controller = gamepad(self.macaddress, self._buttonaction)
 
   def setcontroller( self, aIndex ):
     '''Set controller index if it changed, and create a controller.'''
-    if self._controllernum != aIndex or self._controller == None:
-      self.controller = aIndex
+    if self.controllernum != aIndex or self._controller == None:
+      self.controllernum = aIndex
       self._initcontroller()
 
   def initsounds( self, aSounds ):
