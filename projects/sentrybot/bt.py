@@ -61,6 +61,14 @@ class Bluetoothctl:
       print(e)
       return None
 
+  def stop_scan(self):
+    """Stop bluetooth scanning process."""
+    try:
+      out = self.get_output("scan off")
+    except BluetoothctlError as e:
+      print(e)
+      return None
+
   def make_discoverable(self):
     """Make device discoverable."""
     try:
@@ -189,6 +197,17 @@ class Bluetoothctl:
       success = True if res == 1 else False
       return success
 
+  @staticmethod
+  def filterdevices( aDict, aNamePart ):
+    return [d for d in aDict if d['name'].startswith(aNamePart)]
+
+  def paireddevices( self, aNamePart ):
+    '''  '''
+    return Bluetoothctl.filterdevices(self.get_paired_devices(), aNamePart)
+
+  def availabledevices( self, aNamePart ):
+    '''  '''
+    return Bluetoothctl.filterdevices(self.get_discoverable_devices(), aNamePart)
 
 if __name__ == "__main__":
   def mytest(  ):
@@ -196,25 +215,22 @@ if __name__ == "__main__":
     bl = Bluetoothctl()
     print("Ready!")
 
-    print('paired:')
-    devs = bl.get_paired_devices()
-    for d in devs:
-      if d['name'].startswith('8Bitdo'):
-        print('paired with:', d)
-        return
+    print('paired:', bl.paireddevices('8Bitdo'))
 
     bl.start_scan()
     print("Scanning...")
     for i in range(0, 10):
       print(i)
       time.sleep(1)
-    devs = bl.get_discoverable_devices()
-    for d in devs:
-      if d['name'].startswith('8Bitdo'):
+
+    devs = bl.availabledevices('8Bitdo')
+    if len(devs):
+      for d in devs:
         print('pairing with', d)
         for i in range(4):
           if bl.pair(d['mac_address']) == True:
             break
-        break
+
+    bl.stop_scan()
 
   mytest()
