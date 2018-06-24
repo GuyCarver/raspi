@@ -446,7 +446,7 @@ class Clock:
 
   @checkinterval.setter
   def checkinterval( self, aValue ):
-    '''Set interval in seconds for face check.
+    '''Set interval in seconds for object check.
        Clamped between 0.1 and 1.0.'''
     self._checkinterval = max(0.1, min(1.0, aValue))
 
@@ -928,16 +928,19 @@ class Clock:
       if button.justpressed(hsetstate):
         self._tab = 0
 
-      #Alarm, Start and Stop times.
+    #Displaying Alarm, Start and Stop times.
     else:
       self.on = True;                           #Turn display on so we can see alarm time setting.
 
+      #alarm
       if self._tab == 1:
         h, m = self._alarmtime
+      #always on begin
       elif self._tab == 2:
         m = self.alwaysontimes[0]
         h = m // 60
         m = m % 60
+      #always on end
       else:
         m = self.alwaysontimes[1]
         h = m // 60
@@ -997,9 +1000,9 @@ class Clock:
         self._oled.clear()
         self._oled.display()
 
-      #Don't update alarm while we are setting it.
-      if self._tab != 1:
-        self.UpdateAlarm(dt)
+    #Don't update alarm while we are setting it.
+    if self._tab != 1:
+      self.UpdateAlarm(dt)
 
   def run( self ):
     '''Run the clock.'''
