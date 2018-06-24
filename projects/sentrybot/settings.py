@@ -6,7 +6,6 @@
 from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 from string import Template
-from bt import *
 import time
 import cgi
 import webbrowser
@@ -29,23 +28,6 @@ class settings(BaseHTTPRequestHandler):
   stance = 0                                    #Combat stance for animation and sound.
   page = 0                                      #Settings page #.
   used = {}                                     #Set of used sound names.
-
-  @classmethod
-  def paircontroller( self ):
-    '''Attempt to pair a new 8Bitdo controller.'''
-    bl = Bluetoothctl()
-    bl.start_scan()
-    #Try a few times to find and pair with 8Bitdo.
-    for i in range(5):
-      time.sleep(2.0)
-      devs = bl.availabledevices('8Bitdo')
-      #If found at least 1, then pair with 1st one.
-      if len(devs):
-        mad = devs[0]['mac_address']
-        if bl.pair(mad):
-          self.target.macaddress = mad
-          break
-    bl.stop_scan()
 
   @classmethod
   def determinecontroller( self ):
@@ -243,7 +225,7 @@ class settings(BaseHTTPRequestHandler):
           self.updateused()
 
       if pair != None:
-        self.paircontroller()
+        self.target.trypair()
 
       #if have a target clock write data to it.
       self.target.setcontroller(int(con))

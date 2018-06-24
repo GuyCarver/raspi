@@ -34,7 +34,6 @@ class BluetoothctlError(Exception):
   """This exception is raised, when bluetoothctl fails to start."""
   pass
 
-
 class Bluetoothctl:
   '''A wrapper for bluetoothctl utility.'''
 

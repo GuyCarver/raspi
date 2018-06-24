@@ -259,6 +259,11 @@ class sentrybot(object):
       self.controllernum = aIndex
       self._initcontroller()
 
+  def trypair( self ):
+    '''If 8Bitdo controller is selected and it's not connected, attempt a pairing.'''
+    if self.controllernum == 0 and self._controller != None and self._controller.connected == False:
+      self._controller.pair()
+
   def initsounds( self, aSounds ):
     '''Temporary method to initialize sounds from a list of button, group, sound'''
     for s in aSounds:
@@ -317,16 +322,16 @@ class sentrybot(object):
     saveload.loadproperties(self)
 
   def loadfromstring( self, aString ):
-    '''  '''
+    '''Load properties from given string.'''
     saveload.loadpropertiesfromstring(self, aString)
 
   def _initparts( self ):
-    #Initialize all of the parts.
+    '''Initialize all of the parts.'''
     body.initparts(self._pca)
     self._setspeed()
 
   def brake( self, abTF ):
-    '''  '''
+    '''Brake the legs.'''
     lleg = body.getpart(body._LLEG)
     rleg = body.getpart(body._RLEG)
     lleg.brake(abTF)
@@ -339,6 +344,7 @@ class sentrybot(object):
   def setspeeds( self, aSpeeds ):
     '''Set tuple of speeds from comma separated string.'''
     spds = aSpeeds.split(',')
+    print(spds)
     try:
       sentrybot._speeds = tuple(float(s) for s in spds)
     except Exception as e:
@@ -346,8 +352,7 @@ class sentrybot(object):
       print(e)
 
   def _setspeed( self ):
-    '''Set the speed scale value on the legs to the current _speed setting'''
-    #todo: set the speeds on the motors.
+    '''Set the speed scale value on the legs to the current _speed setting.'''
     lleg = body.getpart(body._LLEG)
     rleg = body.getpart(body._RLEG)
     lleg.scale = rleg.scale = sentrybot._speeds[self._speed]
@@ -377,7 +382,7 @@ class sentrybot(object):
     return self._controller.getjoy(aIndex) / 255.0
 
   def togglecombat( self ):
-    '''  '''
+    '''Toggle combat stance.'''
 
     self._stance = 1 - self._stance
     if self._stance == sentrybot._COMBAT:
@@ -396,6 +401,7 @@ class sentrybot(object):
     '''Callback for ps2 button events. They are remapped to FC30 events and sent
        to the _buttonaction callback.'''
 #    print('Action:', aButton, aValue)
+    #Value of 2 indicates a change in pressed/released state.
     if aValue & 0x02:
       k = sentrybot._ps2map[aButton]
 #     print(aButton, aValue, k)
@@ -454,7 +460,7 @@ class sentrybot(object):
         self._buttonpressed.remove(aButton)
 
   def clamparms( self, aX, aY ):
-    '''  '''
+    '''Set arm clamp values.'''
     aX = min(max(self._armx[0], aX), self._armx[1])
     aY = min(max(self._army[0], aY), self._army[1])
     return (aX, aY)

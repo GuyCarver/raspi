@@ -6,6 +6,7 @@ from evdev import InputDevice, ecodes, list_devices
 import os
 import pyudev
 from time import sleep
+from bt import *
 
 #evdev Button codes are as follows, type = 1 and val is 0 or 1 for buttons.
 #types EV_KEY = 1, vals will be 0 or 1.
@@ -175,9 +176,44 @@ class gamepad(object):
       self._callback(gamepad.GAMEPAD_DISCONNECT, 0)
       self._dcondetect = False
 
-  def _connect( self, aTries = 20 ):
+  def pair( self ):
+    '''Attempt to pair a new 8Bitdo controller.'''
+    self._disconnect()
+
+    paired = False
+    bl = Bluetoothctl()
+    bl.start_scan()
+    #Try a few times to find and pair with 8Bitdo.
+    print('Pairing ', gamepad._NAME)
+
+    for i in range(5):
+      time.sleep(2.0)
+      devs = bl.availabledevices(gamepad._NAME)
+      #If found at least 1, then pair with 1st one.
+      if len(devs):
+        mad = devs[0]['mac_address']
+        if bl.pair(mad):
+          paired = True
+          self.macaddress = mad
+          break
+    bl.stop_scan()
+
+    #If pairing failed, attempt to connect to already paired device.
+    if not paired:
+      devs = bl.paireddevices(gamepad._NAME)
+      if len(devs):
+        self.macaddress = devs[0]['mac_address']
+        paired = True
+
+    return paired
+
+  def _connect( self ):
     '''Attempt to connect to the gamepad and create the InputDevice'''
     self._disconnect()
+
+    if self.macaddress == '':
+      if not self.pair():
+        return                                    #Exit if didn't pair.
 
     try:
       os.system('echo "power on \nconnect ' + self._id + ' \nquit" | sudo bluetoothctl')
@@ -246,7 +282,7 @@ class gamepad(object):
             raise e
           print(e)
     else:
-      self._connect(1)
+      self._connect()
 
 if __name__ == '__main__':  #start server
 
@@ -261,7 +297,7 @@ if __name__ == '__main__':  #start server
 
     print(btn, ('pressed' if aValue else 'released'))
 
-  p = gamepad('E4:17:D8:2C:08:68', mytest)
+  p = gamepad('', mytest)
   while 1:
     p.update()
     j1 = p.getjoy(p._RY)
