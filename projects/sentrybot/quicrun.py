@@ -3,14 +3,13 @@
 # Controller for the quicrun 1060 Electronic Speed Control (ESP)
 
 from time import sleep
-
-_GUY = False                                     #Set for my test hardware which has different setup.
+from os import environ
 
 class quicrun(object):
   '''Controller for quicrun 1060 ESP.
      This controller works through the pca9865 servo controller.'''
 
-  if _GUY:
+  if 'GUY' in environ:
     _IDLE = 40
     _FORWARD_MAX = 58
     _FORWARD_MIN = 42
@@ -36,7 +35,7 @@ class quicrun(object):
        Returns and integer value.'''
     return int((((aMax - aMin) * aPerc) // 100) + aMin)
 
-  def __init__(self, aPCA, aIndex):
+  def __init__(self, aPCA, aIndex, aName):
     '''aPCA = pca9865 object to use for PWM control of the ESC.
        aIndex = Servo index on pca9865 (0-15).
        If rate is > 0 then the speed value is interpolated over time.
@@ -45,6 +44,7 @@ class quicrun(object):
     super(quicrun, self).__init__()
     self._pca = aPCA
     self._index = aIndex
+    self._name = aName
     self._rate = 0.0
     self._delay = 0.0                           #Delay value used for reverse init state changes.
     self._speed = 0.0
@@ -56,6 +56,9 @@ class quicrun(object):
 
   @property
   def index( self ): return self._index
+
+  @property
+  def name( self ): return self._name
 
   @property
   def rate( self ):
@@ -80,7 +83,7 @@ class quicrun(object):
   @minmax.setter
   def minmax( self, aValue ):
     #If tuple just use directly without checking legitimate ranges.
-    if isinstance(aValue, tuple):
+    if isinstance(aValue, tuple) or isinstance(aValue, list):
       self._minmax = aValue
     else:
       #otherwise it's considered a single # we use for both min/max.
@@ -132,6 +135,24 @@ class quicrun(object):
     sleep(0.02)
     self._state = quicrun._REVERSE
     self._delay = 0.0
+
+  #Center property does nothing, it's here for body part interface compat.
+  @property
+  def center( self ):
+    return 0.0
+
+  @center.setter
+  def center( self, aValue ):
+    pass
+
+  #The value property is for compatability with the body parts interface for the animation system.
+  @property
+  def value( self ):
+    return self.speed
+
+  @value.setter
+  def value( self, aValue ):
+    self.speed = aValue
 
   @property
   def speed( self ):
@@ -310,7 +331,7 @@ if __name__ == '__main__':  #start server
   from pca9865 import *
 
   p = pca9865()
-  q = quicrun(p, 8)
+  q = quicrun(p, 8, 'test')
   q.rate = 10.0
 
   def waitforit():

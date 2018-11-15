@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
+#11/10/2018 02:20 PM
 
 class atom(object):
   '''Controller for Novak Atom ESC.'''
   _defminmax = (94.0, 120.0)
 
-  def __init__( self, aPCA, aIndex ):
+  def __init__( self, aPCA, aIndex, aName = '' ):
     '''aPCA = pca9865 object to use for PWM control of the ESC.
        aIndex = Servo index on pca9865 (0-15).
        If rate is > 0 then the speed value is interpolated over time.
@@ -14,11 +15,12 @@ class atom(object):
     self._pca = aPCA
     self._index = aIndex
     self._minmax = atom._defminmax
+    self._name = aName
     self._rate = 0.0
     self.reset()
 
-    @property
-    def index( self ): return self._index
+  @property
+  def index( self ): return self._index
 
   def off( self ):
     '''Turn the ESP off.'''
@@ -28,13 +30,40 @@ class atom(object):
     '''Set the ESP speed.'''
     self._pca.set(self._index, aValue)
 
+  #Center property does nothing, it's here for body part interface compat.
+  @property
+  def center( self ):
+    return 0.0
+
+  @center.setter
+  def center( self, aValue ):
+    pass
+
   @property
   def minmax( self ):
     return self._minmax
 
   @minmax.setter
   def minmax( self, aValue ):
-    self._minmax = aValue
+     #If tuple just use directly without checking legitimate ranges.
+    if isinstance(aValue, tuple) or isinstance(aValue, list):
+      self._minmax = aValue
+    else:
+      #otherwise it's considered a single # we use for both min/max.
+      self._minmax = (max(-aValue, self._defminmax[0]), aValue)
+
+  @property
+  def minmaxforjson( self ):
+    '''If min == -max then just return max (single value)
+       otherwise return min/max tuple.'''
+    if self._minmax[0] == -self._minmax[1]:
+      return self._minmax[1]
+
+    return self._minmax
+
+  @property
+  def name( self ):
+    return self._name
 
   @property
   def rate( self ):
@@ -95,7 +124,7 @@ if __name__ == '__main__':  #start server
 
   p = pca9865(100)
   a = atom(p, 15)
-  a.rate = 2.0
+  a.rate = 10.0
 
   def waitforit():
     print(a.speed)
@@ -103,20 +132,13 @@ if __name__ == '__main__':  #start server
       sleep(0.01)
       a.update(0.01)
 
-  a.speed = 97.0
+  a.speed = 0.0
   waitforit()
-  a.speed = 94.0
-  waitforit()
-  a.speed = 98.0
-  waitforit()
-  a.speed = 95.0
+  a.speed = 150.0
   waitforit()
   a.speed = 100.0
   waitforit()
-  a.speed = 97.0
+  a.speed = 50.0
   waitforit()
-  a.speed = 110.0
-  waitforit()
-  a.speed = 90.0
-  waitforit()
+  a.speed = 0.0
   print('done.')

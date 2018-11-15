@@ -1,132 +1,65 @@
 {
-  "rate": 180.0,
-  "startup": "sys/powerup",
+  "armangle": 45.0,
+  "gunrate": 0.1,
   "gun": "",
-  "sounds": [
-    [
-      "DP_U",
-      1,
-      "warningviolation", ""
-    ],
-    [
-      "DP_R",
-      1,
-      "weaponsfree", ""
-    ],
-    [
-      "DP_D",
-      1,
-      "weaponslocked",""
-    ],
-    [
-      "DP_L",
-      1,
-      "noncombatants",""
-    ],
-    [
-      "A",
-      1,
-      "alertsafety",""
-    ],
-    [
-      "B",
-      1,
-      "alertsecurity",""
-    ],
-    [
-      "C",
-      1,
-      "allcitizenscalm",""
-    ],
-    [
-      "X",
-      1,
-      "donotinterfere",""
-    ],
-    [
-      "Y",
-      1,
-      "hostiledetected2",""
-    ],
-    [
-      "L_SH",
-      1,
-      "privateproperty",""
-    ],
-    [
-      "R_SH",
-      1,
-      "systemreport",""
-    ],
-    [
-      "SLCT",
-      1,
-      "hostiles",""
-    ],
-    [
-      "STRT",
-      1,
-      "movealong",""
-    ],
-    [
-      "L_TH",
-      1,
-      "warningleave",""
-    ],
-    [
-      "R_TH",
-      1,
-      "warningsecurity",""
-    ]
-  ],
-  "armangle": 8.0,
   "parts": [
     [
       "TORSO",
       8,
       0,
       0.0,
-      10.0
+      0.0,
+      [
+        -40.0,
+        10.0
+      ]
     ],
     [
       "HEAD_H",
       0,
       0,
-      0.0,
-      16.5
+      45.0,
+      5.0,
+      [
+        -10.0,
+        16.0
+      ]
     ],
     [
       "HEAD_V",
       1,
       0,
-      0.0,
-      90.0
+      45.0,
+      5.0,
+      [
+        -50.0,
+        90.0
+      ]
     ],
     [
       "LARM_H",
       2,
       0,
+      45.0,
       0.0,
-      90.0
+      [
+        -90.0,
+        100.0
+      ]
     ],
     [
       "LARM_V",
       3,
       0,
-      0.0,
+      45.0,
+      -60.0,
       90.0
-    ],
-    [
-      "LARM_T",
-      4,
-      0,
-      0.0,
-      45.0
     ],
     [
       "RARM_H",
       5,
       0,
+      45.0,
       0.0,
       90.0
     ],
@@ -134,21 +67,16 @@
       "RARM_V",
       6,
       0,
+      45.0,
       0.0,
       90.0
-    ],
-    [
-      "RARM_T",
-      7,
-      0,
-      0.0,
-      45.0
     ],
     [
       "LLEG",
       9,
       2,
       1000.0,
+      0.0,
       100.0
     ],
     [
@@ -156,17 +84,135 @@
       10,
       2,
       1000.0,
+      0.0,
       100.0
     ],
     [
       "GUN",
       11,
-      2,
-      75.0,
-      20.0
+      1,
+      0.0,
+      0.0,
+      [
+        5.0,
+        50.0
+      ]
+    ],
+    [
+      "MISSILES",
+      12,
+      0,
+      0.0,
+      0.0,
+      30.0
+    ],
+    [
+      "SMOKE",
+      15,
+      1,
+      0.0,
+      0.0,
+      [
+        30.0,
+        60.0
+      ]
     ]
   ],
+  "controller": 1,
   "speeds": "0.25, 0.5, 1.0",
-  "controller": 0,
-  "macaddress": "E4:17:D8:2C:08:68"
+  "startup": "sys/powerup",
+  "rate": 180.0,
+  "sounds": [
+    [
+      "DP_U",
+      1,
+      "warningviolation",
+      ""
+    ],
+    [
+      "DP_R",
+      1,
+      "weaponsfree",
+      ""
+    ],
+    [
+      "DP_D",
+      1,
+      "weaponslocked",
+      ""
+    ],
+    [
+      "DP_L",
+      1,
+      "noncombatants",
+      ""
+    ],
+    [
+      "A",
+      1,
+      "alertsafety",
+      ""
+    ],
+    [
+      "B",
+      1,
+      "alertsecurity",
+      "allcitizenscalm"
+    ],
+    [
+      "C",
+      1,
+      "allcitizenscalm",
+      ""
+    ],
+    [
+      "X",
+      1,
+      "donotinterfere",
+      ""
+    ],
+    [
+      "Y",
+      1,
+      "hostiledetected2",
+      ""
+    ],
+    [
+      "L_SH",
+      1,
+      "privateproperty",
+      ""
+    ],
+    [
+      "R_SH",
+      1,
+      "systemreport",
+      ""
+    ],
+    [
+      "SLCT",
+      1,
+      "hostiles",
+      ""
+    ],
+    [
+      "STRT",
+      1,
+      "movealong",
+      ""
+    ],
+    [
+      "L_TH",
+      1,
+      "warningleave",
+      ""
+    ],
+    [
+      "R_TH",
+      1,
+      "warningsecurity",
+      ""
+    ]
+  ],
+  "macaddress": "E4:17:D8:48:00:6E"
 }

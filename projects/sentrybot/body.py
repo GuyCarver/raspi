@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+#11/10/2018 11:10 AM
 
 from quicrun import *
+from atom import *
 
 #------------------------------------------------------------------------
 class part(object):
@@ -8,13 +10,15 @@ class part(object):
      derive from this to control the value as either a +/-90 deg angle or
      0-100 speed.'''
 
-  def __init__(self, aPCA, aIndex):
+  def __init__(self, aPCA, aIndex, aName):
     self._pca = aPCA
     self._index = aIndex
-    self._value = 1000.0                          #Stupid # to make sure 1st setting writes a value.
+    self._name = aName
+    self._value = 0.0
     self._rate = 0.0                              #Rate of interpolation between _value and _target value.
                                                   #This is in units/second.  IE: 180 is 180 degrees a second.
     self._minmax = self._defminmax
+    self._center = 0.0
     self.value = 0.0                              #Set real value and write servo.
     self.scale = 1.0                              #Scale value
 
@@ -22,13 +26,25 @@ class part(object):
   def index( self ): return self._index
 
   @property
+  def name( self ): return self._name
+
+  @property
+  def center( self ):
+    return self._center
+
+  @center.setter
+  def center( self, aValue ):
+    self._center = aValue
+
+  @property
   def value( self ):
     return self._value
 
   @value.setter
   def value( self, aValue ):
+    aValue = min(max(aValue, self._minmax[0] - self._center), self._minmax[1] - self._center)
     if aValue != self._value:
-      self._value = min(max(aValue, self._minmax[0]), self._minmax[1])
+      self._value = aValue
       self.setservo()
 
   @property
@@ -76,58 +92,62 @@ class part(object):
 
 #------------------------------------------------------------------------
 class anglepart(part):
-  _defminmax = (-90.0, 90.0)
+  _defminmax = (-100.0, 100.0)
 
   '''Body part that uses an angle value from -90 to 90.'''
-  def __init__( self, aPCA, aIndex ):
-    super(anglepart, self).__init__(aPCA, aIndex)
+  def __init__( self, aPCA, aIndex, aName ):
+    super(anglepart, self).__init__(aPCA, aIndex, aName)
 
   def setservo( self ):
     '''Set the servo to current angle.'''
-    self._pca.setangle(self._index, int(self._value))
+    self._pca.setangle(self._index, int(self._value + self._center))
 
 #------------------------------------------------------------------------
 class speedpart(part):
   _defminmax = (0.0, 100.0)
 
   '''Body part that uses a speed value from 0-100.'''
-  def __init__( self, aPCA, aIndex ):
-    super(speedpart, self).__init__(aPCA, aIndex)
+  def __init__( self, aPCA, aIndex, aName ):
+    super(speedpart, self).__init__(aPCA, aIndex, aName)
 
   def setservo( self ):
     '''Set the servo to current speed.'''
-    self._pca.set(self._index, int(self._value))
+    v = int(self._value + self._center)
+#    print('setting', v)
+    self._pca.set(self._index, v)
+
 
 #------------------------------------------------------------------------
 
-_ANGLE, _SPEED, _MOTOR = range(3)
+_ANGLE, _SPEED, _MOTOR, _ATOM = range(4)
 
-_CONSTRUCTORS = {_ANGLE : anglepart, _SPEED : speedpart, _MOTOR : quicrun}
+_CONSTRUCTORS = {_ANGLE : anglepart, _SPEED : speedpart, _MOTOR : quicrun, _ATOM : atom}
 
 #Default data used to initialize the parts.  This will be
 # modified by the json data.
-#Name, Servo #, Type, Rate, Range (min, max) or minmax.
+#Name, Servo #, Type, Rate, Trim, Range (min, max) or minmax.
 _defaultdata = (
- ("TORSO", 8, _ANGLE, 0.0, 90.0),
- ("HEAD_H", 0, _ANGLE, 0.0, 90.0),
- ("HEAD_V", 1, _ANGLE, 0.0, 30.0),
- ("LARM_H", 2, _ANGLE, 0.0, 90.0),
- ("LARM_V", 3, _ANGLE, 0.0, 90.0),
- ("LARM_T", 4, _ANGLE, 0.0, 90.0),
- ("RARM_H", 5, _ANGLE, 0.0, 90.0),
- ("RARM_V", 6, _ANGLE, 0.0, 90.0),
- ("RARM_T", 7, _ANGLE, 0.0, 90.0),
- ("LLEG", 9, _MOTOR, 20.0, 20.0),
- ("RLEG", 10, _MOTOR, 20.0, 20.0),
- ("GUN", 11, _MOTOR, 75.0, 20.0),
+ ("TORSO", 8, _ANGLE, 0.0, 0.0, 90.0),
+ ("HEAD_H", 0, _ANGLE, 0.0, 0.0, 90.0),
+ ("HEAD_V", 1, _ANGLE, 0.0, 0.0, 30.0),
+ ("LARM_H", 2, _ANGLE, 0.0, 0.0, 90.0),
+ ("LARM_V", 3, _ANGLE, 0.0, 0.0, 90.0),
+ ("RARM_H", 5, _ANGLE, 0.0, 0.0, 90.0),
+ ("RARM_V", 6, _ANGLE, 0.0, 0.0, 90.0),
+ ("LLEG", 9, _MOTOR, 20.0, 0.0, 20.0),
+ ("RLEG", 10, _MOTOR, 20.0, 0.0, 20.0),
+ ("GUN", 11, _MOTOR, 25.0, 0.0, (0.0, 100.0)),
+ ("MISSILES", 12, _ANGLE, 10.0, 0.0, 10.0),
+ ("SMOKE", 15, _MOTOR, 1000.0, 0.0, (50.0, 100.0)),
 )
 
 _numparts = len(_defaultdata)
 
 _TORSO, _HEAD_H, _HEAD_V, \
-_LARM_H, _LARM_V, _LARM_T, \
-_RARM_H, _RARM_V, _RARM_T, \
-_LLEG, _RLEG, _GUN = range(_numparts)
+_LARM_H, _LARM_V, \
+_RARM_H, _RARM_V, \
+_LLEG, _RLEG, \
+_GUN, _MISSILES, _SMOKE = range(_numparts)
 
 _parts = [None] * _numparts
 
@@ -154,7 +174,7 @@ def parttype( aPart ):
 def saveparts( aData ):
   '''Save part data for each part into the given json dictionary.'''
   def makeentry(i, p):
-    return (_defaultdata[i][0], p.index, parttype(p), p.rate, p.minmaxforjson)
+    return (_defaultdata[i][0], p.index, parttype(p), p.rate, p.center, p.minmaxforjson)
 
   data = [makeentry(i, p) for i, p in enumerate(_parts)]
   aData['parts'] = data
@@ -178,10 +198,12 @@ def initparts( aPCA ):
 
   #Create part for given part data.
   for pdata in _initdata:
-    name, index, typ, rate, minmax = pdata
-    part = _CONSTRUCTORS[typ](aPCA, index)
+    name, index, typ, rate, center, minmax = pdata
+    part = _CONSTRUCTORS[typ](aPCA, index, name)
     part.rate = rate
     part.minmax = minmax
+    part.center = center
+    part.value = center
     pi = partindex(name)
     _parts[pi]  = part
 
@@ -190,40 +212,66 @@ def setmotordata( aIndex, aRate, aMinMax ):
   _parts[aIndex].rate = aRate
   _parts[aIndex].minmax = aMinMax
 
+def updateparts( aDelta ):
+  '''Iterate through parts and call update.'''
+  for p in _parts:
+    p.update(aDelta)
+
 def off( aIndex = -1 ):
-  '''Turn fiven part off. If no part index given, turn all of them off.'''
+  '''Turn given part off. If no part index given, turn all of them off.'''
   if aIndex >= 0:
-    _parts[aIndex].off()
+    if _parts[aIndex]:
+      _parts[aIndex].off()
   else:
     for p in _parts:
-      p.off()
+      if p:
+        p.off()
 
-#------------------------------------------------------------------------
-if __name__ == '__main__': #Run tests.
-  from pca9865 import *
+from pca9865 import *
 
-  p = pca9865()
-  a = anglepart(p, 3)
-  a.rate = 180.0
-  mn, mx = a.minmax
-  a.value = mn
+def test(  ):
 
-  def waitforit( part, aDir, aTarget ):
-    while(part.value != aTarget):
-      sleep(0.01)
-      part.update(0.01 * aDir)
-
-  waitforit(a, 1.0, mx)
-  waitforit(a, -1.0, mn)
-
-  a.off()
-
-  s = speedpart(p, 1)
+  p = pca9865(100)
+  sleep(2.0)
+#  a = anglepart(p, 3, 'test')
+#  a.rate = 180.0
+#  mn, mx = a.minmax
+#  a.value = mn
+#
+#  def waitforit( part, aDir, aTarget ):
+#    while(part.value != aTarget):
+#      sleep(0.01)
+#      part.update(0.01 * aDir)
+#
+#  waitforit(a, 1.0, mx)
+#  waitforit(a, -1.0, mn)
+#
+#  a.off()
+#
+  s = anglepart(p, 8, 'torso')
+  s.minmax = (-40.0, 10.0)
+#  s.rate = 10.0
   mn, mx = s.minmax
-  s.rate = 75.0
+  s.value = 0.0
+#  s.update(0.0)
+  sleep(3.0)
+  s.value = -20.0
+#  s.update(0.0)
+  sleep(2.0)
+  s.value = -40.0
+#  s.update(0.0)
+  sleep(6.0)
+  s.value = 10.0
+#  s.update(0.0)
+  sleep(3.0)
 
-  waitforit(s, 1.0, mx)
-  waitforit(s, -1.0, mn)
+#  waitforit(s, 1.0, mx)
+#  waitforit(s, -1.0, mn)
   s.off()
   print('done')
 
+
+
+#------------------------------------------------------------------------
+if __name__ == '__main__': #Run tests.
+  test()

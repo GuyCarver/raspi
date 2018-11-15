@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+#11/10/2018 11:10 AM
 
 #sound playback using kivy.
 
 from kivy.core import audio
 from kivy.base import EventLoop
+from bt import *
 
 #NOTE: In order for sounds to play correctly we have to use an EventLoop
 # with a Listener.  The listener needn't do anything and the EventLoop.idle()
@@ -228,8 +230,15 @@ class soundchain(object):
 #------------------------------------------------------------------------
 if __name__ == '__main__':
   from time import sleep
+  import os
   from kivy.clock import Clock
   running = True
+#  Device A0:E9:DB:10:37:09 Inateck BP1001
+  id = 'A0:E9:DB:10:37:09'
+  bl = Bluetoothctl()
+  res = bl.connect(id)
+  if res != True:
+    print("BT connect failed!")
 
   def MyStop( aSound ):
     '''  '''

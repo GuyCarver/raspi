@@ -155,6 +155,7 @@ class settings(BaseHTTPRequestHandler):
     if settings.page == 0:
       pmin, pmax = self.target.partminmax(settings.lastpart)
       minv, maxv = self.target.partdefminmax(settings.lastpart)
+      ptrim = self.target.partcenter(settings.lastpart)
 
       subs = { self.determinecontroller() : 'selected',
         'pair_on' : self.determinepairon(),
@@ -164,6 +165,7 @@ class settings(BaseHTTPRequestHandler):
         'buttons' : self.makebuttonlist(),
         'parts' : self.getparts(),
         'partrate' : self.target.partrate(settings.lastpart),
+        'parttrim' : ptrim,
         'partmin' : pmin,
         'partmax' : pmax,
         'minv' : minv,
@@ -233,9 +235,10 @@ class settings(BaseHTTPRequestHandler):
       self.target.rate = float(rate)
 
       partrate = form.getfirst('partrate')
+      parttrim = form.getfirst('parttrim')
       partmin = form.getfirst('partmin')
       partmax = form.getfirst('partmax')
-      self.target.setpartdata(settings.lastpart, float(partrate), (float(partmin), float(partmax)))
+      self.target.setpartdata(settings.lastpart, float(partrate), float(parttrim), (float(partmin), float(partmax)))
 
       #After setting value on the previous part, read in new part value.
       settings.lastpart = int(form.getfirst('part'))
@@ -300,16 +303,16 @@ if __name__ == '__main__':  #Run settings test with dummy data.
     _MOTOR = 1
 
     partdata = [
-     ("TORSO", 1, _ANGLE, 0.0, 90.0),
-     ("HEAD_H", 2, _ANGLE, 0.0, 90.0),
-     ("HEAD_V", 3, _ANGLE, 0.0, 30.0),
-     ("LARM_H", 4, _ANGLE, 0.0, 90.0),
-     ("LARM_V", 5, _ANGLE, 0.0, 90.0),
-     ("RARM_H", 6, _ANGLE, 0.0, 90.0),
-     ("RARM_V", 7, _ANGLE, 0.0, 90.0),
-     ("LLEG", 8, _MOTOR, 20.0, 20.0),
-     ("RLEG", 9, _MOTOR, 20.0, 20.0),
-     ("GUN", 10, _MOTOR, 75.0, 20.0),
+     ("TORSO", 1, _ANGLE, 0.0, 0.0, 90.0),
+     ("HEAD_H", 2, _ANGLE, 0.0, 0.0, 90.0),
+     ("HEAD_V", 3, _ANGLE, 0.0, 0.0, 30.0),
+     ("LARM_H", 4, _ANGLE, 0.0, 0.0, 90.0),
+     ("LARM_V", 5, _ANGLE, 0.0, 0.0, 90.0),
+     ("RARM_H", 6, _ANGLE, 0.0, 0.0, 90.0),
+     ("RARM_V", 7, _ANGLE, 0.0, 0.0, 90.0),
+     ("LLEG", 8, _MOTOR, 20.0, 0.0, 20.0),
+     ("RLEG", 9, _MOTOR, 20.0, 0.0, 20.0),
+     ("GUN", 10, _MOTOR, 75.0, 0.0, 20.0),
     ]
 
     _buttonnames = {
@@ -378,10 +381,14 @@ if __name__ == '__main__':  #Run settings test with dummy data.
       return self.partdata[aIndex][3]
 
     @classmethod
+    def partcenter( self, aIndex ):
+      return self.partdata[aIndex][4]
+
+    @classmethod
     def partminmax( self, aIndex ):
       '''  '''
       print('part:', self.partdata[aIndex])
-      rng = self.partdata[aIndex][4]
+      rng = self.partdata[aIndex][5]
       return rng if type(rng) == tuple else (-rng, rng)
 
     @classmethod
@@ -394,10 +401,10 @@ if __name__ == '__main__':  #Run settings test with dummy data.
         return (-90.0, 90.0)
 
     @classmethod
-    def setpartdata( self, aIndex, aRate, aMinMax ):
+    def setpartdata( self, aIndex, aRate, aTrim, aMinMax ):
       '''  '''
       a, b, c, d, e = self.partdata[aIndex]
-      self.partdata[aIndex] = (a, b, c, aRate, aMinMax)
+      self.partdata[aIndex] = (a, b, c, aRate, aTrim, aMinMax)
 
     @classmethod
     def nametobtn( self, aValue ):

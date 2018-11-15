@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+#11/10/2018 11:10 AM
 
 from json import dump, load
 from sound import *
@@ -31,6 +32,7 @@ def saveproperties( bot ):
     data['rate'] = bot.rate
     data['startup'] = bot.startupsound.filename if bot.startupsound else None
     data['gun'] = bot._gunsfx
+    data['gunrate'] = bot.gunrate
     data['macaddress'] = bot.macaddress         #Mac address for the 8Bitdo gamepad.
 
     #Save sound button mappings.
@@ -52,6 +54,7 @@ def doset( bot, data ):
   bot.startupsound = data['startup']
   bot.initsounds(data['sounds'])
   bot._gunsfx = data['gun']
+  bot.gunrate = data['gunrate']
   bot.macaddress = data['macaddress']
   loadparts(data)                           #Load body part data from json.
   bot.setspeeds(data['speeds'])

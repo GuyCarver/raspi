@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+#11/10/2018 11:10 AM
 
 from pca9865 import *
 from quicrun import *
@@ -20,9 +21,7 @@ from threading import Thread #,Lock
 from time import perf_counter, sleep
 import keyboard
 
-gpioinit()
-
-#todo: Remove testing flag from settings server creation.
+gpioinit() #Initialize the GPIO system so we may use the pins for I/O.
 
 def deadzone( aValue, aLimit ):
   return aValue if abs(aValue) >= 0.01 else 0.0
@@ -33,6 +32,7 @@ class sentrybot(object):
   _PEACE, _COMBAT = range(2)
 
   #map of button to sound object.  This is loaded from a json file.
+  #1st sound is for peacful stance, 2nd is combat stance.
   _buttonsounds = {
     ecodes.BTN_A : [None, None],
     ecodes.BTN_B : [None, None],
@@ -76,15 +76,15 @@ class sentrybot(object):
   #PS2 joystick is RX, RY, LX, LY while gamepad is LX, LY, RX, RY.
   _ps2joymap = (ps2con.LX, ps2con.LY, ps2con.RX, ps2con.RY)
 
-  _MACHINEGROUP = 20
+  _MACHINEGROUP = 20                            #Sound group for machine sounds.
   _speeds = (.25, .5, 1.0)
   _startupsfx = 'sys/startup'
   _gunsfx = 'sys/gun2'
   _combatsfx = 'sys/equipcombat'
   _speedsounds = ('sys/one', 'sys/two', 'sys/three', 'sys/four', 'sys/five', 'sys/six')
-  _headlightindex = 14
+  _headlightindex = 14                          #Servo controller index for head LED.
 #  _laser = 12
-  _GUNBUTTON = 26                               #GPIO # for button pin.
+#  _GUNBUTTON = 26                               #GPIO # for button pin.
 
   def __init__( self ):
     sound.setdefaultcallback(self._sounddone)
@@ -93,19 +93,26 @@ class sentrybot(object):
     self._controllernum = 0                     #Type of controller 0=FC30, 1=ps2
     self._controller = None                     #Start out with no controller. Will set once we no which type.
     self._startupsound = None
-    self._gunsound = None
-    self._gunbutton = button(sentrybot._GUNBUTTON)
-    self._rotx = 0.0
-    self._roty = 0.0
-    self._rate = 90.0
+    self._gunsound = [None, None]
+#    self._gunbutton = button(sentrybot._GUNBUTTON)
+    self._rotx = 0.0                            #Arm/body/head rotation x.
+    self._roty = 0.0                            #Arm/head rotation y.
+    self._rate = 90.0                           #Maximum rate of rotation in degs/second.
     self._speed = 0                             #Start at lowest speed setting.
-    self._speedchange = 0
-    self._hy = 0.0
-    self._gpmacaddress = 'E4:17:D8:2C:08:68'
-    self.armangle = 0.0
-    self.invert = False
+    self._speedchange = 0                       #Value to indicate speed "gear" has changed.
+    self._recording = False                     #Flag indicating we are recording input for animation playback.
+    self._hy = 0.0                              #Head y value converting button presses into +/- joystick type value.
+    self._gpmacaddress = '' #'E4:17:D8:2C:08:68'
+    self.armangle = 0.0                         #Angle of arms used to rotate x,y input to the 2 arm servos.
+    self.invert = False                         #Invert joystick y input.
     self._pca = pca9865(100)
-    self._buttonpressed = set()
+    self._buttonpressed = set()                 #set used to hold button pressed states, used for debounce detection.
+    self._gunrate = 0.15
+    self._gunon = False
+    self._gunindex = 0
+    self._armson = True
+
+#Put these in to turn on the head laser.
 #    GPIO.setup(sentrybot._laser, GPIO.OUT)
 #    GPIO.output(sentrybot._laser, GPIO.HIGH)
 
@@ -124,7 +131,6 @@ class sentrybot(object):
 
     #Start settings server, 2nd param True if testing html page.
     self._settingsthread = Thread(target=lambda: settings.run(self, True))
-    self._servos = pca9865()
 
   def __del__( self ):
     self.save()
@@ -139,6 +145,23 @@ class sentrybot(object):
     self._gpmacaddress = aValue
     if self.controllernum == 0 and self._controller != None:
       self._controller.macaddress = aValue
+
+  @property
+  def recording( self ):
+    return self._recording
+
+  @recording.setter
+  def recording( self, aValue ):
+    self._recording = aValue
+    #todo: Create/Kill the recorder?
+
+  @property
+  def gunrate( self ):
+    return self._gunrate
+
+  @gunrate.setter
+  def gunrate( self, aValue ):
+    self._gunrate = aValue
 
   @property
   def optionsfile( self ): return saveload.savename
@@ -280,9 +303,10 @@ class sentrybot(object):
         setit(sentrybot._COMBAT)
 
     #Initialize other sounds here.
-    self._gunsound = sound(sentrybot._gunsfx, 45)
-    self._gunsound.keeploaded = True
-    self._gunsound.load()
+    for i in range(2):
+      self._gunsound[i] = sound(sentrybot._gunsfx, 45)
+      self._gunsound[i].keeploaded = True
+      self._gunsound[i].load()
 
   def _sounddone( self, aSound ):
     '''Callback function when sound file is done playing.'''
@@ -296,6 +320,11 @@ class sentrybot(object):
     p = body.getpart(aIndex)
     return p.rate if p else 0.0
 
+  def partcenter( self, aIndex ):
+    '''Get rate for given part.'''
+    p = body.getpart(aIndex)
+    return p.center if p else 0.0
+
   def partminmax( self, aIndex ):
     '''Get min/max for given part.'''
     p = body.getpart(aIndex)
@@ -306,11 +335,12 @@ class sentrybot(object):
     p = body.getpart(aIndex)
     return p._defminmax if p else (-100.0, 100.0)
 
-  def setpartdata( self, aIndex, aRate, aMinMax ):
-    '''Set the rate and min/max values for given part.'''
+  def setpartdata( self, aIndex, aRate, aTrim, aMinMax ):
+    '''Set the rate, trim and min/max values for given part.'''
     p = body.getpart(aIndex)
     if p:
       p.rate = aRate
+      p.center = aTrim
       p.minmax = aMinMax
 
   def save( self ):
@@ -330,12 +360,27 @@ class sentrybot(object):
     body.initparts(self._pca)
     self._setspeed()
 
+  def _center( self ):
+    self._rotx = 0.0
+    self._roty = 0.0
+
   def brake( self, abTF ):
     '''Brake the legs.'''
     lleg = body.getpart(body._LLEG)
     rleg = body.getpart(body._RLEG)
     lleg.brake(abTF)
     rleg.brake(abTF)
+
+  def _fire( self, abTF ):
+    '''Fire gun by setting motor speed to 100%, stop by setting to 0%.'''
+    p = body.getpart(body._GUN)
+    p.value = p.minmax[abTF]
+    #Turn smoke generator on/off.
+    s = body.getpart(body._SMOKE)
+    s.value = s.minmax[abTF]
+#    print('smoke', s.value)
+    self._gunon = abTF
+    self._guntime = 0.0
 
   def getspeeds( self ):
     '''Get tuple of speeds as comma separated string.'''
@@ -344,7 +389,7 @@ class sentrybot(object):
   def setspeeds( self, aSpeeds ):
     '''Set tuple of speeds from comma separated string.'''
     spds = aSpeeds.split(',')
-    print(spds)
+#    print(spds)
     try:
       sentrybot._speeds = tuple(float(s) for s in spds)
     except Exception as e:
@@ -381,14 +426,34 @@ class sentrybot(object):
 
     return self._controller.getjoy(aIndex) / 255.0
 
-  def togglecombat( self ):
+  def _togglearms( self ):
+    '''Toggle arms servos on/off.'''
+    if self._armson:
+      def turnoff( apart ):
+        part = body.getpart(apart)
+        part.off()
+
+      turnoff(body._RARM_H)
+      turnoff(body._RARM_V)
+      turnoff(body._LARM_H)
+      turnoff(body._LARM_V)
+      self._armson = False
+    else:
+      self._center()
+      self._armson = True
+
+  def _togglecombat( self ):
     '''Toggle combat stance.'''
 
     self._stance = 1 - self._stance
+    p = body.getpart(body._MISSILES)
     if self._stance == sentrybot._COMBAT:
+#      s = soundchain((sentrybot._combatsfx, 'engaging'), sentrybot._MACHINEGROUP)
       s = sound(sentrybot._combatsfx, sentrybot._MACHINEGROUP)
       s.play()
+      p.value = p.minmax[1]
     else:
+      p.value = 0.0
       s = soundchain(('sys/six',
                       'sys/five',
                       'sys/four',
@@ -422,31 +487,61 @@ class sentrybot(object):
         self._hy += 1.0
       elif aButton == ecodes.BTN_TR2:
         self._hy -= 1.0
-      elif aButton == ecodes.BTN_START or aButton == ecodes.BTN_SELECT:
-        chk = ecodes.BTN_SELECT if aButton == ecodes.BTN_START else ecodes.BTN_START
-        if chk in self._buttonpressed:
-          self._nextspeed()
+      elif aButton == ecodes.BTN_B:
+#        print('fire')
+        self._fire(True)
+      else: #We now check for button combos.
+        processed = False #When set to true we processed the button event so stop checking for other button combos.
+        if aButton == ecodes.BTN_START or aButton == ecodes.BTN_SELECT:
+          chk = ecodes.BTN_SELECT if aButton == ecodes.BTN_START else ecodes.BTN_START
+          if chk in self._buttonpressed:
+#            print('SELECT + START')
+            self._nextspeed()
 
-          #Remove these buttons from pressed list so we don't play sound on release.
-          self._buttonpressed.remove(chk)
-          self._buttonpressed.remove(aButton)
-      elif aButton == ecodes.BTN_TL or aButton == ecodes.BTN_TR:
-        chk = ecodes.BTN_TL if aButton == ecodes.BTN_TR else ecodes.BTN_TR
-        if chk in self._buttonpressed:
-          self.togglecombat()
-          self._buttonpressed.remove(chk)
-          self._buttonpressed.remove(aButton)
-
+            #Remove these buttons from pressed list so we don't play sound on release.
+            self._buttonpressed.remove(chk)
+            self._buttonpressed.remove(aButton)
+            processed = True
+        if not processed and (aButton == ecodes.BTN_TL or aButton == ecodes.BTN_TR):
+          chk = ecodes.BTN_TL if aButton == ecodes.BTN_TR else ecodes.BTN_TR
+          if chk in self._buttonpressed:
+#            print('TL + TR')
+            self._togglecombat()
+            self._buttonpressed.remove(chk)
+            self._buttonpressed.remove(aButton)
+            processed = True
+        if not processed and (aButton == ecodes.BTN_Y or aButton == ecodes.BTN_A):
+          chk = ecodes.BTN_Y if aButton == ecodes.BTN_A else ecodes.BTN_A
+          if chk in self._buttonpressed:
+#            print('Y + A')
+            self._center()
+            self._buttonpressed.remove(chk)
+            self._buttonpressed.remove(aButton)
+            processed = True
+        if (aButton == gamepad.BTN_DPADL or aButton == ecodes.BTN_A):
+          chk = gamepad.BTN_DPADL if aButton == ecodes.BTN_A else ecodes.BTN_A
+          if chk in self._buttonpressed:
+#            print('DPADL + A')
+            self._togglearms()
+            processed = True
+      #todo: Check for dpadl, A, L_SH and R_SH for animation toggle.
     elif aButton == gamepad.GAMEPAD_DISCONNECT:
       body.off()
       print('Disconnected controller!')
     else: #Handle release events.
+      if self.recording:
+        #todo: send action to animation recorder.
+        pass
+
       if aButton == ecodes.BTN_THUMBL:
         self.brake(False)
       elif aButton == ecodes.BTN_TL2:
         self._hy -= 1.0
       elif aButton == ecodes.BTN_TR2:
         self._hy += 1.0
+      elif aButton == ecodes.BTN_B:
+#        print('stopfire')
+        self._fire(False)
       else:
         #If we recorded a button press and it wasn't consumed, then play sound on release.
         if aButton in self._buttonpressed:
@@ -464,7 +559,6 @@ class sentrybot(object):
     aX = min(max(self._armx[0], aX), self._armx[1])
     aY = min(max(self._army[0], aY), self._army[1])
     return (aX, aY)
-
 
   def _updateparts( self, aDelta ):
     '''Update all servos based on joystick input'''
@@ -512,29 +606,28 @@ class sentrybot(object):
     hh = body.getpart(body._HEAD_H)
     hh.value = -self._rotx / 4.0
     hv = body.getpart(body._HEAD_V)
-    hv.value = -self._roty
+    hv.value = self._roty
 
-    rarmh = body.getpart(body._RARM_H)
-    rarmv = body.getpart(body._RARM_V)
-    larmh = body.getpart(body._LARM_H)
-    larmv = body.getpart(body._LARM_V)
+    #Only update arms if they are on.  We can turn them off to keep them from overheating.
+    if self._armson:
+      rarmh = body.getpart(body._RARM_H)
+      rarmv = body.getpart(body._RARM_V)
+      larmh = body.getpart(body._LARM_H)
+      larmv = body.getpart(body._LARM_V)
 
-#    clampedxy = self.clamparms(self._rotx, self._roty)
+#     clampedxy = self.clamparms(self._rotx, self._roty)
 
-    #todo: Add arm twist.
-    #Rotate x,y by angle and apply to arms.
-    armx, army = angle.rotate((self._rotx, self._roty), self._cossinl)
-    larmh.value = armx
-    larmv.value = army
+      #Rotate x,y by angle and apply to arms.
+      armx, army = angle.rotate((self._rotx, self._roty), self._cossinl)
+      larmh.value = armx
+      larmv.value = army
 
-#    clampedxy = self.clamparms(self._rotx, -self._roty)
+#     clampedxy = self.clamparms(self._rotx, -self._roty)
 
-    #Note, to invert the right arm use _cossinr.
-    armx, army = angle.rotate((self._rotx, -self._roty), self._cossinr)
-    rarmh.value = armx
-    rarmv.value = army
-
-    #todo: Update gun servo based on a button input.
+      #Note, to invert the right arm use _cossinr.
+      armx, army = angle.rotate((self._rotx, -self._roty), self._cossinr)
+      rarmh.value = armx
+      rarmv.value = army
 
     lleg = body.getpart(body._LLEG)
     rleg = body.getpart(body._RLEG)
@@ -545,10 +638,17 @@ class sentrybot(object):
     lleg.update(aDelta)
     rleg.update(aDelta)
 
-    self._gunbutton.update()
-    if self._gunbutton.pressed:
-      self._gunsound.stop()                     #Make sure sound is stopped so we can play it again.
-      self._gunsound.play()
+#    self._gunbutton.update()
+#    if self._gunbutton.pressed:
+#      self._gunindex = 1 - self._gunindex
+#      self._gunsound[self._gunindex].stop()     #Make sure sound is stopped so we can play it again.
+#      self._gunsound[self._gunindex].play()
+
+    g = body.getpart(body._GUN)
+    g.update(aDelta)
+
+#    m = body.getpart(body._MISSILES)
+#    m.update(aDelta)
 
   def run( self ):
     '''Main loop to run the robot.'''
@@ -567,7 +667,7 @@ class sentrybot(object):
       self._initcontroller()
 
       prevtime = perf_counter()
-      self._pca.set(sentrybot._headlightindex, 100)
+      self._pca.set(sentrybot._headlightindex, 550) #550% = 2.2v.
 
       while self.running:
         if self._haskeyboard and keyboard.is_pressed('q'):
@@ -584,6 +684,15 @@ class sentrybot(object):
           if self._controller:
             self._controller.update()
           self._updateparts(delta)
+
+          if self._gunon:
+            self._guntime -= delta
+            if self._guntime <= 0.0:
+              self._gunindex = 1 - self._gunindex
+              self._gunsound[self._gunindex].stop()                     #Make sure sound is stopped so we can play it again.
+              self._gunsound[self._gunindex].play()
+              self._guntime = self._gunrate
+
           EventLoop.idle()                      #Update kivy event listener
 
           #Get how much time has passed since beginning of frame and subtract
@@ -594,9 +703,9 @@ class sentrybot(object):
             sleep(sleeptime)
 
     except Exception as e:
-      body.off()                                #Make sure motors and servos are off.
       c = sound('sys/corrupt')                  #Play corruption audio.
       c.play()
+      body.off()                                #Make sure motors and servos are off.
       print("Error!")
       raise e
 
