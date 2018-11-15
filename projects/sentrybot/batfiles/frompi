@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ "$1" != "" ] && [ "$2" != "" ]; then
+  echo "scp -r pi@192.168.2.$1:$2 $3"
+  scp -r pi@192.168.2.$1:$2 $3
+else
+  echo "copy source file from raspi."
+  echo "usage: frompi pi# source dest"
+fi
+
+

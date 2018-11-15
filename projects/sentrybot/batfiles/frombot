@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ "$1" != "" ]; then
+  echo "scp -r pi@192.168.5.1:$1 $2"
+  scp -r pi@192.168.5.1:$1 $2
+else
+  echo "copy source file from sentrybot."
+  echo "usage: frombot source dest"
+fi
+
+
