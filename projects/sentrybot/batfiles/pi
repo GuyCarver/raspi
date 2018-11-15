@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ "$1" != "" ]; then
+  echo "ssh pi@192.168.2.$1"
+  ssh pi@192.168.2.$1
+else
+  echo "open ssh link to raspi."
+  echo "usage: pi [#]"
+fi
+
+

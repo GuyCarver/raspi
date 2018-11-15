@@ -1,0 +1,1 @@
+These go into /usr/local/bin and should be marked as executable.

@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ "$1" != "" ]; then
+  echo "scp -r $2 pi@192.168.2.63:$1"
+  scp -r $2 pi@192.168.2.63:$1
+else
+  echo "copy source file to destination raspi 3."
+  echo "usage: topi3 dest source"
+fi
+
+
