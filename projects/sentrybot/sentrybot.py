@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#11/10/2018 11:10 AM
+#11/15/2018 11:37 PM
 
 from pca9865 import *
 from quicrun import *
@@ -15,7 +15,7 @@ import body
 import saveload
 import ps2con
 import legs
-#import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 
 from threading import Thread #,Lock
 from time import perf_counter, sleep
@@ -25,6 +25,9 @@ gpioinit() #Initialize the GPIO system so we may use the pins for I/O.
 
 def deadzone( aValue, aLimit ):
   return aValue if abs(aValue) >= 0.01 else 0.0
+
+_dtime = .03
+_startupswitch = button(26)
 
 #------------------------------------------------------------------------
 class sentrybot(object):
@@ -83,6 +86,7 @@ class sentrybot(object):
   _combatsfx = 'sys/equipcombat'
   _speedsounds = ('sys/one', 'sys/two', 'sys/three', 'sys/four', 'sys/five', 'sys/six')
   _headlightindex = 14                          #Servo controller index for head LED.
+  _SMOKEPIN = 20
 #  _laser = 12
 #  _GUNBUTTON = 26                               #GPIO # for button pin.
 
@@ -115,6 +119,7 @@ class sentrybot(object):
 #Put these in to turn on the head laser.
 #    GPIO.setup(sentrybot._laser, GPIO.OUT)
 #    GPIO.output(sentrybot._laser, GPIO.HIGH)
+    GPIO.setup(sentrybot._SMOKEPIN, GPIO.OUT)
 
     self.load()                                 #load settings json
 
@@ -128,6 +133,17 @@ class sentrybot(object):
     self._running = True
 
     sound.start()                               #Start the sound event listener
+    self._idle = sound('idle', 20)
+    self._idle.loop = True
+    self._idle.volume = 0.05
+    self._idle.keeploaded = True
+    self._idle.load()
+
+    self._torsosound = sound('torso2', 9)
+    self._torsosound.volume = 0.1
+    self._torsosound.keeploaded = True
+    self._torsosound.load()
+    self._torsodir = 0.0
 
     #Start settings server, 2nd param True if testing html page.
     self._settingsthread = Thread(target=lambda: settings.run(self, True))
@@ -315,6 +331,16 @@ class sentrybot(object):
 #    print('Done:', aSound.source)
     pass
 
+  def checktorso( self, x ):
+    '''  '''
+    if x != 0.0:
+      rx = self._torsodir * x
+      if rx < 0.0 or self._torsodir == 0.0:
+        self._torsosound.stop()
+        self._torsosound.play()
+
+    self._torsodir = x
+
   def partrate( self, aIndex ):
     '''Get rate for given part.'''
     p = body.getpart(aIndex)
@@ -376,9 +402,7 @@ class sentrybot(object):
     p = body.getpart(body._GUN)
     p.value = p.minmax[abTF]
     #Turn smoke generator on/off.
-    s = body.getpart(body._SMOKE)
-    s.value = s.minmax[abTF]
-#    print('smoke', s.value)
+    GPIO.output(sentrybot._SMOKEPIN, GPIO.HIGH if abTF else GPIO.LOW)
     self._gunon = abTF
     self._guntime = 0.0
 
@@ -567,6 +591,9 @@ class sentrybot(object):
     ry = self._joy(gamepad._RY)
 
     rx = deadzone(rx, 0.01)
+
+    self.checktorso(rx)
+
     ry = deadzone(ry, 0.01)
 
     lx = self._joy(gamepad._LX)
@@ -602,9 +629,11 @@ class sentrybot(object):
     #todo: Figure out how to disperse right stick movement into torso, head and arms.
 
     t = body.getpart(body._TORSO)
-    t.value = self._rotx / 8.0
+    v = self._rotx / 8.0
+    t.value = v
     hh = body.getpart(body._HEAD_H)
-    hh.value = -self._rotx / 4.0
+    v =-self._rotx / 4.0
+    hh.value = v
     hv = body.getpart(body._HEAD_V)
     hv.value = self._roty
 
@@ -622,12 +651,18 @@ class sentrybot(object):
       larmh.value = armx
       larmv.value = army
 
+      larmh.update(aDelta)
+      larmv.update(aDelta)
+
 #     clampedxy = self.clamparms(self._rotx, -self._roty)
 
       #Note, to invert the right arm use _cossinr.
       armx, army = angle.rotate((self._rotx, -self._roty), self._cossinr)
       rarmh.value = armx
       rarmv.value = army
+
+      rarmh.update(aDelta)
+      rarmv.update(aDelta)
 
     lleg = body.getpart(body._LLEG)
     rleg = body.getpart(body._RLEG)
@@ -647,8 +682,17 @@ class sentrybot(object):
     g = body.getpart(body._GUN)
     g.update(aDelta)
 
-#    m = body.getpart(body._MISSILES)
-#    m.update(aDelta)
+    #Now play gun sound if gun is on.
+    if self._gunon:
+      self._guntime -= aDelta
+      if self._guntime <= 0.0:
+        self._gunindex = 1 - self._gunindex
+        self._gunsound[self._gunindex].stop()                     #Make sure sound is stopped so we can play it again.
+        self._gunsound[self._gunindex].play()
+        self._guntime = self._gunrate
+
+    m = body.getpart(body._MISSILES)
+    m.update(aDelta)
 
   def run( self ):
     '''Main loop to run the robot.'''
@@ -656,7 +700,11 @@ class sentrybot(object):
     startsfx.play()
 
     if self.startupsound != None:
-      Clock.schedule_once(lambda x: self.startupsound.play(), 2.0)
+      def doit():
+        self.startupsound.play()
+#        self._idle.play()
+
+      Clock.schedule_once(lambda x: doit(), 2.0)
 
     try:
       self._settingsthread.start()
@@ -677,40 +725,38 @@ class sentrybot(object):
           nexttime = perf_counter()
           delta = max(0.001, nexttime - prevtime)
           prevtime = nexttime
-          if delta > 0.03:
+          if delta > _dtime:
 #            print("Clamping delta: ", delta)
-            delta = 0.03
+            delta = _dtime
 
           if self._controller:
             self._controller.update()
-          self._updateparts(delta)
 
-          if self._gunon:
-            self._guntime -= delta
-            if self._guntime <= 0.0:
-              self._gunindex = 1 - self._gunindex
-              self._gunsound[self._gunindex].stop()                     #Make sure sound is stopped so we can play it again.
-              self._gunsound[self._gunindex].play()
-              self._guntime = self._gunrate
+          self._updateparts(delta)
 
           EventLoop.idle()                      #Update kivy event listener
 
           #Get how much time has passed since beginning of frame and subtract
           # that from the sleep time.
           nexttime = perf_counter()
-          sleeptime = 0.03 - nexttime - prevtime  #30fps - time we've already wasted.
+          sleeptime = _dtime - nexttime - prevtime  #30fps - time we've already wasted.
           if sleeptime > 0.0:
             sleep(sleeptime)
 
     except Exception as e:
       c = sound('sys/corrupt')                  #Play corruption audio.
       c.play()
-      body.off()                                #Make sure motors and servos are off.
       print("Error!")
       raise e
+    finally:
+      body.off()                                #Make sure motors and servos are off.
+      self._idle.stop()
 
 #------------------------------------------------------------------------
 if __name__ == '__main__':
-  sentry = sentrybot()
-  sentry.run()
+  _startupswitch.update()
+  #If the startup button is on then start up.
+  if len(sys.argv) > 1 or _startupswitch.on:
+    sentry = sentrybot()
+    sentry.run()
 

@@ -25,7 +25,7 @@ class pca9865(object):
 
   _DEFAULTFREQ = 100
   _MINPULSE = 120
-  _MAXPULSE = 600
+  _MAXPULSE = 868
 
   def __init__( self, aFreq = 60, aLoc = 1 ):
     '''aLoc = 1 by default and should only be 0 if on older model cards.'''

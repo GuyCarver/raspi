@@ -14,13 +14,14 @@ class part(object):
     self._pca = aPCA
     self._index = aIndex
     self._name = aName
-    self._value = 0.0
-    self._rate = 0.0                              #Rate of interpolation between _value and _target value.
-                                                  #This is in units/second.  IE: 180 is 180 degrees a second.
+    self._value = -1.0
+    self._currentValue = 0.0                    #The actual value that may vary from value if rate > 0.
+    self._rate = 0.0                            #Rate of interpolation between _value and _target value.
+                                                #This is in units/second.  IE: 180 is 180 degrees a second.
     self._minmax = self._defminmax
     self._center = 0.0
-    self.value = 0.0                              #Set real value and write servo.
-    self.scale = 1.0                              #Scale value
+    self.value = 0.0                            #Set real value and write servo.
+    self.scale = 1.0                            #Scale value
 
   @property
   def index( self ): return self._index
@@ -40,12 +41,18 @@ class part(object):
   def value( self ):
     return self._value
 
+  @property
+  def currentValue( self ):
+    return self._currentValue
+
   @value.setter
   def value( self, aValue ):
     aValue = min(max(aValue, self._minmax[0] - self._center), self._minmax[1] - self._center)
     if aValue != self._value:
       self._value = aValue
-      self.setservo()
+      if self._rate <= 0.0:
+        self._currentValue = aValue
+        self.setservo()
 
   @property
   def minmax( self ):
@@ -83,12 +90,20 @@ class part(object):
 
   def update( self, aDelta ):
     '''Update speed towards target given delta time in seconds.'''
-    if self._rate > 0.0:
-      if aDelta != 0.0:
-        diff = self.rate * aDelta
-        self.value = self.value + diff
-    else:
-      self.value = self.value
+    if self._rate > 0.0 and aDelta > 0.0:
+      diff = self._value - self._currentValue
+      if abs(diff) > 0.01:
+        if diff < 0.0:
+          mm = max
+          d = -aDelta
+        else:
+          mm = min
+          d = aDelta
+
+        diff = mm(self._rate * d, diff)
+        newvalue = self._currentValue + diff
+        self._currentValue = mm(newvalue, self._value)
+        self.setservo()
 
 #------------------------------------------------------------------------
 class anglepart(part):
@@ -100,7 +115,7 @@ class anglepart(part):
 
   def setservo( self ):
     '''Set the servo to current angle.'''
-    self._pca.setangle(self._index, int(self._value + self._center))
+    self._pca.setangle(self._index, int(self._currentValue + self._center))
 
 #------------------------------------------------------------------------
 class speedpart(part):
@@ -112,7 +127,7 @@ class speedpart(part):
 
   def setservo( self ):
     '''Set the servo to current speed.'''
-    v = int(self._value + self._center)
+    v = int(self._currentValue + self._center)
 #    print('setting', v)
     self._pca.set(self._index, v)
 
@@ -233,44 +248,24 @@ def test(  ):
 
   p = pca9865(100)
   sleep(2.0)
-#  a = anglepart(p, 3, 'test')
-#  a.rate = 180.0
-#  mn, mx = a.minmax
-#  a.value = mn
-#
-#  def waitforit( part, aDir, aTarget ):
-#    while(part.value != aTarget):
-#      sleep(0.01)
-#      part.update(0.01 * aDir)
-#
-#  waitforit(a, 1.0, mx)
-#  waitforit(a, -1.0, mn)
-#
-#  a.off()
-#
-  s = anglepart(p, 8, 'torso')
-  s.minmax = (-40.0, 10.0)
-#  s.rate = 10.0
-  mn, mx = s.minmax
-  s.value = 0.0
-#  s.update(0.0)
-  sleep(3.0)
-  s.value = -20.0
-#  s.update(0.0)
-  sleep(2.0)
-  s.value = -40.0
-#  s.update(0.0)
-  sleep(6.0)
-  s.value = 10.0
-#  s.update(0.0)
-  sleep(3.0)
+  a = anglepart(p, 5, 'test')
+  a.minmax = 90.0
+  a.rate = 90.0
+  mn, mx = a.minmax
 
-#  waitforit(s, 1.0, mx)
-#  waitforit(s, -1.0, mn)
-  s.off()
+  def waitforit( part, aDir, aTarget ):
+    a.value = aTarget
+    while(part.currentValue != aTarget):
+      print(part.currentValue, aTarget)
+      sleep(0.01)
+      part.update(0.01 * aDir)
+
+  waitforit(a, 1.0, mx)
+  waitforit(a, 1.0, mn)
+
+  a.off()
+
   print('done')
-
-
 
 #------------------------------------------------------------------------
 if __name__ == '__main__': #Run tests.
