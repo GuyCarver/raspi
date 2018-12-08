@@ -50,7 +50,7 @@ class sound(object):
     if not aGroup in sound._playinggroups:
       sound._playinggroups[aGroup] = None
 
-    fname = sound._DIR + aFile + '.mp3'
+    fname = sound._DIR + aFile + '.ogg'
     #Create the sound object. This does not actually load the sound data.
     self._sound = audio.SoundLoader.load(fname)
 
@@ -163,6 +163,10 @@ class sound(object):
       s.stop()                                  #Stop sound.
       self._playinggroups[g] = None             #Clear now rather than wait for stop event.
 
+  @classmethod
+  def groupplaying( self, aGroup ):
+    return self._playinggroups[aGroup]
+
   def stopping( self ):
     '''Callback function called by the Kivy event system when a sound stops playing.'''
 
@@ -234,11 +238,11 @@ if __name__ == '__main__':
   from kivy.clock import Clock
   running = True
 #  Device A0:E9:DB:10:37:09 Inateck BP1001
-  id = 'A0:E9:DB:10:37:09'
-  bl = Bluetoothctl()
-  res = bl.connect(id)
-  if res != True:
-    print("BT connect failed!")
+#  id = 'A0:E9:DB:10:37:09'
+#  bl = Bluetoothctl()
+#  res = bl.connect(id)
+#  if res != True:
+#    print("BT connect failed!")
 
   def MyStop( aSound ):
     '''  '''

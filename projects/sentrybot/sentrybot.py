@@ -29,6 +29,12 @@ def deadzone( aValue, aLimit ):
 _dtime = .03
 _startupswitch = button(26)
 
+#Sound Channels
+#0 = idle
+#1 = voices
+#2 = body
+#3 = gun
+
 #------------------------------------------------------------------------
 class sentrybot(object):
 
@@ -133,17 +139,19 @@ class sentrybot(object):
     self._running = True
 
     sound.start()                               #Start the sound event listener
-    self._idle = sound('idle', 20)
+    self._idle = sound('idle', 0)
     self._idle.loop = True
     self._idle.volume = 0.05
     self._idle.keeploaded = True
     self._idle.load()
 
-    self._torsosound = sound('torso2', 9)
+    self._torsosound = sound('torso2', 2)
     self._torsosound.volume = 0.1
     self._torsosound.keeploaded = True
     self._torsosound.load()
     self._torsodir = 0.0
+
+    self._smokes = body.speedpart(self._pca, 13, 'smoke')
 
     #Start settings server, 2nd param True if testing html page.
     self._settingsthread = Thread(target=lambda: settings.run(self, True))
@@ -320,7 +328,7 @@ class sentrybot(object):
 
     #Initialize other sounds here.
     for i in range(2):
-      self._gunsound[i] = sound(sentrybot._gunsfx, 45)
+      self._gunsound[i] = sound(sentrybot._gunsfx, 3)
       self._gunsound[i].keeploaded = True
       self._gunsound[i].load()
 
@@ -336,8 +344,10 @@ class sentrybot(object):
     if x != 0.0:
       rx = self._torsodir * x
       if rx < 0.0 or self._torsodir == 0.0:
-        self._torsosound.stop()
-        self._torsosound.play()
+        s = sound.groupplaying(self._torsosound.group)
+        if s == None or s == self._torsosound:
+          self._torsosound.stop()
+          self._torsosound.play()
 
     self._torsodir = x
 
@@ -405,6 +415,7 @@ class sentrybot(object):
     GPIO.output(sentrybot._SMOKEPIN, GPIO.HIGH if abTF else GPIO.LOW)
     self._gunon = abTF
     self._guntime = 0.0
+    self._smokes.value = 50.0 if abTF else 0.0
 
   def getspeeds( self ):
     '''Get tuple of speeds as comma separated string.'''
@@ -571,6 +582,7 @@ class sentrybot(object):
         if aButton in self._buttonpressed:
           s = self.getsound(aButton)
           if s != None:
+            self._torsosound.stop()
             s.play()
 #            print('playing', s.source)
 
@@ -756,7 +768,7 @@ class sentrybot(object):
 if __name__ == '__main__':
   _startupswitch.update()
   #If the startup button is on then start up.
-  if len(sys.argv) > 1 or _startupswitch.on:
+  if len(sys.argv) > 1 or (not _startupswitch.on):
     sentry = sentrybot()
     sentry.run()
 
