@@ -38,28 +38,28 @@ _startupswitch = button(26)
 #------------------------------------------------------------------------
 class sentrybot(object):
 
-  _PEACE, _COMBAT, _SND1, _SND2 = range(4)
+  _PEACE, _COMBAT = range(2)
 
   #map of button to sound object.  This is loaded from a json file.
   #1st sound is for peacful stance, 2nd is combat stance.
   _buttonsounds = {
-    ecodes.BTN_A : [None, None, None, None],
-    ecodes.BTN_B : [None, None, None, None],
-    ecodes.BTN_C : [None, None, None, None],
-    ecodes.BTN_X : [None, None, None, None],
-    ecodes.BTN_Y : [None, None, None, None],
-    ecodes.BTN_SELECT : [None, None, None, None],
-    ecodes.BTN_START : [None, None, None, None],
-    ecodes.BTN_TL2 : [None, None, None, None],
-    ecodes.BTN_TR2 : [None, None, None, None],
-    ecodes.BTN_TL : [None, None, None, None],
-    ecodes.BTN_TR : [None, None, None, None],
-    ecodes.BTN_THUMBL : [None, None, None, None],
-    ecodes.BTN_THUMBR : [None, None, None, None],
-    gamepad.BTN_DPADU : [None, None, None, None],
-    gamepad.BTN_DPADR : [None, None, None, None],
-    gamepad.BTN_DPADD : [None, None, None, None],
-    gamepad.BTN_DPADL : [None, None, None, None]
+    ecodes.BTN_A : [None, None],
+    ecodes.BTN_B : [None, None],
+    ecodes.BTN_C : [None, None],
+    ecodes.BTN_X : [None, None],
+    ecodes.BTN_Y : [None, None],
+    ecodes.BTN_SELECT : [None, None],
+    ecodes.BTN_START : [None, None],
+    ecodes.BTN_TL2 : [None, None],
+    ecodes.BTN_TR2 : [None, None],
+    ecodes.BTN_TL : [None, None],
+    ecodes.BTN_TR : [None, None],
+    ecodes.BTN_THUMBL : [None, None],
+    ecodes.BTN_THUMBR : [None, None],
+    gamepad.BTN_DPADU : [None, None],
+    gamepad.BTN_DPADR : [None, None],
+    gamepad.BTN_DPADD : [None, None],
+    gamepad.BTN_DPADL : [None, None]
   }
 
   #map of ps2 cotnroller buttons to 8Bitdo FC30 Pro retro controller buttons.
@@ -321,8 +321,6 @@ class sentrybot(object):
       if b >= 0:
         setit(sentrybot._PEACE)
         setit(sentrybot._COMBAT)
-        setit(sentrybot._SND1)
-        setit(sentrybot._SND2)
 
     #Initialize other sounds here.
     for i in range(2):
@@ -469,7 +467,7 @@ class sentrybot(object):
   def _togglecombat( self ):
     '''Toggle combat stance.'''
 
-    self._stance = sentrybot._PEACE if self._stance != sentrybot._PEACE else sentrybot._COMBAT
+    self._stance = 1 - self._stance
     p = body.getpart(body._MISSILES)
     if self._stance == sentrybot._COMBAT:
 #      s = soundchain((sentrybot._combatsfx, 'engaging'), sentrybot._MACHINEGROUP)
@@ -500,9 +498,9 @@ class sentrybot(object):
     #If button pressed
     if aValue & 0x01:
       self._buttonpressed.add(aButton)
-#      if aButton == ecodes.BTN_THUMBL:
-#        self.brake(True)
-#        self._buttonpressed.remove(aButton)
+      if aButton == ecodes.BTN_THUMBL:
+        self.brake(True)
+        self._buttonpressed.remove(aButton)
       if aButton == ecodes.BTN_TL2:
         self._hy += 1.0
       elif aButton == ecodes.BTN_TR2:
@@ -553,23 +551,15 @@ class sentrybot(object):
         #todo: send action to animation recorder.
         pass
 
-#      if aButton == ecodes.BTN_THUMBL:
-#        self.brake(False)
-      if aButton == ecodes.BTN_TL2:
+      if aButton == ecodes.BTN_THUMBL:
+        self.brake(False)
+      elif aButton == ecodes.BTN_TL2:
         self._hy -= 1.0
       elif aButton == ecodes.BTN_TR2:
         self._hy += 1.0
       elif aButton == ecodes.BTN_B:
 #        print('stopfire')
         self._fire(False)
-      elif aButton == ecodes.BTN_SELECT:
-        self.stance = sentrybot._PEACE
-      elif aButton == ecodes.BTN_START:
-        self.stance = sentrybot._COMBAT
-      elif aButton == ecodes.BTN_THUMBL:
-        self.stance = sentrybot._SND1
-      elif aButton == ecodes.BTN_THUMBR:
-        self.stance = sentrybot._SND2
       else:
         #If we recorded a button press and it wasn't consumed, then play sound on release.
         if aButton in self._buttonpressed:
@@ -744,7 +734,7 @@ class sentrybot(object):
           #Get how much time has passed since beginning of frame and subtract
           # that from the sleep time.
           nexttime = perf_counter()
-          sleeptime = _dtime - (nexttime - prevtime)  #30fps - time we've already wasted.
+          sleeptime = _dtime - nexttime - prevtime  #30fps - time we've already wasted.
           if sleeptime > 0.0:
             sleep(sleeptime)
 

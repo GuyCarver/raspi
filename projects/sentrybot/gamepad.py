@@ -191,8 +191,10 @@ class gamepad(object):
       devs = bl.availabledevices(gamepad._NAME)
       #If found at least 1, then pair with 1st one.
       if len(devs):
+        print(len(devs), 'available devices.')
         mad = devs[0]['mac_address']
         if bl.pair(mad):
+          print('Paired with:', mad)
           paired = True
           self.macaddress = mad
           break
@@ -200,10 +202,15 @@ class gamepad(object):
 
     #If pairing failed, attempt to connect to already paired device.
     if not paired:
+      print('Pair failed.')
       devs = bl.paireddevices(gamepad._NAME)
       if len(devs):
+        print(len(devs), 'paired devices')
         self.macaddress = devs[0]['mac_address']
+        print('Connected to', self.macaddress)
         paired = True
+      else:
+        print('Not connected.')
 
     return paired
 
