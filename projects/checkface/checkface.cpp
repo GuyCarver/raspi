@@ -46,6 +46,7 @@
 static PyObject *Create( PyObject *apSelf, PyObject *apArgs );
 static PyObject *Ok( PyObject *apSelf, PyObject *apArg );
 static PyObject *CheckFace( PyObject *apSelf, PyObject *apArg );
+static PyObject *FindFaces( PyObject *apSelf, PyObject *apArg );
 static PyObject *SetProp( PyObject *apSelf, PyObject *apArgs );
 static PyObject *GetProp( PyObject *apSelf, PyObject *apArgs );
 static PyObject *SetHorizontalFlip( PyObject *apSelf, PyObject *apArgs );
@@ -72,6 +73,7 @@ static PyMethodDef module_methods[] = {
 	{"Create", Create, METH_VARARGS, "Create a CheckFaceCamera object and return it in a PyCapsules object."},
 	{"Ok", Ok, METH_O, "(CheckFaceCamera).\nReturn True if camera is ok."},
 	{"Check", CheckFace, METH_O, "(CheckFaceCamera).\nTake a still from camera module with RaspiCam and detect faces using OpenCV."},
+	{"FindFaces", FindFaces, METH_O, "(CheckFaceCamera).\nTake a still from camera module with RaspiCam and return array of face rectangles using OpenCV."},
 	{"SetProp", SetProp, METH_VARARGS, "(CheckFaceCamera, prop, value).\nSet CV_CAP_PROP_??? value."},
 	{"GetProp", GetProp, METH_VARARGS, "Value (CheckFaceCamera, prop).\nGet CV_CAP_PROP_??? value."},
 	{"SetHorizontalFlip", SetHorizontalFlip, METH_VARARGS, "(CheckFaceCamera, value).\nSet camera horizontal flip."},
@@ -239,6 +241,96 @@ public:
 		return bres;
 	}
 
+	///
+	///<summary> Grab a frame from the camera and find all faces. Return an array of the rectangles.
+	///
+	PyObject *FindFaces(  )
+	{
+		PyObject *pres = nullptr;
+
+		if (QOk()) {
+			cv::Mat image;
+
+			try {
+				Camera.grab();
+				Camera.retrieve(image);
+			}
+			catch(...) {
+				PyErr_SetString(PyExc_RuntimeError, "Camera frame grab error.");
+			}
+
+			cv::Mat smallImg;
+			cv::Mat grayImg;
+
+			try {
+				if (Scale < 1.0) {
+					//Resize image for smaller face check so it's quicker.
+					cv::resize(image, smallImg, cv::Size(), Scale, Scale, cv::INTER_LINEAR);
+				}
+				else {
+					smallImg = image.clone();
+				}
+				cv::cvtColor(smallImg, grayImg, cv::COLOR_BGR2GRAY);
+				cv::equalizeHist(grayImg, grayImg);
+			}
+			catch(...) {
+				PyErr_SetString(PyExc_RuntimeError, "opencv image resize error.");
+			}
+
+			std::vector<cv::Rect> faces;
+			HeadCascade.detectMultiScale(grayImg, faces, 1.1, 2, cv::CASCADE_SCALE_IMAGE); //, cv::Size(30, 30));
+
+			if (faces.size() != 0) {
+//				std::cout << "faces: " << faces.size() << std::endl;
+
+				Py_ssize_t size = faces.size();
+				pres = PyList_New(size);
+				if (pres) {
+//					std::cout << "adding rects" << std::endl;
+
+					//Grab the rectangles and put them in result list as tuples.
+					for ( uint32_t i = 0; i < size; ++i) {
+						//Make tuple from r.x, r.y, r.width, r.height.
+//						std::cout << " rect: " << i << std::endl;
+						auto rect = faces[i];
+						auto pentry = PyTuple_New(4);
+						PyTuple_SetItem(pentry, 0, PyLong_FromLong(rect.x));
+						PyTuple_SetItem(pentry, 1, PyLong_FromLong(rect.y));
+						PyTuple_SetItem(pentry, 2, PyLong_FromLong(rect.width));
+						PyTuple_SetItem(pentry, 3, PyLong_FromLong(rect.height));
+						auto setres = PyList_SET_ITEM(pres, i, pentry);
+						if (setres < 0) {
+							Py_DECREF(pentry);
+						}
+					}
+				}
+
+				//If debug display is enabled then show the image with rectanbles drawn around the faces.
+				if (bDisplay || bCapture) {
+					for ( uint32_t i = 0; i < faces.size(); ++i) {
+						cv::Rect r = faces[i];
+						cv::rectangle(grayImg, cv::Point(r.x, r.y),
+							cv::Point((r.x + r.width - 1), (r.y + r.height - 1)),
+							cv::Scalar(255, 255, 255), 3, 8, 0);
+					}
+
+					if (bCapture) {
+						cv::imwrite("facecap.jpg", grayImg);
+						bCapture = false;
+					}
+
+					if (bDisplay) {
+						cv::imshow( "Face Detection", smallImg );
+					}
+				}
+			}
+		}
+		if (pres) {
+			return pres;
+		}
+		Py_RETURN_NONE;
+	}
+
 	bool QOk(  ) const { return bOk; }
 
 	static const char *Name;						//Name used for the PyCapsule object that will wrap this class.
@@ -337,14 +429,29 @@ static PyObject *Ok( PyObject *apSelf , PyObject *apArg )
 static PyObject *CheckFace( PyObject *apSelf , PyObject *apArg )
 {
 	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(apArg, CheckFaceCamera::Name));
+	//Error, so return nullptr.
+	if (!pcheck) {
+		return nullptr;
+	}
+
 	bool bres = pcheck->CheckFace();
+	return PyBool_FromLong(bres);
+}
+
+///
+///<summary> Check for face using the given CheckFaceCamera.</summary>
+/// <returns> true if found or camera isn't ok. </returns>
+///
+static PyObject *FindFaces( PyObject *apSelf , PyObject *apArg )
+{
+	auto pcheck = reinterpret_cast<CheckFaceCamera*>(PyCapsule_GetPointer(apArg, CheckFaceCamera::Name));
 
 	//Error, so return nullptr.
 	if (!pcheck) {
 		return nullptr;
 	}
 
-	return PyBool_FromLong(bres);
+	return pcheck->FindFaces();
 }
 
 ///
