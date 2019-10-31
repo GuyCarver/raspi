@@ -4,12 +4,10 @@
 from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 from string import Template
+import requests
 import time
 import cgi
 import webbrowser
-import woeid
-
-#http://woeid.rosselliot.co.nz/lookup/21774
 
 #todo: Handle time setting. C vs F?, revert from saved data?
 
@@ -86,6 +84,13 @@ HTML = Template('<html><head><style type="text/css">' +
   '<input type="submit" name="SetAlarm" value="Set"><br/>' +
   '<br/><br/><input type="submit" name="Save" value="Save"><br/>' +
   '</form></body></html>')
+
+def zipfromip(  ) :
+  '''Read zip from our IP address.'''
+  response = requests.get('http://ipinfo.io/json')
+  data = json.loads(response.content.decode("utf-8"))
+  postal = data['postal']
+  return postal
 
 class RH(BaseHTTPRequestHandler):
 
@@ -214,7 +219,7 @@ class RH(BaseHTTPRequestHandler):
     #If gps button pressed then get the zipcode from our IP address.
     if g != None:
 #      print('doing gps')
-      zc = woeid.zipfromip()
+      zc = zipfromip()
 
 #    print(zc)
 

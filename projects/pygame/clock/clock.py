@@ -7,64 +7,17 @@ from urllib.request import urlopen
 from json import loads, dump, load
 from threading import Thread
 import settings
-import woeid
+import weather
 from terminalfont import terminalfont
 from buttons import button
 
 #todo: display duration, temp update interval
+# New weather api is at https://weather-ydn-yql.media.yahoo.com/forecastrss.
+# Look into openweathermap.org
+#So far the best looking one is this.
+#https://weather.com/weather/today/l/21774:4:US
+#  look for today_nowcard-temp and today_nowcard-phrase div tags.
 #Add weather icons
-
-#Weather codes
-#Code  Description
-#0 tornado
-#1 tpcl storm
-#2 hurricane
-#3 svr t-storm
-#4 t-storm
-#5 rain/snow
-#6 rain/sleet
-#7 snow/sleet
-#8 frzng drzl
-#9 drizzle
-#10  frzng rain
-#11  showers
-#12  showers
-#13  flurries
-#14  light snow
-#15  blwng snow
-#16  snow
-#17  hail
-#18  sleet
-#19  dust
-#20  foggy
-#21  haze
-#22  smoky
-#23  blustery
-#24  windy
-#25  cold
-#26  cloudy
-#27  mstly cldy
-#28  mstly cldy
-#29  ptly cldy
-#30  ptly cldy
-#31  clear
-#32  sunny
-#33  fair
-#34  fair
-#35  rain/hail
-#36  hot
-#37  istd t-storm
-#38  sctd t-storm
-#39  sctd t-storm
-#40  sctd showers
-#41  heavy snow
-#42  sctd snow
-#43  heavy snow
-#44  ptly cloudy
-#45  t-showers
-#46  snow
-#47  istd t-shwrs
-#3200  not available
 
 class Clock:
 
@@ -109,58 +62,8 @@ class Clock:
 
   defaultalwaysontimes = (7 * 60, 19 * 60) #Times between which the display is always on, and object detection isn't necessary.
 
-  _weathertext = [
-    'tornado',
-    'tpcl storm',
-    'hurricane',
-    'svr t-storm',
-    't-storm',
-    'rain/snow',
-    'rain/sleet',
-    'snow/sleet',
-    'frzng drzzle',
-    'drizzle',
-    'frzng rain',
-    'showers',
-    'showers',
-    'flurries',
-    'light snow',
-    'blwng snow',
-    'snow',
-    'hail',
-    'sleet',
-    'dust',
-    'foggy',
-    'haze',
-    'smoky',
-    'blustery',
-    'windy',
-    'cold',
-    'cloudy',
-    'mstly cldy',
-    'mstly cldy',
-    'prtly cldy',
-    'prtly cldy',
-    'clear',
-    'sunny',
-    'fair',
-    'fair',
-    'rain/hail',
-    'hot',
-    'istd t-storm',
-    'sctd t-storm',
-    'sctd t-storm',
-    'sctd showers',
-    'heavy snow',
-    'sctd snow',
-    'heavy snow',
-    'prtly cldy',
-    't-showers',
-    'snow',
-    'istd t-shwrs',
-  ]
-
   _tabname = ['', 'ALARM', 'ALWAYS ON', 'ALWAYS OFF', 'VARIANCE']
+  _conditionlen = 13                            #Maximum string length for condition.
 
   #Clock defaults.
   defaulttempinterval = 30                      #seconds to wait before tempurature update.
@@ -206,7 +109,6 @@ class Clock:
     self.code = 3200
     self.text = 'Sunny'
     self._color = 0x00FFFF
-    self._url = ''
     self.location = '21774'
     self._running = True
 
@@ -448,13 +350,6 @@ class Clock:
   def location( self, aLoc ):
     '''Set the location zip and setup the querry url for the weather update thread.'''
     self._location = aLoc
-    try:
-      wid = woeid.woeidfromzip(aLoc)
-    except:
-      wid = 2458710 #Set to Frederick MD on error.
-      print('error reading woeid from internet.')
-
-    self._url = 'https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%3D' + str(wid) + '&format=json'
 
   def triggerweatherupdate( self ):
     self._weathertimer = 0.0
@@ -667,20 +562,14 @@ class Clock:
         self.drawtext(p, Clock._tabname[self._tab], True, terminalfont)
 
   def UpdateWeather( self ):
-    '''Update weather by reading the URL
-    "https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%3D' + str(aLoc) + '&format=json'
-    '''
+    '''Update weather by reading it from weather.com.'''
     try:
-      req = urlopen(self._url, None, 2)
-      d = req.read()
-      j = loads(d.decode('utf-8'))
-      cond = j['query']['results']['channel']['item']['condition']
-      self.temp = int(cond['temp'])
-      self.code = int(cond['code'])
-      if self.code < len(Clock._weathertext):
-        Clock._tabname[0] = Clock._weathertext[self.code]
-
-      self.text = cond['text']
+      self.temp, self.text = weather.get(self.location)
+      #Limit the condition string to max length.
+      if len(self.text) > Clock._conditionlen:
+        self.text = self.text[:Clock._conditionlen]
+      Clock._tabname[0] = self.text
+      #todo: clamp text to maximum size.
     except Exception as e:
       print(e)
 
@@ -746,26 +635,8 @@ class Clock:
 
     return 0
 
-  def testconditions( self ):
-    '''  '''
-    self._buttons[Clock.extra1].update()
-    change = False
-    if self._buttons[Clock.extra1].pressed:
-      self.code = (self.code - 1) % len(Clock._weathertext)
-      change = True
-    else:
-      self._buttons[Clock.extra2].update()
-      if self._buttons[Clock.extra2].pressed:
-        self.code = (self.code + 1) % len(Clock._weathertext)
-        change = True
-
-    if change:
-      Clock._tabname[0] = Clock._weathertext[self.code]
-
   def Update( self, dt ):
     '''Run update of face check, time and display state.'''
-
-    self.testconditions()
 
     self.processalarmbutton()
     state = self._buttons[Clock.alarmonoff].update()
