@@ -36,6 +36,10 @@ class anim(object):
     self._start()
 
   @property
+  def key( self ):
+    return self._key
+
+  @property
   def type( self ):
     return self._type
 

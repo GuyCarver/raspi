@@ -21,7 +21,7 @@ _dtime = .03
 class mask(object):
   ''' Run the mask servo, LEDS and camera. '''
 
-  _ledpins = [18, 4, 17, 27]
+  _ledpins = [22, 4, 17, 27]
   LRED, RRED, RGREEN, RBLUE = range(4)          #_ledpins indexes.
   _FREQ = 100.0                                 #PWM frequency for LEDs.
   _LEDMIN = 0.1                                 #Minimum LED value.
@@ -31,13 +31,16 @@ class mask(object):
 
   _EYES = 0                                     #index for servo control 0-15.
   _CENTER = 0.0                                 #Eye center angle.
-  _EYEMIN = -20.0                               #Minimum eye angle.
-  _EYEMAX = 20.0                                #Maximum eye angle.
+  _EYEMIN = -25.0                               #Minimum eye angle.
+  _EYEMAX = 25.0                                #Maximum eye angle.
   _EYERANGE = _EYEMAX - _EYEMIN                 #Total range of eye movement.
   _EYERATE = _EYERANGE / 2.0                    #Units per second to allow eye to change.
   _SWITCHDELAY = 3.0                            #Delay before we try to switch what face we are watching.
+  _SEARCHDELAY = 30.0                           #Delay before we do a look l/r animation.
+  _DOSNAP = False                               #Enable or Disable screen captures.
+  _SNAPDELAY = 5.0                              #Time in seconds between screen captures if enabled.
 
-  _looklr = ((0.0, 0.5), (_EYEMIN, 0.5), (0.0, 0.5), (_EYEMAX, 0.5))
+  _looklr = ((_EYEMIN, 0.5), (0.0, 0.5), (_EYEMAX, 0.5), (0.0, 0.5))
 
 #  _ud1 = ((_LEDMIN, 0.5), (_LEDMAX, 0.5), (0.0, 0.5))
 #  _ud2 = ((_LEDMIN, 0.5), (_LEDMAX, 0.5), (0.0, 0.5))
@@ -60,6 +63,8 @@ class mask(object):
     # voltage whice is 4.5 volts for the servo.
     self._pca = pca9865(100)                    #Servo controller.
     self._camera = checkface.Create()
+    self._snaptime = mask._SNAPDELAY
+
     checkface.SetVerticalFlip(self._camera, True)
 #    checkface.SetScale(self._camera, 0.5)       #A smaller scale speeds up face detection but is less precise.
 
@@ -117,8 +122,8 @@ class mask(object):
       self.eyeson = False
     self._eyestate = self.off
     self.redeyes = 0.0
-    self._switchtime = mask._SWITCHDELAY * 5.0
-    print('off')
+    self._switchtime = mask._SEARCHDELAY
+#    print('\noff', end='')
 
   def off( self, dt ):
     ''' In off state look for faces and if one found exit off state. '''
@@ -135,7 +140,7 @@ class mask(object):
     '''Enter the track state and follow the detected face.'''
     self._switchtime = mask._SWITCHDELAY
     self._eyestate = self.track
-    print('track')
+#    print('\ntrack')
 
   def track( self, dt ):
     #update eyes
@@ -144,6 +149,7 @@ class mask(object):
 
     #If faces found.
     if fs:
+#      print(len(fs))
       self.eyeson = True
       #If our selected eye index is value then follow the face.
       if self._faceindex < len(fs):
@@ -151,11 +157,11 @@ class mask(object):
         fs.sort(key=lambda a: a[0])
         x, y, w, h = fs[self._faceindex]
         center = x + (w // 2)
-        perc = center / 320.0                   #Rectangle is within 0-320
+        perc = center / 360.0                   #Rectangle is within 0-320
         self._pos = (mask._EYERANGE * perc) + mask._EYEMIN
-#        print(self._pos)
+#        print(self._pos, '        ') #, end = '\r')
 
-        self._switchtime = mask._SWITCHDELAY
+#        self._switchtime = mask._SWITCHDELAY
         if w > self._maxwidth:
           self._maxwidth = w
 
@@ -173,16 +179,16 @@ class mask(object):
   def enterswitch( self ):
     ''' Attempt to pick a different face to watch. '''
     self._eyestate = self.switch
-    print('switch')
+#    print('\nswitch', end='')
 
   def switch( self, dt ):
     fs = checkface.FindFaces(self._camera)
     if fs:
       self._faceindex = randint(0, len(fs) - 1)
       #Green = even index, #Blue = odd.
-      i = (self._faceindex & 1) + mask.RGREEN
-      self._anims[i + mask.RGREEN].value = mask._LEDMAX
-      self._anims[(1 - i) + mask.RGREEN].value = mask._LEDMAX
+      i = (self._faceindex & 1)
+      self._anims[i + mask.RGREEN].value = mask._LEDMIN
+      self._anims[(1 - i) + mask.RGREEN].value = 0.0
 #      self._anims[i].restart()
       self.entertrack()
     else:
@@ -192,11 +198,11 @@ class mask(object):
     ''' Center the eyes then turn off. '''
     self.eyeson = True
     self._eyestate = self.center
-    self._switchtime = 1.0                      #Give 1 second to do this.
+    self._switchtime = 3.0                      #Give 1 second to do this.
     self._anims[mask.RGREEN].value = 0.0
     self._anims[mask.RBLUE].value = 0.0
     self._pos = 0.0
-    print('center')
+#    print('\ncenter', end='')
 
   def center( self, dt ):
     ''' Move to center then turn off. '''
@@ -211,19 +217,21 @@ class mask(object):
     self._switchtime = 10.0
     self._eyestate = self.search
     self._eanim.restart()
-    print('search')
+#    print('\nsearch', end='')
 
   def search( self, dt ):
-    '''  '''
+    ''' Perforce search animation (move eyes L/R) '''
     self._eanim.update(dt)
     self._pos = self._eanim.value
     self.redeyes = mask._LEDMIN
     self._anims[mask.RGREEN].value = mask._LEDMIN
     self._anims[mask.RBLUE].value = mask._LEDMIN
 
+    #If we find a face then start tracking it.
     if checkface.Check(self._camera):
       self.enterswitch()
     else:
+      #Loop til time is up or we ran the animation twice.
       self._switchtime -= dt
       if self._switchtime <= 0 or self._eanim.key == 8:
         self.entercenter()
@@ -241,6 +249,12 @@ class mask(object):
         self._curpos = self._pos
     elif self._curpos > self._pos:
       self._curpos = self._pos
+
+    if mask._DOSNAP:
+      self._snaptime -= dt
+      if self._snaptime <= 0.0:
+        self._snaptime = mask._SNAPDELAY
+        checkface.SetCapture(self._camera) #Next check will trigger a screen capture.
 
 #    print(self._curpos)
     self._pca.setangle(mask._EYES, int(self._curpos))
