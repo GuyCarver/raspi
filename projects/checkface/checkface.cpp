@@ -320,7 +320,7 @@ public:
 					}
 
 					if (bDisplay) {
-						cv::imshow( "Face Detection", smallImg );
+						cv::imshow( "Face Detection", grayImg );
 					}
 				}
 			}
