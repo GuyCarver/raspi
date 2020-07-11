@@ -24,7 +24,7 @@ import keyboard
 gpioinit() #Initialize the GPIO system so we may use the pins for I/O.
 
 def deadzone( aValue, aLimit ):
-  return aValue if abs(aValue) >= 0.01 else 0.0
+  return aValue if abs(aValue) >= aLimit else 0.0
 
 _dtime = .03
 _startupswitch = button(26)
@@ -62,7 +62,7 @@ class sentrybot(object):
     gamepad.BTN_DPADL : [None, None, None, None]
   }
 
-  #map of ps2 cotnroller buttons to 8Bitdo FC30 Pro retro controller buttons.
+  #map of ps2 controller buttons to 8Bitdo FC30 Pro retro controller buttons.
   _ps2map = {
     ps2con.CIRCLE : ecodes.BTN_A,
     ps2con.CROSS : ecodes.BTN_B,
