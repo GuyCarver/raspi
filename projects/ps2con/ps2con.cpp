@@ -342,7 +342,7 @@ public:
 
 	static PyObject *Update( ps2con *apSelf ) {
 		apSelf->GetData();
-		Py_RETURN_NONE;
+		Py_RETURN_TRUE;
 	}
 
 	static PyObject *Config( ps2con *apSelf ) {
@@ -480,7 +480,7 @@ extern "C" {
 		{ nullptr, nullptr, 0, nullptr }
 	};
 
-	//List of members ot ps2con.ps2con object.  This is the simplest way to add access to member variables.
+	//List of members of ps2con.ps2con object.  This is the simplest way to add access to member variables.
 	// Next is the getters and setters shown below.  All of these members are read only.
 	static PyMemberDef ps2con_members[] = {
 		{"_cmd", T_INT, Offset(ps2con, _cmd), 1, "Command pin #" },
