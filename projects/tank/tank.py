@@ -51,7 +51,9 @@ class tank(object):
 
   _FC30, _PS2 = range(2)
   _LW, _RW = range(2)  #Left and right wheels.
-  _WHEELPINS = ((0, 7, 11, 1), (1, 13, 15, 1))
+  _WHEELPINS = ((0, 7, 11, 1), (1, 13, 15, 1))  #pca index, fwd pin, reverse pin, direction
+  _TAILLIGHTS = 2
+  _HEADLIGHTS = 3
 
   def __init__( self ):
     ''' '''
@@ -187,3 +189,4 @@ class tank(object):
 if __name__ == '__main__':
   t = tank()
   t.run()
+  GPIO.cleanup()

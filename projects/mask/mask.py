@@ -21,15 +21,13 @@ _dtime = .03
 class mask(object):
   ''' Run the mask servo, LEDS and camera. '''
 
-  _ledpins = [22, 4, 17, 27]
-  LRED, RRED, RGREEN, RBLUE = range(4)          #_ledpins indexes.
+  _EYES, LRED, RRED, RGREEN, RBLUE = range(5)   #_pca indexes.
   _FREQ = 100.0                                 #PWM frequency for LEDs.
-  _LEDMIN = 0.1                                 #Minimum LED value.
-  _LEDMAX = 30.0                                #Maximum LED value.
+  _LEDMIN = 10.0                                #Minimum LED value.
+  _LEDMAX = 100.0                               #Maximum LED value.
   _LEDRANGE = _LEDMAX - _LEDMIN                 #Total range of led values.
   _LEDSCALE = 100.0                             #Scale from face size to LED intensity.
 
-  _EYES = 0                                     #index for servo control 0-15.
   _CENTER = 0.0                                 #Eye center angle.
   _EYEMIN = -25.0                               #Minimum eye angle.
   _EYEMAX = 25.0                                #Maximum eye angle.
@@ -53,17 +51,10 @@ class mask(object):
 
     self._eyeson = False
 
-    GPIO.setup(mask._ledpins, GPIO.OUT)
-    self._leds = [GPIO.PWM(p, mask._FREQ) for p in mask._ledpins]
-
-    self._initleds(0.0)
-
-    #NOTE: The leds could be more precisely controlled with the servo controller
-    # but I chose to use the GPIO pins at 3.3v rather than the servo controller
-    # voltage whice is 4.5 volts for the servo.
     self._pca = pca9865(100)                    #Servo controller.
     self._camera = checkface.Create()
     self._snaptime = mask._SNAPDELAY
+    self._initleds(0.0)
 
     checkface.SetVerticalFlip(self._camera, True)
 #    checkface.SetScale(self._camera, 0.5)       #A smaller scale speeds up face detection but is less precise.
@@ -72,7 +63,7 @@ class mask(object):
 #    self._anims.append(anim(mask._ud1, anim._ONCE))
 #    self._anims.append(anim(mask._ud1, anim._ONCE))
 
-    self._eanim = anim(mask._looklr, anim._LOOP)  #This animation is used to move eyes l/R during search state.
+    self._anims = [anim(mask._looklr, anim._LOOP)] + self._anims  #This animation is used to move eyes l/R during search state.
     self._eyestate = self.off
     self._switchtime = mask._SWITCHDELAY
     self._pos = 0.0                             #Target position.
@@ -88,12 +79,12 @@ class mask(object):
 
   def _initleds( self, aValue ):
     ''' Start LED animation. '''
-    for l in self._leds:
-      l.start(aValue)
+    for l in range(mask.LRED, 5):
+      self.setled(l, aValue)
 
   def setled( self, aIndex, aValue ):
     '''  '''
-    self._leds[aIndex].ChangeDutyCycle(aValue)
+    self._pca.set(aIndex, aValue)
 
   @property
   def eyeson( self ):
@@ -216,13 +207,13 @@ class mask(object):
     ''' Play search animation. '''
     self._switchtime = 10.0
     self._eyestate = self.search
-    self._eanim.restart()
+    self._anims[mask._EYES].restart()
 #    print('\nsearch', end='')
 
   def search( self, dt ):
     ''' Perforce search animation (move eyes L/R) '''
-    self._eanim.update(dt)
-    self._pos = self._eanim.value
+    self._anims[mask._EYES].update(dt)
+    self._pos = self.__anims[mask._EYES].value
     self.redeyes = mask._LEDMIN
     self._anims[mask.RGREEN].value = mask._LEDMIN
     self._anims[mask.RBLUE].value = mask._LEDMIN
@@ -233,7 +224,7 @@ class mask(object):
     else:
       #Loop til time is up or we ran the animation twice.
       self._switchtime -= dt
-      if self._switchtime <= 0 or self._eanim.key == 8:
+      if self._switchtime <= 0 or self._anims[mask._EYES].key == 8:
         self.entercenter()
 
   def update( self, dt ):

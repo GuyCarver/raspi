@@ -531,8 +531,13 @@ class Clock:
     if self.tempdisplay:
       p = (x + int(self.wh * Clock.digitpos[4]), y + 3 + (self.wh * 2))
       wh = Clock.tempsize
+      n0 = (self.temp // 100) % 10
       n1 = (self.temp // 10) % 10
       n2 = self.temp % 10
+      #Don't draw hundreds location unless it's not 0.
+      if n0:
+        ph = (p[0] - wh - 2, p[1])
+        self.drawsegs(ph, Clock.nums[n0], wh)
       self.drawsegs(p, Clock.nums[n1], wh)
       p = (p[0] + wh + 2, p[1])
       self.drawsegs(p, Clock.nums[n2], wh)
