@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <wiringPiI2C.h>
+#include <wiringPi.h>
 
 namespace
 {
@@ -66,7 +67,7 @@ public:
 	{
 		_i2c = wiringPiI2CSetup(_ADDRESS);		// If this is -1 an error occurred.
 		_minmax(_MINPULSE, _MAXPULSE);
-		usleep(50);								// Wait for init to settle.
+		delayMicroseconds(50);								// Wait for init to settle.
 		auto res = _write8(0, _MODE1);
 		bGood = res >= 0;
 
@@ -94,7 +95,7 @@ public:
 		_write8(newmode, _MODE1);
 		_write8(prescale, _PRESCALE);
 		_write8(oldmode, _MODE1);
-		usleep(50);
+		delayMicroseconds(50);
 		_write8(oldmode | 0xA1, _MODE1);			// This sets the MODE1 register to turn on auto increment.
 	}
 
