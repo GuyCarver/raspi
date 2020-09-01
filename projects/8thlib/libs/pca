@@ -1,0 +1,17 @@
+#! /usr/bin/env 8th
+(* module to interface with the pca9865 16 servo controller *)
+
+ns: pca
+
+"pca9865" lib pcalib
+
+"T" "Startup" func: Startup           \ Startup up and return true if successful
+"T" "IsGood" func: IsGood             \ True if Startup was good
+"V" "Shutdown" func: Shutdown         \ Shut down i2c connection
+"VF" "SetFreq" func: SetFreq          \ Set the pwm frequency
+"VU" "Off" func: Off                  \ Turn specific index off
+"V" "AllOff" func: AllOff             \ Turn all pwm off
+"VUF" "Set" func: Set                 \ Set index to value 0.0-1.0
+"VUF" "SetAngle" func: SetAngle       \ Set index to value +/-90
+
+ns: user

@@ -1,0 +1,48 @@
+#! /usr/bin/env 8th
+
+\ Handle button input.
+\ Button state of true = on
+\ Buttons are represented by an array of 3 elements [gpio_id, curstate, prevstate]
+
+ns: btn
+
+0 constant _id
+1 constant _curstate
+2 constant _prevstate
+
+\ --------------------------------------------------------
+\ Return array representing the button given the GPIO pin number.
+: init \ pin -- a
+  true hw:gpio                        \ Open gpio for read.
+  false false 3 a:close
+;
+
+\ --------------------------------------------------------
+: released \ a -- T
+  a:open dup -rot
+  xor and                             \ Get difference between prev/next, and with prevstate
+  nip                                 \ Drop id
+;
+
+\ --------------------------------------------------------
+: pressed \ a -- T
+  a:open over
+  xor and                             \ Get difference between prev/next, and with curstate
+  nip                                 \ Drop id
+;
+
+\ --------------------------------------------------------
+: on \ a -- T
+  _curstate a:@ nip
+;
+
+\ --------------------------------------------------------
+: update \ a -- a
+  _id a:@
+  hw:gpio@ nip
+  swap _curstate a:@
+  _prevstate swap a:!
+  _curstate rot a:!
+;
+
+ns: user

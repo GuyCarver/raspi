@@ -45,7 +45,7 @@ namespace
 	constexpr uint32_t _ADDRESS = 0x40;
 	constexpr uint32_t _MODE1 = 0x0;
 	constexpr uint32_t _PRESCALE = 0xFE;
-	constexpr uint32_t _LED0_ON_L = 0x6;			// We only use LED0 and offset 0-16 from it.
+	constexpr uint32_t _LED0_ON_L = 0x6;		// We only use LED0 and offset 0-16 from it.
 // 	constexpr uint32_t _LED0_ON_H = 0x7;
 // 	constexpr uint32_t _LED0_OFF_L = 0x8;
 // 	constexpr uint32_t _LED0_OFF_H = 0x9;
@@ -55,19 +55,19 @@ namespace
 // 	constexpr uint32_t _ALLLED_OFF_H = 0xFD;
 
 	constexpr uint32_t _DEFAULTFREQ = 100;
-	constexpr uint32_t _MINPULSE = 120;
-	constexpr uint32_t _MAXPULSE = 868;
 
 }	//namespace
 
+//--------------------------------------------------------
 class pca9865
 {
 public:
-	pca9865( uint32_t aFreq = 60 )
+
+	//--------------------------------------------------------
+	pca9865( uint32_t aFreq = _DEFAULTFREQ )
 	{
 		_i2c = wiringPiI2CSetup(_ADDRESS);		// If this is -1 an error occurred.
-		_minmax(_MINPULSE, _MAXPULSE);
-		delayMicroseconds(50);								// Wait for init to settle.
+		delayMicroseconds(50);					// Wait for init to settle.
 		auto res = _write8(0, _MODE1);
 		bGood = res >= 0;
 
@@ -77,16 +77,19 @@ public:
 		_instance = this;						// We only have 1 instance of this object.
 	}
 
+	//--------------------------------------------------------
 	~pca9865(  )
 	{
 		close(_i2c);
 		_instance = nullptr;
 	}
 
+	//--------------------------------------------------------
 	// Set frequency for all servos.  A good value is 60hz (default).
 	void setfreq( float aFreq )
 	{
-		aFreq *= 0.9;							// Correct for overshoot in frequency setting.
+		aFreq *= 0.9999f;						// Correct for overshoot in frequency setting.
+		if (aFreq < 1.0f) { aFreq = 1.0f; } else if (aFreq > 3500.0f) { aFreq = 3500.0f; }
 		float prescalefloat = (6103.51562f / aFreq) - 1.0f;  // 25000000 / 4096 / freq.
 		auto prescale = static_cast<uint8_t>(prescalefloat + 0.5f);
 
@@ -99,12 +102,14 @@ public:
 		_write8(oldmode | 0xA1, _MODE1);			// This sets the MODE1 register to turn on auto increment.
 	}
 
+	//--------------------------------------------------------
 	// Turn off a servo.
 	void off( uint32_t aServo )
 	{
 		_setpwm(aServo, 0, 0);
 	}
 
+	//--------------------------------------------------------
 	// Turn all servos off.
 	void alloff(  )
 	{
@@ -113,32 +118,45 @@ public:
 		}
 	}
 
-	// Set the 0-100%. If < 0 turns servo off.
+	//--------------------------------------------------------
+	// Set the 0.0-1.0. If < 0 turns servo off.
 	void set( uint32_t aServo, float aPerc )
 	{
 		if (aPerc < 0.0f) {
 			off(aServo);
 		}
 		else {
-			uint32_t base = _range * aServo;	// We put servos in different ranges by index.
-			while( base > _end ) {				// Make sure in range
-				base == _end;
+			uint32_t one, two;
+
+			if (aPerc == 1.0) {
+				one = 4096;
+				two = 0;
 			}
-			uint32_t val = _min + static_cast<uint32_t>(_range * aPerc / 100.0f);
-			_setpwm(aServo, base, base + val);
+			else if (aPerc == 0.0) {
+				one = 0;
+				two = 4096;
+			}
+			else {
+				one = 0
+				two = static_cast<uint32_t>(4096.0f * aPerc);
+			}
+			_setpwm(aServo, one, two);
 		}
 	}
 
+	//--------------------------------------------------------
 	// Set angle -90 to +90.  < -90 is off.
 	void setangle( uint32_t aServo, float aAngle )
 	{
-		// ((a + 90.0) * 100.0) / 180.0
-		float perc = (aAngle + 90.0f) * 0.5556f;  //Convert angle +/- 90 to 0-100%
+		// (a + 90.0) / 180.0
+		float perc = (aAngle + 90.0f) * 0.005556f;  //Convert angle +/- 90 to 0.0-1.0
 		set(aServo, perc);
 	}
 
+	//--------------------------------------------------------
 	static pca9865 *QInstance(  ) { return _instance; }
 
+	//--------------------------------------------------------
 	bool QGood( ) const { return bGood; }
 
 private:
@@ -151,6 +169,7 @@ private:
 
 	static pca9865 *_instance;
 
+	//--------------------------------------------------------
 	void _minmax( uint32_t aMin, uint32_t aMax )
 	{
 		_min = aMin;
@@ -159,6 +178,7 @@ private:
 		_end = 4095 - _range;
 	}
 
+	//--------------------------------------------------------
 	// Read 8 bit value and return.
 	const uint8_t _read( uint32_t aLoc )
 	{
@@ -171,18 +191,21 @@ private:
 		return v;
 	}
 
+	//--------------------------------------------------------
 	// Write 8 bit integer aVal to given address aLoc.
 	int32_t _write8( uint8_t aValue, uint32_t aLoc )
 	{
 		return wiringPiI2CWriteReg8(_i2c, aLoc, aValue);
 	}
 
+	//--------------------------------------------------------
 	// Write 16 bit integer aVal to given address aLoc.
 	int32_t _write16( uint16_t aValue, uint32_t aLoc )
 	{
 		return wiringPiI2CWriteReg16(_i2c, aLoc, aValue);
 	}
 
+	//--------------------------------------------------------
 	// Write 8 bit buffer to given address.
 	void _writebuffer( uint8_t *apBuffer, uint32_t aLen, uint32_t aLoc )
 	{
@@ -191,6 +214,7 @@ private:
 		}
 	}
 
+	//--------------------------------------------------------
 	// Write 16 bit buffer to given address.
 	void _writebuffer( uint16_t *apBuffer, uint32_t aLen, uint32_t aLoc )
 	{
@@ -199,6 +223,7 @@ private:
 		}
 	}
 
+	//--------------------------------------------------------
 	// aServo = 0-15.
 	// aOn = 16 bit on value.
 	// aOff = 16 bit off value.
@@ -221,6 +246,7 @@ pca9865 *pca9865::_instance = nullptr;
 extern "C"
 {
 
+//--------------------------------------------------------
 bool Startup(  )
 {
 	if (!pca9865::QInstance()) {
@@ -229,12 +255,14 @@ bool Startup(  )
 	return pca9865::QInstance()->QGood();
 }
 
+//--------------------------------------------------------
 bool IsGood(  )
 {
 	auto p = pca9865::QInstance();
 	return p ? p->QGood() : false;
 }
 
+//--------------------------------------------------------
 void Shutdown(  )
 {
 	auto p = pca9865::QInstance();
@@ -243,6 +271,7 @@ void Shutdown(  )
 	}
 }
 
+//--------------------------------------------------------
 void SetFreq( float aFreq )
 {
 	auto p = pca9865::QInstance();
@@ -251,6 +280,7 @@ void SetFreq( float aFreq )
 	}
 }
 
+//--------------------------------------------------------
 void Off( uint32_t aServo )
 {
 	auto p = pca9865::QInstance();
@@ -259,6 +289,7 @@ void Off( uint32_t aServo )
 	}
 }
 
+//--------------------------------------------------------
 void AllOff(  )
 {
 	auto p = pca9865::QInstance();
@@ -267,6 +298,8 @@ void AllOff(  )
 	}
 }
 
+//--------------------------------------------------------
+// Set servo to percentage (0.0-1.0)
 void Set( uint32_t aServo, float aPerc )
 {
 	auto p = pca9865::QInstance();
@@ -275,6 +308,8 @@ void Set( uint32_t aServo, float aPerc )
 	}
 }
 
+//--------------------------------------------------------
+// Set angle to range -90/+90
 void SetAngle( uint32_t aServo, float aAngle )
 {
 	auto p = pca9865::QInstance();

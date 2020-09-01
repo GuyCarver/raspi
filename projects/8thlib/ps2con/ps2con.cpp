@@ -81,6 +81,7 @@ enum JOYS {
 	JOYCOUNT
 };
 
+//----------------------------------------------------------------
 const char *Names[] = {
 	"SELECT",
 	"L_HAT",
@@ -113,6 +114,7 @@ class ps2con
 {
 public:
 
+	//----------------------------------------------------------------
 	ps2con( uint32_t aCmd, uint32_t aData, uint32_t aClk, uint32_t aAtt )
 	: _cmd(aCmd)
 	, _data(aData)
@@ -145,6 +147,7 @@ public:
 		}
 	}
 
+	//----------------------------------------------------------------
 	// Send configuration data to controller.
 	void DoConfig(  )
 	{
@@ -161,22 +164,26 @@ public:
 		SendReceive(cmd_exit_config, sizeof(cmd_exit_config));
 	}
 
+	//----------------------------------------------------------------
 	static void DelayUS( uint32_t us )
 	{
 		delayMicroseconds(us);
 	}
 
+	//----------------------------------------------------------------
 	static void SetPin( uint32_t aPin, bool aValue )
 	{
 		digitalWrite(aPin, aValue ? HIGH : LOW);
 	}
 
+	//----------------------------------------------------------------
 	static bool GetPin( uint32_t aPin )
 	{
 		auto v = digitalRead(aPin);
 		return (v != 0);
 	}
 
+	//----------------------------------------------------------------
 	//Send given data and receive into _res array.
 	void SendReceive( const uint8_t *apData, uint32_t aLen )
 	{
@@ -204,6 +211,7 @@ public:
 		DelayUS(3);								// Delay just in case.
 	}
 
+	//----------------------------------------------------------------
 	//Read data and process into _buttons and _joys arrays.
 	void GetData(  )
 	{
@@ -254,6 +262,7 @@ std::unique_ptr<ps2con> pInstance = nullptr;
 
 extern "C" {
 
+//----------------------------------------------------------------
 //Initialize the gpio system and create our singleton instance of ps2con.
 bool Startup( uint32_t aCmd, uint32_t aData, uint32_t aClk, uint32_t aAtt )
 {
@@ -267,12 +276,14 @@ bool Startup( uint32_t aCmd, uint32_t aData, uint32_t aClk, uint32_t aAtt )
 	return true; 							// TODO: Determine is ps2con connection is good.
 }
 
+//----------------------------------------------------------------
 //Kill our ps2con instance.
 void Shutdown(  )
 {
 	pInstance = nullptr;
 }
 
+//----------------------------------------------------------------
 //Read new data from the controller.
 void Update(  )
 {
@@ -281,6 +292,7 @@ void Update(  )
 	}
 }
 
+//----------------------------------------------------------------
 //Rerun the configuration process on the controller.
 void Config(  )
 {
@@ -289,6 +301,7 @@ void Config(  )
 	}
 }
 
+//----------------------------------------------------------------
 //Get button value given an index.
 uint32_t GetButton( uint32_t aIndex )
 {
@@ -297,6 +310,7 @@ uint32_t GetButton( uint32_t aIndex )
 	: 0u;
 }
 
+//----------------------------------------------------------------
 //Get joystick value given an index.
 int32_t GetJoy( uint32_t aIndex )
 {
@@ -305,6 +319,7 @@ int32_t GetJoy( uint32_t aIndex )
 	return pInstance ? pInstance->_joys[aIndex & 0x03] : 0;
 }
 
+//----------------------------------------------------------------
 //Get button or joystick name for the given index.
 const char *GetName( uint32_t aIndex )
 {
@@ -313,11 +328,12 @@ const char *GetName( uint32_t aIndex )
 	: "";
 }
 
+//----------------------------------------------------------------
 //Get a string representation of the ps2con raw data.
 const char *GetString(  )
 {
-	static char mystring[256];
 	if (pInstance) {
+		static char mystring[256];
 		sprintf(mystring, "ps2con._data = %X,%X,%X,%X,%X,%X,%X,%X,%X",
 			pInstance->_res[0],
 			pInstance->_res[1],
