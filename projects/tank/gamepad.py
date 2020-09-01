@@ -2,6 +2,8 @@
 #8Bitdo FC30 Pro device driver
 #
 
+# pip install evdev and pyudev
+
 from evdev import InputDevice, ecodes, list_devices
 import os
 import pyudev
@@ -290,8 +292,6 @@ class gamepad(object):
           print(e)
     else:
       self._connect()
-
-    return self.connected
 
 if __name__ == '__main__':  #start server
 

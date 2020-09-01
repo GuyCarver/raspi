@@ -25,6 +25,8 @@
 # You should have received a copy of the GNU General Public License
 # along with ReachView.  If not, see <http://www.gnu.org/licenses/>.
 
+# pip install pexpect
+
 import time
 import pexpect
 import subprocess

@@ -1,32 +1,39 @@
 #!/usr/bin/env python3
+# 08/22/2020 10:50 AM
+
+# sudo apt install rpi.gpio
 
 from pca9865 import *
 from gamepad import *
+from wheel import *
 from buttons import gpioinit, button
-from kivy.clock import Clock
-from kivy.base import EventLoop
 
 import ps2con
+import onestick
 import RPi.GPIO as GPIO
-from wheels import wheel
+# GPIO.setwarnings(False)
+# GPIO.setmode(GPIO.BCM)
+# GPIO.setup(sentrybot._SMOKEPIN, GPIO.OUT)
+# GPIO.output(sentrybot._SMOKEPIN, GPIO.HIGH if abTF else GPIO.LOW)
+# GPIO.setup(channel, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+# res = GPIO.input(self._channel)
 
 from time import perf_counter, sleep
 import keyboard
 
-gpioinit() #Initialize the GPIO system so we may use the pins for I/O.
+gpioinit() # Initialize the GPIO system so we may use the pins for I/O.
 
-def gpioinit(  ):
-  GPIO.setwarnings(False)
-  GPIO.setmode(GPIO.BOARD)
+_dtime = .03
+_startupswitch = button(16)
 
+#--------------------------------------------------------
 def deadzone( aValue, aLimit ):
   return aValue if abs(aValue) >= aLimit else 0.0
 
-_dtime = .03
-
+#--------------------------------------------------------
 class tank(object):
 
-   #map of ps2 controller buttons to 8Bitdo FC30 Pro retro controller buttons.
+  # map of ps2 controller buttons to 8Bitdo FC30 Pro retro controller buttons.
   _ps2map = {
     ps2con.CIRCLE : ecodes.BTN_A,
     ps2con.CROSS : ecodes.BTN_B,
@@ -46,23 +53,25 @@ class tank(object):
     ps2con.DPAD_L : gamepad.BTN_DPADL
   }
 
+  _HEADLIGHTS = (0, 1)
+  _TAILLIGHTS = (2, 3)
+  _DZ = 0.01                                    # Dead zone.
+
   #PS2 joystick is RX, RY, LX, LY while gamepad is LX, LY, RX, RY.
   _ps2joymap = (ps2con.LX, ps2con.LY, ps2con.RX, ps2con.RY)
+  _speedchange = 0.25
 
-  _FC30, _PS2 = range(2)
-  _LW, _RW = range(2)  #Left and right wheels.
-  _WHEELPINS = ((0, 7, 11, 1), (1, 13, 15, 1))  #pca index, fwd pin, reverse pin, direction
-  _TAILLIGHTS = 2
-  _HEADLIGHTS = 3
-
+#--------------------------------------------------------
   def __init__( self ):
-    ''' '''
-    self._pca = pca9865(100)
-    self._controllernum = tank._FC30            #Type of controller _FC30 or _PS2
+    self._controllernum = 1                     #Type of controller 0=FC30, 1=ps2
     self._controller = None                     #Start out with no controller. Will set once we no which type.
+    self._pca = pca9865(100)
     self._gpmacaddress = '' #'E4:17:D8:2C:08:68'
-
-    self._wheels = (wheel(self._pca, *d) for d ub tank._WHEELPINS)
+    self._buttonpressed = set()                 #A set used to hold button pressed states, used for debounce detection.
+    self._left = wheel(self._pca, 8, 9, 10)
+    self._right = wheel(self._pca, 4, 6, 5)
+    self._lights = 0.0
+    self.togglelights()
 
     try:
       bres = keyboard.is_pressed('q')
@@ -72,81 +81,155 @@ class tank(object):
 
     self._running = True
 
+#--------------------------------------------------------
   def __del__( self ):
     self._contoller = None
 
-@property
+#--------------------------------------------------------
+  @property
   def macaddress( self ):
     return self._gpmacaddress
 
   @macaddress.setter
   def macaddress( self, aValue ):
     self._gpmacaddress = aValue
-    #If the FC30 controller then set the mac address.
-    if self.controllernum == tank._FC30 and self._controller != None:
+    if self.controllernum == 0 and self._controller != None:
       self._controller.macaddress = aValue
 
+#--------------------------------------------------------
   @property
-  def controllernum( self ):
-    return self._controllernum
+  def running( self ): return self._running
+
+#--------------------------------------------------------
+  @property
+  def controllernum( self ): return self._controllernum
 
   @controllernum.setter
+#--------------------------------------------------------
   def controllernum( self, aValue ):
     '''Set the controller #.'''
     self._controllernum = aValue
 #    print('Controller:', self._controllernum)
 
+#--------------------------------------------------------
   def _initcontroller( self ):
     '''Create the controller if necessary.'''
-    if self._controllernum == tank._PS2:
+    if self._controllernum:
 #      print('starting ps2 controller')
-      self._controller = ps2con.ps2con(18, 23, 24, 25, self._ps2action)
+      self._controller = ps2con.ps2con(17, 27, 18, 4, self._ps2action)
     else:
 #      print('starting Retro Controller')
       self._controller = gamepad(self.macaddress, self._buttonaction)
 
+#--------------------------------------------------------
   def setcontroller( self, aIndex ):
     '''Set controller index if it changed, and create a controller.'''
     if self.controllernum != aIndex or self._controller == None:
       self.controllernum = aIndex
       self._initcontroller()
 
-   def _joy( self, aIndex ):
-    '''Get joystick value in range -100.0 to 100.0'''
+#--------------------------------------------------------
+  def trypair( self ):
+    '''If 8Bitdo controller is selected and it's not connected, attempt a pairing.'''
+    if self.controllernum == 0 and self._controller != None and self._controller.connected == False:
+      self._controller.pair()
 
-    #PS2 controller has different stick mappings.
-    if self._controllernum == tank._PS2:
-      aIndex = tank._ps2joymap[aIndex & 0x03]  #Make sure value is in range.
-
-    return self._controller.getjoy(aIndex) / 2.55
-
+#--------------------------------------------------------
   def _ps2action( self, aButton, aValue ):
     '''Callback for ps2 button events. They are remapped to FC30 events and sent
        to the _buttonaction callback.'''
-#    print('Action:', aButton, aValue)
     #Value of 2 indicates a change in pressed/released state.
     if aValue & 0x02:
       k = tank._ps2map[aButton]
-#     print(aButton, aValue, k)
       self._buttonaction(k, aValue)
 
+#--------------------------------------------------------
   def _buttonaction( self, aButton, aValue ):
     '''Callback function for 8Bitdo FC30 Pro controller.'''
 
-    print('Button:', gamepad.btntoname(aButton), aValue)
-
+    #If button pressed
     if aValue & 0x01:
-      pass
+      self._buttonpressed.add(aButton)
+      if aButton == ecodes.BTN_Y:
+        self.brake()
+      elif aButton == ecodes.BTN_TL:
+        self._prevspeed()
+      elif aButton == ecodes.BTN_TR:
+        self._nextspeed()
     elif aButton == gamepad.GAMEPAD_DISCONNECT:
-      #Turn off wheels.
-      for w in self._wheels:
-        w.off()
+      self.brake()
+    else: #Handle release events.
+      if aButton == ecodes.BTN_X:
+        self.togglelights()
 
-      print('Disconnected controller!')
+      #On release, make sure to remove button from pressed state set.
+      if aButton in self._buttonpressed:
+        self._buttonpressed.remove(aButton)
 
+#--------------------------------------------------------
+  def setlights( self ):
+    ''' Set all lights to self._lights value. '''
+    if self._lights:
+      for v in tank._HEADLIGHTS:
+        self._pca.set(v, self._lights)
+      for v in tank._TAILLIGHTS:
+        self._pca.set(v, self._lights)
+    else:
+      for v in tank._HEADLIGHTS:
+        self._pca.off(v)
+      for v in tank._TAILLIGHTS:
+        self._pca.off(v)
+
+#--------------------------------------------------------
+  def togglelights( self ):
+    ''' Toggle lights on/off. '''
+    # Max of 0.9 because 1.0 causes flickering, probably because we go slightly over max.
+    self._lights = 0.9 -  self._lights
+    self.setlights()
+
+#--------------------------------------------------------
+  def brake( self ):
+    ''' Brake the wheels. '''
+    self._left.brake()
+    self._right.brake()
+    #Sleep for a bit.
+    sleep(0.2)
+    self._left.off()
+    self._right.off()
+
+#--------------------------------------------------------
+  def _nextspeed( self ):
+    ''' Increment speed value. '''
+    wheel.changegear(tank._speedchange)
+
+#--------------------------------------------------------
+  def _prevspeed( self ):
+    ''' Decrement speed value. '''
+    wheel.changegear(-tank._speedchange)
+
+#--------------------------------------------------------
+  def _joy( self, aIndex ):
+    ''' Get joystick value in range -1.0 to 1.0 '''
+
+    # PS2 controller has different stick mappings.
+    if self._controllernum == 1:
+      aIndex = tank._ps2joymap[aIndex & 0x03]  #Make sure value is in range.
+
+    return self._controller.getjoy(aIndex) / 255.0
+
+#--------------------------------------------------------
+  def updatetracks( self ):
+    ''' Update the track speeds. '''
+    l = self._joy(gamepad._LY)
+    r = self._joy(gamepad._RY)
+
+    self._left.speed(deadzone(l, tank._DZ))
+    self._right.speed(deadzone(r, tank._DZ))
+
+#--------------------------------------------------------
   def run( self ):
-    '''  '''
     self._initcontroller()
+    prevtime = perf_counter()
 
     while self.running:
       if self._haskeyboard and keyboard.is_pressed('q'):
@@ -157,36 +240,22 @@ class tank(object):
         delta = max(0.01, nexttime - prevtime)
         prevtime = nexttime
         if delta > _dtime:
-#          print("Clamping delta: ", delta)
           delta = _dtime
 
-        #if controller exists and it updated successfully.
-        if self._controller and self._controller.update():
+        if self._controller:
+          self._controller.update()
+          self.updatetracks()
 
-#          rx = self._joy(gamepad._RX)
-          ry = self._joy(gamepad._RY)
-#          rx = deadzone(rx, 1.0)
-          ry = deadzone(ry, 1.0)
-
-#          lx = self._joy(gamepad._LX)
-          ly = self._joy(gamepad._LY)
-
-#          lx = deadzone(lx, 1.0)
-          ly = deadzone(ly, 1.0)
-
-          self._wheels[tank._RW].speed = ry
-          self._wheels[tank._LW].speed = ly
-
-        EventLoop.idle()                      #Update kivy event listener
-
-        #Get how much time has passed since beginning of frame and subtract
-        # that from the sleep time.
         nexttime = perf_counter()
         sleeptime = _dtime - (nexttime - prevtime)  #30fps - time we've already wasted.
         if sleeptime > 0.0:
           sleep(sleeptime)
 
+#--------------------------------------------------------
 if __name__ == '__main__':
-  t = tank()
-  t.run()
-  GPIO.cleanup()
+  #If the startup button is on then start up.
+  _startupswitch.update()
+  if len(sys.argv) > 1 or (_startupswitch.on):
+    t = tank()
+    t.run()
+    GPIO.cleanup()

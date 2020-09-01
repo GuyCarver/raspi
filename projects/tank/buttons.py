@@ -1,40 +1,27 @@
 #!/usr/bin/env python3
 #handle button input.
 
+# sudo apt install rpi.gpio
+
 import RPi.GPIO as GPIO
+# GPIO.output(sentrybot._SMOKEPIN, GPIO.HIGH if abTF else GPIO.LOW)
+# GPIO.setup(sentrybot._SMOKEPIN, GPIO.OUT)
+# GPIO.setup(channel, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+# res = GPIO.input(self._channel)
 
 def gpioinit(  ):
   GPIO.setwarnings(False)
   GPIO.setmode(GPIO.BCM)
 
 class button(object):
-  """Handle input from a single button channel on GPIO."""
-
-  DOWN = 0        #Indicates button is currently being pressed.
-  UP = 1          #Indicates the button is not pressed.
-  STATE = 1       #Mask for button state.
-  CHANGE = 2      #Indicates button has changed state since last update.
-
-  @staticmethod
-  def justpressed( aState ) :
-    return aState == button.CHANGE | button.DOWN
-
-  @staticmethod
-  def ison( aState ):
-    '''return True if given button state is on'''
-    return (aState & button.STATE) == button.DOWN
-
-  @staticmethod
-  def ischanged( aState ):
-    '''return True if given button state indicates it changed.'''
-    return (aState & button.CHANGE) != 0
+  ''' Handle input from a single button channel on GPIO. '''
 
   def __init__( self, channel ):
     super(button, self).__init__()
     self._channel = channel
     GPIO.setup(channel, GPIO.IN, pull_up_down = GPIO.PUD_UP)
-    self._curstate = 1  #start out high (not pressed).
-    self._prevstate = 1
+    self._curstate = False
+    self._prevstate = False
 
   @property
   def channel( self ):
@@ -46,54 +33,22 @@ class button(object):
 
   @property
   def pressed( self ):
-    '''return 1 if button just pressed else 0'''
-    return (self._prevstate ^ self._curstate) & self._prevstate & button.STATE
+    ''' Return True if button just pressed. '''
+    return (self._prevstate ^ self._curstate) & self._curstate
 
   @property
   def released( self ):
-    '''return 1 if button just released else 0'''
-    return (self._prevstate ^ self._curstate) & self._curstate & button.STATE
+    ''' Return True if button just released. '''
+    return (self._prevstate ^ self._curstate) & self._prevstate
 
   @property
   def on( self ):
-    '''return True if button state is on'''
-    return button.ison(self._curstate)
+    ''' Return True if button state is on. '''
+    return self._curstate
 
   def update( self ):
-    '''Update button state and returns state + change flag.'''
+    ''' Update button state and returns state + change flag. '''
     self._prevstate = self._curstate
     res = GPIO.input(self._channel)
-    if res != (self._prevstate & button.STATE):
-      res |= button.CHANGE
-
-    self._curstate = res
-
-    return res
-
-if __name__ == '__main__':  #start server and open browser
-  import time
-
-  #Snooze, Alarm On/Off Switch, Alarm Set, Minute, Hour, Time Set (Update temp)
-  ButtonIDS = [12, 5, 6, 13, 19, 26]
-
-  def test(  ):
-    GPIO.setwarnings(False)
-    GPIO.setmode(GPIO.BCM)
-
-    MyButtons = [ button(x) for x in ButtonIDS ]
-
-    running = True;
-    try:
-      while running:
-        for b in MyButtons:
-          state = b.update()
-          if state & button.CHANGE:
-            print("{} is {}".format(b.channel, "released" if state & button.UP else "pressed"))
-        time.sleep(0.2)
-    except KeyboardInterrupt:
-      print("exiting.")
-      running = False
-
-  test()
-  print('done')
+    self._curstate = (res == 0)                 # 0 = button pressed.
 
