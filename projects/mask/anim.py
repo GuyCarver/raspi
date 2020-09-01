@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-#note: PINPONG doesn't work.  Need to make a _realkey value and keep it up to date
-# for both LOOP and PINGPONG.  The algorythm for PINGPONG isn't correct.
+# note: PINPONG doesn't work.  Need to make a _realkey value and keep it up to date
+#  for both LOOP and PINGPONG.  The algorythm for PINGPONG isn't correct.
 
 #------------------------------------------------------------------------
 class anim(object):
@@ -25,7 +25,7 @@ class anim(object):
     self._target = 0
     self._type = aType
 
-    #If not a sequence of values then it's always direct.
+    # If not a sequence of values then it's always direct.
     if isinstance(aKeys, (int, float)):
       self._type = anim._DIRECT
     else:
@@ -35,10 +35,12 @@ class anim(object):
 
     self._start()
 
+#------------------------------------------------------------------------
   @property
   def key( self ):
     return self._key
 
+#------------------------------------------------------------------------
   @property
   def type( self ):
     return self._type
@@ -47,25 +49,30 @@ class anim(object):
   def type( self, aType ):
     self._type = aType
 
+#------------------------------------------------------------------------
   @property
   def done( self ):
     return self._dir == 0
 
+#------------------------------------------------------------------------
   @property
   def key( self ):
     return self._key
 
+#------------------------------------------------------------------------
   @property
   def value( self ):
     return self._value
 
   @value.setter
   def value( self, aValue ):
-    #Can only set value if direct.
+    # Can only set value if direct.
     if self._type == anim._DIRECT:
       self._value = aValue
 
+#------------------------------------------------------------------------
   def _start( self ):
+    ''' Start animation. '''
     if self._type > anim._DIRECT:
       v, r = self._keys[self._key]
       self._target = v
@@ -73,21 +80,23 @@ class anim(object):
     else:
       self._value = self._keys
 
+#------------------------------------------------------------------------
   def restart( self ):
-    '''  '''
+    ''' Restart animation. '''
     self._key = 0
     self._dir = 1
     self._start()
 
+#------------------------------------------------------------------------
   def _getindex( self ):
-    '''  '''
+    ''' Get index for the current key. '''
     ln = len(self._keys)
 
-    #Loop
+    # Loop
     k = self._key % ln
     animdir = 1
 
-    #pingpong
+    # pingpong
     if self._type == anim._PINGPONG:
       animdir = 1 - (((self._key // ln - 1) & 1) << 1)
       print('ad', animdir)
@@ -97,18 +106,19 @@ class anim(object):
 
     return k
 
+#------------------------------------------------------------------------
   def _nextkey( self ):
     '''  '''
     self._key += 1
     self._value = self._target
 
-#0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
-#0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 2,  1,  0
+# 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+# 0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 2,  1,  0
 
-    #Once
+    # Once
     if self._type == anim._ONCE:
       if self._key >= len(self._keys):
-        self._dir = 0 #done.
+        self._dir = 0                           # done.
         return
 
     k = self._getindex()
@@ -118,8 +128,9 @@ class anim(object):
     if rate > 0:
       self._dir /= rate
 
+#------------------------------------------------------------------------
   def update( self, aDT ):
-    '''  '''
+    ''' Update the animation by the give time in ms. '''
     if self._dir:
       self._value += self._dir * aDT
       if self._dir < 0:
@@ -129,7 +140,7 @@ class anim(object):
         if self._value >= (self._target - 0.001):
           self._nextkey()
 
-#def test2():
+# def test2():
 #  ln = 4
 #  for i in range(13):
 #    animdir = 1 - (((i // ln - 1) & 1) << 1)
@@ -138,21 +149,21 @@ class anim(object):
 #      k = (ln - 1) - k
 #    print(i, animdir, k)
 #
-def test():
-  keys = ((0.1, 1.0), (50.0, 1.0), (0.0, 1.0))
-  o = anim(keys, anim._ONCE)
-  l = anim(keys, anim._LOOP)
-
-  for i in range(320):
-    o.update(0.1)
-    l.update(0.1)
-
-    print('o', o.value)
-    print('l', l.value)
-
-  print('done.')
-
-if __name__ == '__main__':
-#test.
-  test()
+# def test():
+#   keys = ((0.1, 1.0), (50.0, 1.0), (0.0, 1.0))
+#   o = anim(keys, anim._ONCE)
+#   l = anim(keys, anim._LOOP)
+#
+#   for i in range(320):
+#     o.update(0.1)
+#     l.update(0.1)
+#
+#     print('o', o.value)
+#     print('l', l.value)
+#
+#   print('done.')
+#
+# if __name__ == '__main__':
+# #test.
+#   test()
 

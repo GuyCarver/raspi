@@ -24,33 +24,23 @@ class pca9865(object):
 #  _ALLLED_OFF_H = const(0xFD)
 
   _DEFAULTFREQ = 100
-  _MINPULSE = 120
-  _MAXPULSE = 868
 
-  def __init__( self, aFreq = 60, aLoc = 1 ):
+  def __init__( self, aFreq = _DEFAULTFREQ, aLoc = 1 ):
     '''aLoc = 1 by default and should only be 0 if on older model cards.'''
     self.i2c = SMBus(aLoc)
     self._buffer = [0] * 4 #Can't use a bytearray with the write function.
     sleep(.050)
     self._write(0, self._MODE1)
 #    self.reset()
-    self._minmax(self._MINPULSE, self._MAXPULSE)
     self.setfreq(aFreq)
     self.alloff()                               #Make sure we don't move to zero.
-
-  def _minmax( self, aMin, aMax ):
-    '''Set min/max and calculate range.'''
-    self._min = aMin
-    self._max = aMax
-    self._range = aMax - aMin
-    self._end = 4095 - self._range
 
   def _read( self, aLoc ) :
     '''Read 8 bit value and return.'''
     return self.i2c.read_byte_data(self._ADDRESS, aLoc)
 
   def _write( self, aValue, aLoc ):
-    """Write 8 bit integer aVal to given address aLoc."""
+    """Write 8 bit integer aValue to given address aLoc."""
     self.i2c.write_byte_data(self._ADDRESS, aLoc, aValue)
 
   def _writebuffer( self, aBuffer, aLoc ):
@@ -68,8 +58,9 @@ class pca9865(object):
 
   def setfreq( self, aFreq ):
     '''Set frequency for all servos.  A good value is 60hz (default).'''
-    aFreq *= 0.9  #Correct for overshoot in frequency setting.
-    prescalefloat = (6103.51562 / aFreq) - 1  #25000000 / 4096 / freq.
+    aFreq *= 0.9999  #Correct for overshoot in frequency setting.
+    aFreq = min(3500.0, max(1.0, aFreq))
+    prescalefloat = (6103.51562 / aFreq) - 1.0  #(25000000 / 4096) / freq.
     prescale = int(prescalefloat + 0.5)
 
     oldmode = self._read(self._MODE1)
@@ -107,18 +98,24 @@ class pca9865(object):
       self.off(x)
 
   def set( self, aServo, aPerc ):
-    '''Set the 0-100%. If < 0 turns servo off.'''
+    '''Set the 0-1.0. If < 0 turns servo off.'''
     if aPerc < 0 :
       self.off(aServo)
     else:
-      base = self._range * aServo
-      if base > self._end:
-        base = 0
-      val = self._min + (int(self._range * aPerc) // 100)
-      self._setpwm(aServo, base, base + val)
+      if aPerc == 1.0:
+        one = 4096
+        two = 0
+      elif aPerc == 0.0:
+        one = 0
+        two = 4096
+      else:
+        one = 0
+        two = int(4096.0 * aPerc)
+
+      self._setpwm(aServo, one, two)
 
   def setangle( self, aServo, aAngle ):
     '''Set angle -90 to +90.  < -90 is off.'''
-    #((a + 90.0) * 100.0) / 180.0
-    perc = int((aAngle + 90.0) * 0.5556)  #Convert angle +/- 90 to 0-100%
+    #(a + 90.0) / 180.0
+    perc = (aAngle + 90.0) * 0.005556  #Convert angle +/- 90 to 0.0-1.0 #
     self.set(aServo, perc)
