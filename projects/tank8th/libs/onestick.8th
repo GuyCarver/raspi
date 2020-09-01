@@ -1,0 +1,131 @@
+#! /usr/bin/env 8th
+
+(*
+System to turn x,y from a single joystick to left/right tracked vehicle velocities.
+*)
+
+needs stack/rstack
+
+ns: track
+
+private
+
+[ [ 1.0, 1.0 ], [ 1.0, 0.0 ], [ 1.0, -1.0 ],
+  [ -1.0, 0.0 ], [ -1.0, -1.0 ], [ 0.0, -1.0 ],
+  [ -1.0, 1.0 ], [ 0.0, 1.0 ] ] constant points
+
+[ [ 4, 5, 6 ], [ 4, 3, 2 ], [ 0, 7, 6 ], [ 0, 1, 2 ] ] constant triangles
+
+\ Quadrants, triangle indexes for quadrants, points.
+\ |-------|          7--0--1          (0,1)---(1,1)---(1,0)
+\ | 2 | 3 |          |  |  |            |       |       |
+\ |---|---|          6--+--2         (-1,1)---(0,0)---(1,-1)
+\ | 0 | 1 |          |  |  |            |       |       |
+\ |-------|          5--4--3         (0,-1)--(-1,-1)--(-1,0)
+
+\ To get L/R speeds from x,y input -1 to 1.
+\ Determine quadrant for point.
+\ Determine point to use based on if y > x.
+\   Point 1 and origin are constant.
+\   If y > x point 0, otherwise point 2.
+
+\ --------------------------------------------------------
+: interp \ p1 p2 v -- [x, y]
+  \ n1 += (n2 - n1) * v
+  -rot a:open >r                     \ y2 on r
+  swap a:open >r                     \ y1 on r
+  dup >r                             \ Put x1 on r
+  n:- over n:* r> n:+
+  r> r> swap dup >r                  \ Put y1 on r
+  n:- rot n:* r> n:+
+  2 a:close
+;
+
+\ --------------------------------------------------------
+: quad \ x y -- x y n
+  \ ((y >= 0) << 1) | (x >= 0)
+  2dup
+  0 swap n:< >n 1 n:shl
+  0 rot n:< >n n:bor
+;
+
+public
+with: #p
+
+\ --------------------------------------------------------
+: adjustpoints \ n --
+  \ Replaces all 0s in the points list with the given value.
+  >r
+  points 1 a:@
+  1 r@ a:! drop
+  3 a:@
+  1 r@ n:neg
+  a:! drop
+  5 a:@
+  0 r@ n:neg
+  a:! drop
+  7 a:@
+  0 r> a:! 2drop
+;
+
+\ --------------------------------------------------------
+: vels \ [x, y] -- [x', y']
+  (* p0--p1
+    |   / |
+    | /   |
+    0,0  p2
+  *)
+
+  \ Get quadrant 0-4 from point.
+  a:open quad
+
+  \ Get triangle points for the quadrant.
+  triangles swap a:@ nip
+  a:open >r swap >r >r               \ Put t2, t0, t1 on r
+
+  \ abs value of x, y
+  n:abs swap n:abs swap
+
+  points r> a:@ nip                   \ Pull t1 off of r
+  -rot >r >r                          \ Put y, x on r
+
+  \ Interp between (0,0) and triangle point 1 (diagonal).
+  dup a:open 1 G:rpick n:* swap       \ p1[1] * y
+  r@ n:*                              \ p1[0] * x
+  swap 2 a:close                      \ p1 v1
+  \ NOTE: If y==x we could simply return v1, however that probably
+  \  rarely happens so it's not worth the extra time to check.
+
+  \ y >= x so interp between triangle point 0 and 1 using x.
+  r@ 1 G:rpick n:< if
+    r> r> swap r> rdrop               \ v1 p1 x y t0
+  else
+    r> r> rdrop r>                    \ v1 p1 y x t2
+  then
+  -rot >r >r                          \ Put x, y or y, x back on r
+  points swap a:@ nip                 \ v1 p1 p?
+  rot 1 G:rpick interp                \ Interp p0/p2, p1, x/y
+  r@ 1.0 n:> if
+    1.0
+  else
+    r> r@ n:- 1.0 r> n:- n:/
+  then
+\   "v1: " . 2 pick . ", v2: " . over . ", perc: " . dup .
+  interp
+;
+
+\ --------------------------------------------------------
+(*
+[ [ 0.5, 0.51 ], [ 1.0 ,0.99 ], [ 0.0, 0.99 ], [ 1.0, 0.1 ], [ 1.0, -0.99 ], [ 0.0, -0.99], [-1,-0.99], [-1,0.1], [ -1.0, 0.99 ] ]
+constant test
+
+: testit \ v --
+  vels " res: " . . cr
+;
+
+: runtest \ --
+  test ' testit a:each!
+;
+*)
+
+ns: user

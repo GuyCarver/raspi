@@ -1,0 +1,83 @@
+#! /usr/bin/env 8th
+
+(* This module controls the wheels of the tank using an L298n HBridge motor driver.
+   The enable pins are connected to the pca9865 to control PWM signals for speed.
+   The forward/backward lines are connected directly to raspi GPIO pins. *)
+
+needs pca
+
+ns: wheel
+
+private
+
+0.3 constant _MINSPEED
+\ 1.0 constant _MAXSPEED
+1.0 _MINSPEED n:- constant _SPEEDRANGE
+
+0 constant _SI
+1 constant _FI
+2 constant _BI
+
+\ --------------------------------------------------------
+: write \ w s f b --
+  3 pick _BI a:@ rot pca:Set          \ Write b
+  _FI a:@ rot pca:Set                 \ Write f
+  _SI a:@ rot pca:Set                 \ Write speed
+  2drop                               \ Drop 2 w values
+;
+
+public
+with: #p
+
+1.0 var, scale
+
+\ --------------------------------------------------------
+\ Array of [ speedi, forwardi, backwardi ]
+: init \ speedi fi bi -- a
+  3 a:close                           \ Array has speed, forward, backward indexes
+;
+
+\ --------------------------------------------------------
+\ Add given number to the speed scale value and clamp to min/max (0.2-1.0)
+: gear+ \ n --
+  scale @ n:+
+  0.2 n:max 1.0 n:min
+  scale !
+;
+
+\ --------------------------------------------------------
+: speed! \ w n --
+  scale @ n:*                         \ Scale speed
+  dup 0 = if
+    drop                              \ Drop speed
+    0.0 0.0 0.0                       \ spd, forward, backward
+  else
+    dup 0 > if
+      1.0 0.0
+    else
+      n:neg 0.0 1.0
+    then
+    rot 1.0 n:min                     \ Don't go over 1.0
+    _SPEEDRANGE n:*                   \ Convert 0.? to 1.0 speed to between _MINSPEED and _MAXSPEED
+    _MINSPEED n:+
+  then
+  -rot                                \ Put speed back under forward/backward
+  write
+;
+
+\ --------------------------------------------------------
+: off \ w --
+  _SI @ pca:Off drop
+;
+
+\ --------------------------------------------------------
+: brake \ w --
+  1.0 1.0 1.0 write                   \ Full speed in both directions
+;
+
+\ --------------------------------------------------------
+: stop \ w --
+  0.0 0.0 0.0 write                   \ Stop all input
+;
+
+ns: user

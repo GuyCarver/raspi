@@ -1,0 +1,110 @@
+#! /usr/bin/env 8th
+
+needs pca
+needs ps2
+needs wheel.8th
+needs buttons
+needs guy with: guy
+
+0.25 constant _SPDCHANGE
+[ 0, 1 ] constant _HEADLIGHTS
+[ 2, 3 ] constant _TAILLIGHTS
+
+var leftw
+var rightw
+0.0 var, lights
+
+16 btn:init var, _startupswitch
+
+\ --------------------------------------------------------
+: deadzone \ n -- n
+  dup n:abs 0.01 n:< if
+    drop 0.0
+  then
+;
+
+\ --------------------------------------------------------
+\ Get input, convert to speed +/-100% and send to wheels.
+: trackinput \ --
+  leftw @
+  ps2:LY GetJoy
+  255.0 n:/
+  rightw @
+  ps2:RY GetJoy
+  255.0 n:/
+  deadzone wheel:speed!               \ Right wheel
+  deadzone wheel:speed!               \ Left wheel
+;
+
+\ --------------------------------------------------------
+\ Check for break button and stop all movement when pressed
+: brake \ --
+  leftw @ rightw @
+  2dup
+  wheel:brake wheel:brake
+  0.5 sleep
+  wheel:stop wheel:stop
+;
+
+\ --------------------------------------------------------
+: togglelights \ --
+  0.95 lights @ n:- dup lights !      \ 0.95 instead of 1.0 because 1.0 causes light flicker
+  ( pca:Set ) curry
+  _HEADLIGHTS over a:each!
+  _TAILLIGHTS swap a:each!
+;
+
+\ --------------------------------------------------------
+: ispressed \ btn -- T
+  ps2:GetButton ps2:PRESSED n:=
+;
+
+\ --------------------------------------------------------
+: checkbuttons \ --
+  ps2:SQUARE ispressed if
+    brake
+  then
+  ps2:TRIANGLE ispressed if
+    togglelights
+  then
+  ps2:L_SHOULDER ispressed if
+    _SPDCHANGE n:neg wheel:gear+
+  then
+  ps2:R_SHOULDER ispressed if
+    _SPDCHANGE wheel:gear+
+  then
+;
+
+\ --------------------------------------------------------
+\ loop and upate.
+: app:main \ --
+  _startupswitch @ btn:update
+  btn:on argc 0 n:> or if              \ Run if switch is on or argument count.
+    \ init pca
+    pca:Startup if
+      \ init ps2con
+      27 22 18 17 ps2:Startup if
+        \ setup wheels.
+        8 9 10 wheel:init leftw !
+        4 6 5 wheel:init rightw !
+        togglelights
+
+        repeat
+          ps2:Update
+          checkbuttons
+          \ Read input
+          trackinput                    \ Write track speeds
+          \ Sleep a bit
+          0.02 sleep
+        again
+
+        ps2:Shutdown
+      else
+        "ps2 controller failure." .n
+      then
+      pca:Shutdown
+    else
+      "pca init failure." .n
+    then
+  then
+;
