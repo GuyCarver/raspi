@@ -35,7 +35,7 @@ _startupswitch = button(26)
 #2 = body
 #3 = gun
 
-#------------------------------------------------------------------------
+#--------------------------------------------------------
 class sentrybot(object):
 
   _PEACE, _COMBAT, _SND1, _SND2 = range(4)
@@ -96,6 +96,7 @@ class sentrybot(object):
 #  _laser = 12
 #  _GUNBUTTON = 26                               #GPIO # for button pin.
 
+#--------------------------------------------------------
   def __init__( self ):
     sound.start()
 
@@ -152,10 +153,12 @@ class sentrybot(object):
     #Start settings server, 2nd param True if testing html page.
     self._settingsthread = Thread(target=lambda: settings.run(self, True))
 
+#--------------------------------------------------------
   def __del__( self ):
     self.save()
     self._contoller = None
 
+#--------------------------------------------------------
   @property
   def macaddress( self ):
     return self._gpmacaddress
@@ -166,6 +169,7 @@ class sentrybot(object):
     if self.controllernum == 0 and self._controller != None:
       self._controller.macaddress = aValue
 
+#--------------------------------------------------------
   @property
   def recording( self ):
     return self._recording
@@ -175,6 +179,7 @@ class sentrybot(object):
     self._recording = aValue
     #todo: Create/Kill the recorder?
 
+#--------------------------------------------------------
   @property
   def gunrate( self ):
     return self._gunrate
@@ -183,15 +188,19 @@ class sentrybot(object):
   def gunrate( self, aValue ):
     self._gunrate = aValue
 
+#--------------------------------------------------------
   @property
   def optionsfile( self ): return saveload.savename
 
+#--------------------------------------------------------
   @property
   def partdata( self ): return body._initdata
 
+#--------------------------------------------------------
   @property
   def running( self ): return self._running
 
+#--------------------------------------------------------
   @property
   def stance( self ):
     return self._stance
@@ -200,6 +209,7 @@ class sentrybot(object):
   def stance( self, aValue ):
     self._stance = aValue
 
+#--------------------------------------------------------
   @property
   def rate( self ):
     return self._rate
@@ -208,19 +218,23 @@ class sentrybot(object):
   def rate( self, aValue ):
     self._rate = aValue
 
+#--------------------------------------------------------
   @property
   def buttonsounds( self ):
     return sentrybot._buttonsounds
 
+#--------------------------------------------------------
   def getsound( self, aButton ):
     '''Get sound assigned to given button and curent stance.'''
     return sentrybot._buttonsounds[aButton][self._stance]
 
+#--------------------------------------------------------
   def setsound( self, aButton, aStance, aSound ):
     '''Set sound for button.  If aStance < 0 then current stance is used. '''
     s = self._stance if aStance < 0 else aStance
     sentrybot._buttonsounds[aButton][s] = aSound
 
+#--------------------------------------------------------
   @property
   def startupsound( self ):
     return self._startupsound
@@ -231,6 +245,7 @@ class sentrybot(object):
       aFile = sound(aFile, 1) if (aFile != 'None') else None
     self._startupsound = aFile
 
+#--------------------------------------------------------
   @property
   def armangle( self ):
     return self._armangle
@@ -245,6 +260,7 @@ class sentrybot(object):
     #Calc the arm x,y ranges.  This is assuming max rotation limits.
     self._armx, self._army = angle.calcbounds(aValue, (-90.0, 90.0), (-90.0, 90.0))
 
+#--------------------------------------------------------
   @property
   def invert( self ):
     return self._invert > 0.0
@@ -253,15 +269,18 @@ class sentrybot(object):
   def invert( self, aValue ):
     self._invert = -1.0 if aValue else 1.0
 
+#--------------------------------------------------------
   def btntoname( self, aButton ):
     '''Abstraction interface for access to gamepad.btntoname()'''
     return gamepad.btntoname(aButton)
 
+#--------------------------------------------------------
   def previewsound( self, aFile ):
     #NOTE: May need to kick this off in the main thread and just queue it here.
     snd = sound(aFile, 10)             #Group 10.
     snd.play()
 
+#--------------------------------------------------------
   def setbuttonsound( self, aButton, aStance, aFile ):
     '''Assign given sound by name to given button name/stance.'''
 
@@ -278,6 +297,7 @@ class sentrybot(object):
         aFile = sound(aFile, 1) if (aFile != 'None') else None
       self.setsound(btnnum, aStance, aFile)
 
+#--------------------------------------------------------
   @property
   def controllernum( self ): return self._controllernum
 
@@ -287,6 +307,7 @@ class sentrybot(object):
     self._controllernum = aValue
 #    print('Controller:', self._controllernum)
 
+#--------------------------------------------------------
   def _initcontroller( self ):
     '''Create the controller if necessary.'''
     if self._controllernum:
@@ -296,17 +317,20 @@ class sentrybot(object):
 #      print('starting Retro Controller')
       self._controller = gamepad(self.macaddress, self._buttonaction)
 
+#--------------------------------------------------------
   def setcontroller( self, aIndex ):
     '''Set controller index if it changed, and create a controller.'''
     if self.controllernum != aIndex or self._controller == None:
       self.controllernum = aIndex
       self._initcontroller()
 
+#--------------------------------------------------------
   def trypair( self ):
     '''If 8Bitdo controller is selected and it's not connected, attempt a pairing.'''
     if self.controllernum == 0 and self._controller != None and self._controller.connected == False:
       self._controller.pair()
 
+#--------------------------------------------------------
   def initsounds( self, aSounds ):
     '''Temporary method to initialize sounds from a list of button, group, sound'''
     for s in aSounds:
@@ -329,6 +353,7 @@ class sentrybot(object):
       self._gunsound[i] = sound(sentrybot._gunsfx, 3)
       self._gunsound[i].keeploaded = True
 
+#--------------------------------------------------------
   def checktorso( self, x ):
     '''  '''
     if x != 0.0:
@@ -339,26 +364,31 @@ class sentrybot(object):
 
     self._torsodir = x
 
+#--------------------------------------------------------
   def partrate( self, aIndex ):
     '''Get rate for given part.'''
     p = body.getpart(aIndex)
     return p.rate if p else 0.0
 
+#--------------------------------------------------------
   def partcenter( self, aIndex ):
     '''Get rate for given part.'''
     p = body.getpart(aIndex)
     return p.center if p else 0.0
 
+#--------------------------------------------------------
   def partminmax( self, aIndex ):
     '''Get min/max for given part.'''
     p = body.getpart(aIndex)
     return p.minmax if p else (0.0, 100.0)
 
+#--------------------------------------------------------
   def partdefminmax( self, aIndex ):
     '''Get min/max for given part.'''
     p = body.getpart(aIndex)
     return p._defminmax if p else (-100.0, 100.0)
 
+#--------------------------------------------------------
   def setpartdata( self, aIndex, aRate, aTrim, aMinMax ):
     '''Set the rate, trim and min/max values for given part.'''
     p = body.getpart(aIndex)
@@ -367,34 +397,45 @@ class sentrybot(object):
       p.center = aTrim
       p.minmax = aMinMax
 
+#--------------------------------------------------------
   def save( self ):
     '''Do save of properites.'''
     saveload.saveproperties(self)
 
+#--------------------------------------------------------
   def load( self ):
     '''Do load of properties.'''
     saveload.loadproperties(self)
 
+#--------------------------------------------------------
   def loadfromstring( self, aString ):
     '''Load properties from given string.'''
     saveload.loadpropertiesfromstring(self, aString)
 
+#--------------------------------------------------------
   def _initparts( self ):
     '''Initialize all of the parts.'''
     body.initparts(self._pca)
     self._setspeed()
 
+#--------------------------------------------------------
   def _center( self ):
     self._rotx = 0.0
     self._roty = 0.0
 
+#--------------------------------------------------------
   def brake( self, abTF ):
     '''Brake the legs.'''
     lleg = body.getpart(body._LLEG)
     rleg = body.getpart(body._RLEG)
     lleg.brake(abTF)
     rleg.brake(abTF)
+    sleep(0.2)
+    lrleg.stop()
+    rleg.stop()
 
+
+#--------------------------------------------------------
   def _fire( self, abTF ):
     '''Fire gun by setting motor speed to 100%, stop by setting to 0%.'''
     p = body.getpart(body._GUN)
@@ -406,10 +447,12 @@ class sentrybot(object):
     sm = body.getpart(body._SMOKE)
     sm.value = sm.minmax[1] if abTF else sm.minmax[0]
 
+#--------------------------------------------------------
   def getspeeds( self ):
     '''Get tuple of speeds as comma separated string.'''
     return ', '.join(str(s) for s in sentrybot._speeds)
 
+#--------------------------------------------------------
   def setspeeds( self, aSpeeds ):
     '''Set tuple of speeds from comma separated string.'''
     spds = aSpeeds.split(',')
@@ -420,12 +463,14 @@ class sentrybot(object):
       #On error we print the exception and continue with default speed values.
       print(e)
 
+#--------------------------------------------------------
   def _setspeed( self ):
     '''Set the speed scale value on the legs to the current _speed setting.'''
     lleg = body.getpart(body._LLEG)
     rleg = body.getpart(body._RLEG)
     lleg.scale = rleg.scale = sentrybot._speeds[self._speed]
 
+#--------------------------------------------------------
   def _nextspeed( self ):
     '''Increment to the next speed.'''
     self._speedchange += 2 #This will make it 4.  Used to determine debounce actions.
@@ -441,6 +486,7 @@ class sentrybot(object):
       snd.play()
     self._setspeed()
 
+#--------------------------------------------------------
   def _joy( self, aIndex ):
     '''Get joystick value in range -1.0 to 1.0'''
 
@@ -450,6 +496,7 @@ class sentrybot(object):
 
     return self._controller.getjoy(aIndex) / 255.0
 
+#--------------------------------------------------------
   def _togglearms( self ):
     '''Toggle arms servos on/off.'''
     if self._armson:
@@ -466,6 +513,7 @@ class sentrybot(object):
       self._center()
       self._armson = True
 
+#--------------------------------------------------------
   def _togglecombat( self ):
     '''Toggle combat stance.'''
 
@@ -482,6 +530,7 @@ class sentrybot(object):
                       'sys/one'), sentrybot._MACHINEGROUP)
       s.play()
 
+#--------------------------------------------------------
   def _ps2action( self, aButton, aValue ):
     '''Callback for ps2 button events. They are remapped to FC30 events and sent
        to the _buttonaction callback.'''
@@ -492,6 +541,7 @@ class sentrybot(object):
 #     print(aButton, aValue, k)
       self._buttonaction(k, aValue)
 
+#--------------------------------------------------------
   def _buttonaction( self, aButton, aValue ):
     '''Callback function for 8Bitdo FC30 Pro controller.'''
 
@@ -583,12 +633,14 @@ class sentrybot(object):
       if aButton in self._buttonpressed:
         self._buttonpressed.remove(aButton)
 
+#--------------------------------------------------------
   def clamparms( self, aX, aY ):
     '''Set arm clamp values.'''
     aX = min(max(self._armx[0], aX), self._armx[1])
     aY = min(max(self._army[0], aY), self._army[1])
     return (aX, aY)
 
+#--------------------------------------------------------
   def _updateparts( self, aDelta ):
     '''Update all servos based on joystick input'''
 
@@ -699,6 +751,7 @@ class sentrybot(object):
     m = body.getpart(body._MISSILES)
     m.update(aDelta)
 
+#--------------------------------------------------------
   def run( self ):
     '''Main loop to run the robot.'''
     startsfx = sound(sentrybot._startupsfx, sentrybot._MACHINEGROUP)
@@ -757,7 +810,7 @@ class sentrybot(object):
       body.off()                                #Make sure motors and servos are off.
       self._idle.stop()
 
-#------------------------------------------------------------------------
+#--------------------------------------------------------
 if __name__ == '__main__':
   _startupswitch.update()
   #If the startup button is on then start up.

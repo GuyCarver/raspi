@@ -41,14 +41,14 @@ def vels( x, y ):
   q = ((y >= 0) << 1) | (x >= 0)
 
   #Get triangle points for the quadrant.
-  t = triangles[q]
+  t0, t1, t2 = triangles[q]
 
   #Once we have the quadrant we use the absolute value of x,y (range 0-1).
   x = abs(x)
   y = abs(y)
 
   #Get the middle point.
-  p1 = points[t[1]]
+  p1 = points[t1]
 
   #Interp between (0,0) and triangle point 1 (diagonal).
   v1 = (p1[0] * x, p1[1] * y)
@@ -58,21 +58,35 @@ def vels( x, y ):
 
   #y >= x so interp between triangle point 0 and 1 using x.
   if y >= x:
-    v2 = interp(points[t[0]], p1, x)
-    #Convert y to a value between 0 and 1 relative to x.
-    perc = 1.0 if y >= 1.0 else (y - x) / (1.0 - x)
+    p0 = points[t0]
+    x, y = y, x                                 # Swap x, y for the perc calc.
   #x > y so interp between triangle point 2 and 1 using y.
   else:
-    v2 = interp(points[t[2]], p1, y)
-    #Convert x to a value between 0 and 1 relative to y.
-    perc = 1.0 if x >= 1.0 else (x - y) / (1.0 - y)
+    p0 = points[t2]
+
+  v2 = interp(p0, p1, y)
+  #Convert x to a value between 0 and 1 relative to y.
+  perc = 1.0 if x >= 1.0 else (x - y) / (1.0 - y)
 
   #Interpolate between v1 and v2 by percentage.
-  return interp(v1, v2, perc)
+  res = interp(v1, v2, perc)
+  return res
 
-#tests = ((0.5, 0.5), (1,1), (0,1), (1,0), (1,-1), (0,-1), (-1,-1), (-1,0), (-1,1))
+# tests = ((0.5, 0.51), (1,.99), (0,.99), (1,0.1), (1,-.99), (0,-.99), (-1,-.99), (-1,0.1), (-1,.99))
+# def test(  ):
+#   for t in tests:
+#     r = vels(*t)
+#     print(r)
 #
-#def test(  ):
-#  for t in tests:
-#    r = vels(*t)
-#    print('{}: {}'.format(t, r))
+# test()
+
+# (0.51, 0.010000000000000009)
+# (1.0, -0.010000000000000009)
+# (0.99, 0.99)
+# (1.0, -0.9)
+# (-0.98, -0.010000000000000009)
+# (-0.99, -0.99)
+# (-0.010000000000000009, -0.98)
+# (-0.9, 1.0)
+# (-0.010000000000000009, 1.0)
+
