@@ -32,8 +32,8 @@
 //----------------------------------------------------------------------
 
 #include <memory>
-#include <python3.5/Python.h>
-#include <python3.5/structmember.h>
+#include <python3.7/Python.h>
+#include <python3.7/structmember.h>
 #include <iostream>
 #include <stdio.h>
 #include <wiringPi.h>
