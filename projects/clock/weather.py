@@ -6,9 +6,8 @@ from time import sleep
 locprefix = 'https://weather.com/weather/today/l/'
 locsuffix = ':4:US'
 
-# tempdivname = '_-_-components-src-organism-TodayDetailsCard-TodayDetailsCard--feelsLikeTemp--2x1SW'
-tempdivname = '_-_-components-src-organism-CurrentConditions-CurrentConditions--primary--2DOqs'
-conddivname = '_-_-components-src-organism-CurrentConditions-CurrentConditions--phraseValue--mZC_p'
+tempdivname = '_-_-node_modules--wxu-components-src-organism-CurrentConditions-CurrentConditions--primary--3xWnK'
+conddivname = '_-_-node_modules--wxu-components-src-organism-CurrentConditions-CurrentConditions--phraseValue--2xXSr'
 
 def get( aZip ):
   temp = 0
@@ -19,15 +18,6 @@ def get( aZip ):
   for x in range(0, 4):
     page = requests.get(loc)
     soup = BeautifulSoup(page.content, 'html.parser')
-
-#'today_nowcard-temp'
-#'today_nowcard-phrase'
-
-#these tags contain the data when there is now nowcard, but I don't know how to get it.
-#  It's not a 'div'
-#  'getSunV3CurrentObservationsUrlConfig'
-#  'temperature'
-#  'wxPhraseShort'
 
     tempdiv = soup.find_all('div', class_=tempdivname)
     if len(tempdiv):
@@ -45,11 +35,11 @@ def get( aZip ):
     sleep(3.0)                                    #Wait 3 seconds before trying again.
 
   if temp == 0:
-    print(soup)
+#     print(soup)
     print("Temp Error:", page.status_code)
 
   return (temp, cond)
 
 
 #print('Weather is:', get(21774))
-#print('Weather in Rockville is:', get('20850'))
+print('Weather in Rockville is:', get('20850'))
