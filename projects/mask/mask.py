@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import RPi.GPIO as GPIO
-from pca9865 import *
+import pca
 from time import perf_counter, sleep
 from anim import anim
 from math import fabs
@@ -18,7 +18,7 @@ _dtime = .03
 class mask(object):
   ''' Run the mask servo, LEDS and camera. '''
 
-  _EYES, LRED, RRED, RGREEN, RBLUE = range(5)   # _pca indexes.
+  _EYES, LRED, RRED, RGREEN, RBLUE = range(5)   # pca9865 indexes.
   _LEDMIN = 0.1                                 # Minimum LED value.
   _LEDMAX = 1.0                                 # Maximum LED value.
   _LEDRANGE = _LEDMAX - _LEDMIN                 # Total range of led values.
@@ -40,13 +40,13 @@ class mask(object):
 
 #------------------------------------------------------------------------
   def __init__( self ):
-    ''' Initialize the class. '''
+    ''' Initialize the class and pca device. '''
 
     super(mask, self).__init__()
 
     self._eyeson = False
 
-    self._pca = pca9865()                       # Servo controller.
+    pca.Startup()
     self._camera = checkface.Create()
     self._snaptime = mask._SNAPDELAY
     self._initleds(0.0)
@@ -81,7 +81,7 @@ class mask(object):
 #------------------------------------------------------------------------
   def setled( self, aIndex, aValue ):
     ''' Set the led to the given float value 0.0-1.0 '''
-    self._pca.set(aIndex, aValue)
+    pca.Set(aIndex, aValue)
 
 #------------------------------------------------------------------------
   @property
@@ -92,7 +92,7 @@ class mask(object):
   def eyeson( self, aValue ):
     self._eyeson = aValue
     if not aValue:
-      self._pca.off(mask._EYES)                 # Turn servo off to save battery.
+      pca.Off(mask._EYES)                       # Turn servo off to save battery.
 
 #------------------------------------------------------------------------
   @property
@@ -258,7 +258,7 @@ class mask(object):
         checkface.SetCapture(self._camera)      # Next check will trigger a screen capture.
 
 #    print(self._curpos)
-    self._pca.setangle(mask._EYES, self._curpos)
+    pca.SetAngle(mask._EYES, self._curpos)
 
     # update led intensity.
     for i, a in enumerate(self._anims):
