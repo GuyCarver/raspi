@@ -113,7 +113,6 @@ class ps2con;
 class ps2con
 {
 public:
-
 	//----------------------------------------------------------------
 	ps2con( uint32_t aCmd, uint32_t aData, uint32_t aClk, uint32_t aAtt )
 	: _cmd(aCmd)
@@ -121,6 +120,12 @@ public:
 	, _clk(aClk)
 	, _att(aAtt)
 	{
+		for ( uint32_t i = 0; i < BUTTONS::COUNT; ++i) {
+			_buttons[i] = 0;
+		}
+
+		_events[0] = 0;
+
 		//Read data, but probably not necessary, maybe just the delay is, but without these
 		// initialization may not succeed.
 		pinMode(_cmd, OUTPUT);
@@ -213,25 +218,29 @@ public:
 
 	//----------------------------------------------------------------
 	//Read data and process into _buttons and _joys arrays.
-	void GetData(  )
+	// Return number of button press/release events recorded.
+	uint32_t GetData(  )
 	{
 		SendReceive(cmd_qdata, sizeof(cmd_qdata));
 
 		//Double buffer button input so we can check for state changes.
 		uint32_t prev = _prevbuttons;
 		uint32_t b = _res[3] | (_res[4] << 8);
+		uint32_t eventCount = 0;
 		_prevbuttons = b;						// Set new prev buttons for next time.
 		for ( uint32_t i = 0; i < BUTTONS::COUNT; ++i) {
 			uint8_t bv = !(b & 1);
 			//If == then value changed because the prev check doesn't negate the bit like bv setting above.
 			if (bv == (prev & 1)) {
 				bv |= RELEASED;					// Bit 1 set = changed state.  Bit 0 = up/down state.
+				_events[eventCount++] = static_cast<uint32_t>(bv) | (i << 8);
 			}
 			_buttons[i] = bv;
 
 			b >>= 1;
 			prev >>= 1;
 		}
+		_events[eventCount] = 0;
 
 		int32_t sgn = 1;
 		//Loop through joystick input and change values 0-255 to +/- 255 with 0 in the middle.
@@ -239,6 +248,8 @@ public:
 			_joys[i - 5] = ((_res[i] - 0x80) << 1) * sgn;
 			sgn = -sgn;							// Every other input (y) needs to be reversed.
 		}
+
+		return eventCount;
 	}
 
 	uint32_t _cmd = 0;
@@ -249,6 +260,7 @@ public:
 	uint32_t _prevbuttons = 0;
 	int32_t _joys[4];
 	uint8_t _buttons[BUTTONS::COUNT];
+	uint32_t _events[BUTTONS::COUNT + 1];
 	uint8_t _res[sizeof(cmd_qdata)];
 };
 
@@ -273,7 +285,7 @@ bool Startup( uint32_t aCmd, uint32_t aData, uint32_t aClk, uint32_t aAtt )
 
 	pInstance = std::make_unique<ps2con>(aCmd, aData, aClk, aAtt);
 
-	return true; 							// TODO: Determine is ps2con connection is good.
+	return pInstance != nullptr;
 }
 
 //----------------------------------------------------------------
@@ -285,11 +297,9 @@ void Shutdown(  )
 
 //----------------------------------------------------------------
 //Read new data from the controller.
-void Update(  )
+uint32_t Update(  )
 {
-	if (pInstance) {
-		pInstance->GetData();
-	}
+	return pInstance ? pInstance->GetData() : 0u;
 }
 
 //----------------------------------------------------------------
@@ -299,6 +309,22 @@ void Config(  )
 	if (pInstance) {
 		pInstance->DoConfig();
 	}
+}
+
+//----------------------------------------------------------------
+//Get number of buttons.
+uint32_t NumButtons(  )
+{
+	return BUTTONS::COUNT;
+}
+
+//----------------------------------------------------------------
+//Get button value given an index.
+uint32_t GetEvent( uint32_t aIndex )
+{
+	return pInstance && aIndex < BUTTONS::COUNT
+	? pInstance->_events[aIndex]
+	: 0u;
 }
 
 //----------------------------------------------------------------
