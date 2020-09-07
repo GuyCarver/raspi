@@ -3,12 +3,12 @@
 
 # sudo apt install rpi.gpio
 
-from pca9865 import *
 from gamepad import *
 from wheel import *
 from buttons import gpioinit, button
 
-import ps2con
+import pca
+import ps2
 import onestick
 import RPi.GPIO as GPIO
 # GPIO.setwarnings(False)
@@ -35,43 +35,43 @@ class tank(object):
 
   # map of ps2 controller buttons to 8Bitdo FC30 Pro retro controller buttons.
   _ps2map = {
-    ps2con.CIRCLE : ecodes.BTN_A,
-    ps2con.CROSS : ecodes.BTN_B,
-    ps2con.TRIANGLE : ecodes.BTN_X,
-    ps2con.SQUARE : ecodes.BTN_Y,
-    ps2con.SELECT : ecodes.BTN_SELECT,
-    ps2con.START : ecodes.BTN_START,
-    ps2con.L_TRIGGER : ecodes.BTN_TL2,
-    ps2con.R_TRIGGER : ecodes.BTN_TR2,
-    ps2con.L_SHOULDER : ecodes.BTN_TL,
-    ps2con.R_SHOULDER : ecodes.BTN_TR,
-    ps2con.L_HAT : ecodes.BTN_THUMBL,
-    ps2con.R_HAT : ecodes.BTN_THUMBR,
-    ps2con.DPAD_U : gamepad.BTN_DPADU,
-    ps2con.DPAD_R : gamepad.BTN_DPADR,
-    ps2con.DPAD_D : gamepad.BTN_DPADD,
-    ps2con.DPAD_L : gamepad.BTN_DPADL
+    ps2.CIRCLE : ecodes.BTN_A,
+    ps2.CROSS : ecodes.BTN_B,
+    ps2.TRIANGLE : ecodes.BTN_X,
+    ps2.SQUARE : ecodes.BTN_Y,
+    ps2.SELECT : ecodes.BTN_SELECT,
+    ps2.START : ecodes.BTN_START,
+    ps2.L_TRIGGER : ecodes.BTN_TL2,
+    ps2.R_TRIGGER : ecodes.BTN_TR2,
+    ps2.L_SHOULDER : ecodes.BTN_TL,
+    ps2.R_SHOULDER : ecodes.BTN_TR,
+    ps2.L_HAT : ecodes.BTN_THUMBL,
+    ps2.R_HAT : ecodes.BTN_THUMBR,
+    ps2.DPAD_U : gamepad.BTN_DPADU,
+    ps2.DPAD_R : gamepad.BTN_DPADR,
+    ps2.DPAD_D : gamepad.BTN_DPADD,
+    ps2.DPAD_L : gamepad.BTN_DPADL
   }
 
   _HEADLIGHTS = (0, 1)
   _TAILLIGHTS = (2, 3)
-  _DZ = 0.01                                    # Dead zone.
+  _DZ = 0.015                                    # Dead zone.
 
   #PS2 joystick is RX, RY, LX, LY while gamepad is LX, LY, RX, RY.
-  _ps2joymap = (ps2con.LX, ps2con.LY, ps2con.RX, ps2con.RY)
+  _ps2joymap = (ps2.LX, ps2.LY, ps2.RX, ps2.RY)
   _speedchange = 0.25
 
 #--------------------------------------------------------
   def __init__( self ):
-    self._controllernum = 1                     #Type of controller 0=FC30, 1=ps2
-    self._controller = None                     #Start out with no controller. Will set once we no which type.
-    self._pca = pca9865(100)
+    self._controllernum = 1                     # Type of controller 0=FC30, 1=ps2, 2=ps2onestick
+    pca.Startup()
     self._gpmacaddress = '' #'E4:17:D8:2C:08:68'
-    self._buttonpressed = set()                 #A set used to hold button pressed states, used for debounce detection.
-    self._left = wheel(self._pca, 8, 9, 10)
-    self._right = wheel(self._pca, 4, 6, 5)
+    self._buttonpressed = set()                 # A set used to hold button pressed states, used for debounce detection and button combos. #
+    self._left = wheel(pca, 8, 9, 10)
+    self._right = wheel(pca, 4, 6, 5)
     self._lights = 0.0
     self.togglelights()
+    onestick.adjustpoints(tank._DZ)             # Set point to minimum value during interpretation.
 
     try:
       bres = keyboard.is_pressed('q')
@@ -87,52 +87,21 @@ class tank(object):
 
 #--------------------------------------------------------
   @property
-  def macaddress( self ):
-    return self._gpmacaddress
-
-  @macaddress.setter
-  def macaddress( self, aValue ):
-    self._gpmacaddress = aValue
-    if self.controllernum == 0 and self._controller != None:
-      self._controller.macaddress = aValue
-
-#--------------------------------------------------------
-  @property
   def running( self ): return self._running
-
-#--------------------------------------------------------
-  @property
-  def controllernum( self ): return self._controllernum
-
-  @controllernum.setter
-#--------------------------------------------------------
-  def controllernum( self, aValue ):
-    '''Set the controller #.'''
-    self._controllernum = aValue
-#    print('Controller:', self._controllernum)
 
 #--------------------------------------------------------
   def _initcontroller( self ):
     '''Create the controller if necessary.'''
-    if self._controllernum:
+    if self._controllernum > 0:
 #      print('starting ps2 controller')
-      self._controller = ps2con.ps2con(17, 27, 18, 4, self._ps2action)
-    else:
-#      print('starting Retro Controller')
-      self._controller = gamepad(self.macaddress, self._buttonaction)
+      ps2.Startup(24, 25, 18, 23)
 
 #--------------------------------------------------------
   def setcontroller( self, aIndex ):
     '''Set controller index if it changed, and create a controller.'''
-    if self.controllernum != aIndex or self._controller == None:
+    if self.controllernum != aIndex:
       self.controllernum = aIndex
       self._initcontroller()
-
-#--------------------------------------------------------
-  def trypair( self ):
-    '''If 8Bitdo controller is selected and it's not connected, attempt a pairing.'''
-    if self.controllernum == 0 and self._controller != None and self._controller.connected == False:
-      self._controller.pair()
 
 #--------------------------------------------------------
   def _ps2action( self, aButton, aValue ):
@@ -156,6 +125,8 @@ class tank(object):
         self._prevspeed()
       elif aButton == ecodes.BTN_TR:
         self._nextspeed()
+      elif aButton == ecodes.BTN_SELECT:
+        self._controllernum = 3 - self._controllernum
     elif aButton == gamepad.GAMEPAD_DISCONNECT:
       self.brake()
     else: #Handle release events.
@@ -171,14 +142,14 @@ class tank(object):
     ''' Set all lights to self._lights value. '''
     if self._lights:
       for v in tank._HEADLIGHTS:
-        self._pca.set(v, self._lights)
+        pca.Set(v, self._lights)
       for v in tank._TAILLIGHTS:
-        self._pca.set(v, self._lights)
+        pca.Set(v, self._lights)
     else:
       for v in tank._HEADLIGHTS:
-        self._pca.off(v)
+        pca.Off(v)
       for v in tank._TAILLIGHTS:
-        self._pca.off(v)
+        pca.Off(v)
 
 #--------------------------------------------------------
   def togglelights( self ):
@@ -212,19 +183,24 @@ class tank(object):
     ''' Get joystick value in range -1.0 to 1.0 '''
 
     # PS2 controller has different stick mappings.
-    if self._controllernum == 1:
-      aIndex = tank._ps2joymap[aIndex & 0x03]  #Make sure value is in range.
+    if self._controllernum > 0:
+      aIndex = tank._ps2joymap[aIndex & 0x03]  # Make sure value is in range.
+      v = ps2.GetJoy(aIndex)
 
-    return self._controller.getjoy(aIndex) / 255.0
+    return v / 255.0
 
 #--------------------------------------------------------
   def updatetracks( self ):
     ''' Update the track speeds. '''
-    l = self._joy(gamepad._LY)
-    r = self._joy(gamepad._RY)
+    l = deadzone(self._joy(gamepad._LY), tank._DZ)
+    if self._controllernum == 2:
+      r = -deadzone(self._joy(gamepad._LX), tank._DZ)
+      r, l = onestick.vels(r, l)
+    else:
+      r = deadzone(self._joy(gamepad._RY), tank._DZ)
 
-    self._left.speed(deadzone(l, tank._DZ))
-    self._right.speed(deadzone(r, tank._DZ))
+    self._left.speed(l)
+    self._right.speed(r)
 
 #--------------------------------------------------------
   def run( self ):
@@ -242,12 +218,12 @@ class tank(object):
         if delta > _dtime:
           delta = _dtime
 
-        if self._controller:
-          self._controller.update()
+        if self._controllernum > 0:
+          ps2.Update(self._ps2action)
           self.updatetracks()
 
         nexttime = perf_counter()
-        sleeptime = _dtime - (nexttime - prevtime)  #30fps - time we've already wasted.
+        sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted.
         if sleeptime > 0.0:
           sleep(sleeptime)
 
