@@ -59,19 +59,31 @@ var rightw
   ps2:GetButton ps2:PRESSED n:=
 ;
 
+[ null , \ SELECT
+  null ,
+  null ,
+  null ,
+  null , \ DPAD_U
+  null ,
+  null ,
+  null ,
+  null , \ L_TRIGGER
+  null ,
+  ( _SPDCHANGE n:neg wheel:gear+ ) ,
+  ( _SPDCHANGE wheel:gear+ ) ,
+  togglelights , \ TRIANGLE
+  null ,
+  null ,
+  brake
+] constant press_actions
+
 \ --------------------------------------------------------
-: checkbuttons \ --
-  ps2:SQUARE ispressed if
-    brake
-  then
-  ps2:TRIANGLE ispressed if
-    togglelights
-  then
-  ps2:L_SHOULDER ispressed if
-    _SPDCHANGE n:neg wheel:gear+
-  then
-  ps2:R_SHOULDER ispressed if
-    _SPDCHANGE wheel:gear+
+\ Process button events.
+: ButtonEvent \ btn evt --
+  ps2:PRESSED = if
+    press_actions case
+  else \ Released
+    drop \ No release events yet.
   then
 ;
 
@@ -79,23 +91,20 @@ var rightw
 \ loop and upate.
 : app:main \ --
   _startupswitch @ btn:update
-  btn:on argc 0 n:> or if              \ Run if switch is on or argument count.
+  btn:on argc 0 n:> or if             \ Run if switch is on or argument count.
     \ init pca
     pca:Startup if
       \ init ps2con
-      27 22 18 17 ps2:Startup if
+      17 27 18 4 ps2:Startup if
         \ setup wheels.
-        8 9 10 wheel:init leftw !
+        8 9 10 wheel:init leftw !     \ Speed, Forward, Backward indexes.
         4 6 5 wheel:init rightw !
         togglelights
 
         repeat
-          ps2:Update
-          checkbuttons
-          \ Read input
-          trackinput                    \ Write track speeds
-          \ Sleep a bit
-          0.02 sleep
+          ' ButtonEvent ps2:UpdateE   \ Update PS2 controller and process button events.
+          trackinput                  \ Write track speeds
+          0.02 sleep                  \ Sleep a bit
         again
 
         ps2:Shutdown
