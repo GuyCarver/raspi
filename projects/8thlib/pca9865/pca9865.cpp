@@ -137,7 +137,7 @@ public:
 				two = 4096;
 			}
 			else {
-				one = 0
+				one = 0;
 				two = static_cast<uint32_t>(4096.0f * aPerc);
 			}
 			_setpwm(aServo, one, two);
@@ -199,27 +199,11 @@ private:
 	}
 
 	//--------------------------------------------------------
-	// Write 16 bit integer aVal to given address aLoc.
-	int32_t _write16( uint16_t aValue, uint32_t aLoc )
-	{
-		return wiringPiI2CWriteReg16(_i2c, aLoc, aValue);
-	}
-
-	//--------------------------------------------------------
 	// Write 8 bit buffer to given address.
 	void _writebuffer( uint8_t *apBuffer, uint32_t aLen, uint32_t aLoc )
 	{
 		for ( uint32_t i = 0; i < aLen; ++i) {
 			_write8(apBuffer[i], aLoc + i);
-		}
-	}
-
-	//--------------------------------------------------------
-	// Write 16 bit buffer to given address.
-	void _writebuffer( uint16_t *apBuffer, uint32_t aLen, uint32_t aLoc )
-	{
-		for ( uint32_t i = 0; i < aLen; ++i) {
-			_write16(apBuffer[i], aLoc + i);
 		}
 	}
 
@@ -230,12 +214,14 @@ private:
 	void _setpwm( uint32_t aServo, uint32_t aOn, uint32_t aOff )
 	{
 		if ((0 <= aServo) && (aServo <= 15)) {
-			uint16_t buffer[2];
+			uint8_t buffer[4];
 			// Data = on-low, on-high, off-low and off-high.  That's 4 bytes each servo.
 			uint32_t loc = _LED0_ON_L + (aServo * 4);
-			buffer[0] = static_cast<uint16_t>(aOn & 0xFFFF);
-			buffer[1] = static_cast<uint16_t>(aOff & 0xFFFF);
-			_writebuffer(buffer, 2, loc);
+			buffer[0] = static_cast<uint8_t>(aOn & 0xFF);
+			buffer[1] = static_cast<uint8_t>(aOn >> 8);
+			buffer[2] = static_cast<uint8_t>(aOff & 0xFF);
+			buffer[3] = static_cast<uint8_t>(aOff >> 8);
+			_writebuffer(buffer, 4, loc);
 		}
 	}
 };
