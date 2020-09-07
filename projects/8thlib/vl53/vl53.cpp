@@ -9,10 +9,9 @@
 // Much of this was pulled from Pololy library for arduino at:
 // https://github.com/pololu/vl53l0X-arduino
 
-// #include <iostream>
-// #include <algorithm>
-// #include <unistd.h>
-// #include <errno.h>
+#include <iostream>
+#include <unistd.h>
+#include <errno.h>
 #include <wiringPiI2C.h>
 #include <wiringPi.h>
 
@@ -21,25 +20,33 @@
 
 namespace
 {
-	const uint8_t SEQUENCE_ENABLE_FINAL_RNG		= 0x80
-	const uint8_t SEQUENCE_ENABLE_PRE_RNG		= 0x40
-	const uint8_t SEQUENCE_ENABLE_TCC			= 0x10
-	const uint8_t SEQUENCE_ENABLE_DSS			= 0x08
-	const uint8_t SEQUENCE_ENABLE_MSRC			= 0x04
+	const uint8_t SEQUENCE_ENABLE_FINAL_RNG		= 0x80;
+	const uint8_t SEQUENCE_ENABLE_PRE_RNG		= 0x40;
+	const uint8_t SEQUENCE_ENABLE_TCC			= 0x10;
+	const uint8_t SEQUENCE_ENABLE_DSS			= 0x08;
+	const uint8_t SEQUENCE_ENABLE_MSRC			= 0x04;
+
+	enum PeriodType {
+		PRE_RANGE,
+		FINAL_RANGE
+	};
 
 //Registers, only the ones that are used. Others are at:
 // https://github.com/GrimbiXcode/VL53L0X-Register-Map
 // Don't bother checking the data sheet.  Not in there.
 	enum REGS : uint8_t {
+		SYSRANGE_START					= 0x00,
 		SYSTEM_SEQUENCE_CFG				= 0x01,
 		SYSTEM_INTERRUPT_CFG_GPIO		= 0x0A,
 		SYSTEM_INTERRUPT_CLEAR			= 0x0B,
 		RESULT_INTERRUPT_STATUS			= 0x13,
+		RESULT_RNG_STATUS				= 0x14,
 		ADDR_UNIT_ID_HIGH				= 0x16, // Serial number high byte
 		ADDR_I2C_ID_HIGH				= 0x18, // Write serial number high byte for I2C address unlock
 		ALGO_PHASECAL_LIM				= 0x30,
 		ALGO_PHASECAL_CFG_TIMEOUT		= 0x30,
 		GLOBAL_CFG_VCSEL_WIDTH			= 0x32,
+		FINAL_RNG_CFG_MIN_COUNT_RATE_RTN_LIMIT = 0x44,
 		MSRC_CFG_TIMEOUT_MACROP			= 0x46,
 		FINAL_RNG_CFG_VALID_PHASE_HIGH	= 0x48,
 		PRE_RNG_CFG_VCSEL_PERIOD		= 0x50,
@@ -131,6 +138,13 @@ namespace
 		0x8E,0x01, 0x00,0x01, 0xFF,0x00, 0x80,0x00
 	};
 
+	//----------------------------------------------------------------
+	uint32_t CalcMacroPeriod( uint32_t aValue )
+	{
+		return (3813120u * aValue + 500u) / 1000u;
+	}
+
+	//----------------------------------------------------------------
 	// Decode sequence step timeout in MCLKs from register value
 	// based on VL53L0X_decode_timeout()
 	// Note: the original function returned a uint32_t, but the return value is
@@ -141,6 +155,7 @@ namespace
 		return ((aVal & 0xFF) << (aVal >> 8)) + 1;
 	}
 
+	//----------------------------------------------------------------
 	// Encode sequence step timeout register value from timeout in MCLKs
 	// based on VL53L0X_encode_timeout()
 	// Note: the original function took a uint16_t, but the argument passed to it
@@ -165,6 +180,7 @@ namespace
 		return msb;
 	}
 
+	//----------------------------------------------------------------
 	// Convert sequence step timeout from MCLKs to microseconds with given VCSEL period in PCLKs
 	// based on VL53L0X_calc_timeout_us()
 	uint32_t TimeoutMclks2US( uint16_t aTimeoutPeriodMclks, uint8_t aVcselPeriodPclks )
@@ -173,6 +189,7 @@ namespace
 		return ((aTimeoutPeriodMclks * periodNS) + (periodNS / 2)) / 1000;
 	}
 
+	//----------------------------------------------------------------
 	// Convert sequence step timeout from microseconds to MCLKs with given VCSEL period in PCLKs
 	// based on VL53L0X_calc_aTimeout()
 	uint32_t TimeoutUS2Mclks( uint32_t aTimeoutPeriodUS, uint8_t aVcselPeriodPclks )
@@ -182,6 +199,8 @@ namespace
 	}
 
 }	//namespace
+
+class vl53;
 
 //----------------------------------------------------------------
 class SequenceStepTimeouts
@@ -196,22 +215,7 @@ public:
 	uint32_t PreRangeUS = 0;
 	uint32_t FinalRangeUS = 0;;
 
-	void Init( class vl153 &aVL, uint8_t aEnables )
-	{
-		PreRangeVcselPeriodPclks = ((aVL.Read8(PRE_RANGE_CONFIG_VCSEL_PERIOD) + 1) << 1);
-		MSrcDssTccMclks = aVL.Read8(MSRC_CONFIG_TIMEOUT_MACROP) + 1;
-		MSrcDssTccUS = TimeoutMclks2US(MSrcDssTccMclks, PreRangeVcselPeriodPclks);
-		PreRangeMclks = DecodeTimeout(aVL.Read8(PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI));
-		PreRangeUS = TimeoutMclks2US(PreRangeMclks, PreRangeVcselPeriodPclks);
-		FinalRangeVcselPeriodPclks = ((aVL.Read8(FINAL_RANGE_CONFIG_VCSEL_PERIOD) + 1) << 1);
-		FinalRangeMclks = DecodeTimeout(aVL.Read16(FINAL_RANGE_CONFIG_TIMEOUT_MACROP_HI));
-
-		if (aEnables & SEQUENCE_ENABLE_PRE_RANGE) {
-			FinalRangeMclks -= PreRangeMclks;
-		}
-
-		FinalRangeUS = TimeoutMclks2US(FinalRangeMclks, FinalRangeVcselPeriodPclks);
-	}
+	SequenceStepTimeouts( const vl53 &aVL, uint8_t aEnables );
 };
 
 //----------------------------------------------------------------
@@ -252,15 +256,19 @@ public:
 	}
 
 private:
-	static vl53 *pBase = nullptr;
+	static vl53 *pBase;
 
 	vl53 *pNext = nullptr;
 	uint32_t _i2c = 0;
+	uint32_t MeasurementTimingBudgetUS = 0;
 	uint8_t _address = 0x29;
+	uint8_t _stop = 0;
+
+	friend class SequenceStepTimeouts;
 
 	//----------------------------------------------------------------
 	// Read 8 bit value and return.
-	const uint8_t Read8( uint32_t aLoc )
+	const uint8_t Read8( uint32_t aLoc ) const
 	{
 		uint8_t v = 0;
 		int32_t ret = wiringPiI2CReadReg8(_i2c, aLoc);
@@ -273,7 +281,7 @@ private:
 
 	//----------------------------------------------------------------
 	// Read 16 bit value and return.
-	const uint16_t Read16( uint32_t aLoc )
+	const uint16_t Read16( uint32_t aLoc ) const
 	{
 		uint16_t v = 0;
 		int32_t ret = wiringPiI2CReadReg16(_i2c, aLoc);
@@ -286,7 +294,7 @@ private:
 
 	//----------------------------------------------------------------
 	// Read array of 8 bit values into buffer.
-	void ReadArray( uint8_t *apBuffer, uint32_t aLen, uint8_t aLoc )
+	void ReadArray( uint8_t *apBuffer, uint32_t aLen, uint8_t aLoc ) const
 	{
 		for ( uint32_t i = 0; i < aLen; ++i) {
 			apBuffer[i] = Read8(aLoc + i);
@@ -295,21 +303,21 @@ private:
 
 	//----------------------------------------------------------------
 	// Write 8 bit integer aVal to given address aLoc.
-	int32_t Write8( uint8_t aValue, uint32_t aLoc )
+	int32_t Write8( uint8_t aValue, uint32_t aLoc ) const
 	{
 		return wiringPiI2CWriteReg8(_i2c, aLoc, aValue);
 	}
 
 	//----------------------------------------------------------------
 	// Write 16 bit integer aVal to given address aLoc.
-	int32_t Write16( uint16_t aValue, uint32_t aLoc )
+	int32_t Write16( uint16_t aValue, uint32_t aLoc ) const
 	{
 		return wiringPiI2CWriteReg16(_i2c, aLoc, aValue);
 	}
 
 	//----------------------------------------------------------------
 	// Iterate array of loc/value pairs.
-	void WriteArray( uint8_t *apBuffer, uint32_t aLen )
+	void WriteArray( uint8_t *apBuffer, uint32_t aLen ) const
 	{
 		for ( uint32_t i = 0; i < aLen; i += 2) {
 			Write8(apBuffer[i + 1], apBuffer[i]);
@@ -318,7 +326,7 @@ private:
 
 	//----------------------------------------------------------------
 	// Write 8 bit buffer to given address.
-	void WriteBuffer( uint8_t *apBuffer, uint32_t aLen, uint32_t aLoc )
+	void WriteBuffer( uint8_t *apBuffer, uint32_t aLen, uint32_t aLoc ) const
 	{
 		for ( uint32_t i = 0; i < aLen; ++i) {
 			Write8(apBuffer[i], aLoc + i);
@@ -327,7 +335,7 @@ private:
 
 	//----------------------------------------------------------------
 	// Write 16 bit buffer to given address.
-	void WriteBuffer( uint16_t *apBuffer, uint32_t aLen, uint32_t aLoc )
+	void WriteBuffer( uint16_t *apBuffer, uint32_t aLen, uint32_t aLoc ) const
 	{
 		for ( uint32_t i = 0; i < aLen; ++i) {
 			Write16(apBuffer[i], aLoc + i);
@@ -343,19 +351,19 @@ private:
 		uint8_t firstSPAD, spadsEnabled;
 
 		// set 2.8V mode by setting bit 0 of this register.
-		Write8(Read8(VHV_CF_PAD_SCL_SDA_EXTSUP_HV) | 0x01, VHV_CFG_PAD_SCL_SDA_EXTSUP_HV);
+		Write8(Read8(VHV_CFG_PAD_SCL_SDA_EXTSUP_HV) | 0x01, VHV_CFG_PAD_SCL_SDA_EXTSUP_HV);
 		// Set I2C standard mode
 		WriteArray(I2CMode, arrlen(I2CMode));
-		stop_variable = Read8(INTERNAL_TUNING1);
+		_stop = Read8(INTERNAL_TUNING1);
 		WriteArray(I2CMode2, arrlen(I2CMode2));
 		// disable SIGNAL_RATE_MSRC (bit 1) and SIGNAL_RATE_PRE_RANGE (bit 4) limit checks
 		Write8(Read8(REG_MSRC_CFG_CONTROL) | 0x12, REG_MSRC_CFG_CONTROL);
-		// Q9.7 fixed point format (9 integer bits, 7 fractional bits)
-		Write16(0x20, FINAL_RNG_CFG_MIN_COUNT_RATE_RTN_LIMIT); // 0.25
+		// Fixed point format of 9 integer bits and 7 fraction bits
+		Write16(0x20, FINAL_RNG_CFG_MIN_COUNT_RATE_RTN_LIMIT);
 		Write8(0xFF, SYSTEM_SEQUENCE_CFG);
 		GetSPADInfo(&spadCount, &spadTypeIsAperture);
 
-		ReadArray(GLOBAL_CFG_SPAD_ENABLES_REF_0, refSpadA, arrlen(refSpadA));
+		ReadArray(refSpadA, arrlen(refSpadA), GLOBAL_CFG_SPAD_ENABLES_REF_0);
 		WriteArray(SPAD, arrlen(SPAD));
 		firstSPAD = spadTypeIsAperture ? 12 : 0;
 		spadsEnabled = 0;
@@ -370,14 +378,14 @@ private:
 			}
 		}
 
-		Writebuffer(refSpadA, arrlen(refSpadA), GLOBAL_CFG_SPAD_ENABLES_REF_0);
+		WriteBuffer(refSpadA, arrlen(refSpadA), GLOBAL_CFG_SPAD_ENABLES_REF_0);
 		WriteArray(DefTuning, arrlen(DefTuning)); // long list of magic numbers
 
 		// change some settings for long range mode
 		if (aType) {
 			Write16(0x0D, FINAL_RNG_CFG_MIN_COUNT_RATE_RTN_LIMIT); // 0.1
-			SetPulsePeriod(PeriodPreRange, 18);
-			SetPulsePeriod(PeriodFinalRange, 14);
+			SetPulsePeriod(PeriodType::PRE_RANGE, 18);
+			SetPulsePeriod(PeriodType::FINAL_RANGE, 14);
 		}
 
 		// set interrupt configuration to "new sample ready"
@@ -388,9 +396,9 @@ private:
 		Write8(0xE8, SYSTEM_SEQUENCE_CFG);
 		SetMeasurementTimingBudget(MeasurementTimingBudgetUS);
 		Write8(0x01, SYSTEM_SEQUENCE_CFG);
-		if (PerformSingleRefCalibration(0x40)) {
+		if (SingleRefCalibration(0x40)) {
 			Write8(0x02, SYSTEM_SEQUENCE_CFG);
-			if (PerformSingleRefCalibration(0x00)) {
+			if (SingleRefCalibration(0x00)) {
 				Write8(0xE8, SYSTEM_SEQUENCE_CFG);
 			}
 		}
@@ -400,7 +408,6 @@ private:
 	void GetSPADInfo( uint8_t *apCount, uint8_t *apTypeIsAperture )
 	{
 		int32_t timeout = 0;
-		uint8_t temp;
 		const int32_t maxTimeout = 50;
 
 		WriteArray(SPAD0, arrlen(SPAD0));
@@ -416,7 +423,7 @@ private:
 		if (timeout >= maxTimeout) {
 			return;
 		}
-		Write(0x01, 0x83);
+		Write8(0x01, 0x83);
 		uint8_t temp = Read8(0x92);
 		*apCount = temp & 0x7F;
 		*apTypeIsAperture = temp & 0x80;
@@ -426,6 +433,7 @@ private:
 		WriteArray(SPAD2, arrlen(SPAD2));
 	}
 
+	//----------------------------------------------------------------
 	// Set the VCSEL (vertical cavity surface emitting laser) pulse period for the
 	// given period type (pre-range or final range) to the given value in PCLKs.
 	// Longer periods seem to increase the potential range of the sensor.
@@ -433,12 +441,11 @@ private:
 	//  pre:  12 to 18 (initialized default: 14)
 	//  final: 8 to 14 (initialized default: 10)
 	// based on VL53L0X_set_vcsel_pulse_period()
-	vois SetPulsePeriod( vcselPeriodType aType, uint8_t aPeriod )
+	void SetPulsePeriod( PeriodType aType, uint8_t aPeriod )
 	{
 		uint8_t enables = Read8(SYSTEM_SEQUENCE_CFG);
 
-		SequenceStepTimeouts timeouts;
-		GetSequenceStepTimeouts(enables, &timeouts);
+		SequenceStepTimeouts timeouts(*this, enables);
 
 		// "Apply specific settings for the requested clock period"
 		// "Re-calculate and apply timeouts, in macro periods"
@@ -453,7 +460,7 @@ private:
 		// dependant on the pre-range vcsel period."
 		uint16_t v = 0;
 
-		if (aType == PeriodPreRange) {
+		if (aType == PeriodType::PRE_RANGE) {
 			// "Set phase check limits"
 			switch (aPeriod) {
 				case 12:
@@ -476,7 +483,7 @@ private:
 			Write16(v, PRE_RNG_CFG_VALID_PHASE_LOW);
 
 			// apply new VCSEL period
-			Write8(encodePeriod(aPeriod), PRE_RNG_CFG_VCSEL_PERIOD);
+			Write8((aPeriod >> 1) - 1, PRE_RNG_CFG_VCSEL_PERIOD);
 
 			// update timeouts
 
@@ -492,7 +499,7 @@ private:
 			Write8(static_cast<uint8_t>(std::min(new_msrc_aTimeout - 1, 255)),
 				MSRC_CFG_TIMEOUT_MACROP);
 		}
-		else if (aType == PeriodFinalRange) {
+		else {		// FINAL_RANGE.
 			uint16_t v0;
 			uint8_t v1, v2, v3;
 			switch (aPeriod) {
@@ -535,7 +542,7 @@ private:
 			Write8(0x00, INTERNAL_TUNING2);
 
 			// apply new VCSEL period
-			Write8(period_reg, FINAL_RNG_CFG_VCSEL_PERIOD);
+			Write8((aPeriod >> 1) - 1, FINAL_RNG_CFG_VCSEL_PERIOD);
 
 			// update timeouts
 
@@ -551,12 +558,8 @@ private:
 				new_finalRangeTimeout += timeouts.PreRangeMclks;
 			}
 
-			WriteReg16(EncodeTimeout(new_finalRangeTimeout),
+			Write16(EncodeTimeout(new_finalRangeTimeout),
 			FINAL_RNG_CFG_TIMEOUT_MACROP_HI);
-		}
-		else {
-			// invalid type
-			return;
 		}
 
 		// "Finally, the timing budget must be re-applied"
@@ -567,11 +570,12 @@ private:
 
 		uint8_t sequence_config = Read8(SYSTEM_SEQUENCE_CFG);
 		Write8(0x02, SYSTEM_SEQUENCE_CFG);
-		PerformSingleRefCalibration(0x0);
+		SingleRefCalibration(0x0);
 		Write8(sequence_config, SYSTEM_SEQUENCE_CFG);
 	}
 
 
+	//----------------------------------------------------------------
 	// Set the measurement timing budget in microseconds, which is the time allowed
 	// for one measurement; the ST API and this library take care of splitting the
 	// timing budget among the sub-steps in the ranging sequence. A longer timing
@@ -597,8 +601,7 @@ private:
 		uint32_t usedBudgetUS = StartOverhead + EndOverhead;
 
 		uint8_t enables = Read8(SYSTEM_SEQUENCE_CFG);
-		SequenceStepTimeouts timeouts;
-		GetSequenceStepTimeouts(enables, &timeouts);
+		SequenceStepTimeouts timeouts(*this, enables);
 
 		if (enables & SEQUENCE_ENABLE_TCC)	{
 			usedBudgetUS += timeouts.MSrcDssTccUS + TccOverhead;
@@ -638,20 +641,17 @@ private:
 
 				if (enables & SEQUENCE_ENABLE_PRE_RNG) {
 					finalRangeTimeout += timeouts.PreRangeMclks;
+				}
+				Write16(EncodeTimeout(finalRangeTimeout), FINAL_RNG_CFG_TIMEOUT_MACROP_HI);
+
+				MeasurementTimingBudgetUS = aBudget; // store for internal reuse
 			}
-
-			Write16(encodeTimeout(finalRangeTimeout), FINAL_RNG_CFG_TIMEOUT_MACROP_HI);
-
-			MeasurementTimingBudgetUS = aBudget; // store for internal reuse
 		}
 	}
 
 	//----------------------------------------------------------------
 	uint32_t GetMeasurementTimingBudget(  )
 	{
-		uint8_t enables;
-		SequenceStepTimeouts timeouts;
-
 		uint16_t const StartOverhead = 1910; // note that this is different than the value in set_
 		uint16_t const EndOverhead = 960;
 		uint16_t const MsrcOverhead = 660;
@@ -663,8 +663,8 @@ private:
 		// "Start and end overhead times always present"
 		uint32_t budgetUS = StartOverhead + EndOverhead;
 
-		enables = Read8(SYSTEM_SEQUENCE_CONFIG);
-		timeouts.Init(*this, enables);
+		uint8_t enables = Read8(SYSTEM_SEQUENCE_CFG);
+		SequenceStepTimeouts timeouts(*this, enables);
 
 		if (enables & SEQUENCE_ENABLE_TCC) {
 			budgetUS += (timeouts.MSrcDssTccUS + TccOverhead);
@@ -677,11 +677,11 @@ private:
 			budgetUS += (timeouts.MSrcDssTccUS + MsrcOverhead);
 		}
 
-		if (enables & SEQUENCE_ENABLE_PRE_RANGE) {
+		if (enables & SEQUENCE_ENABLE_PRE_RNG) {
 			budgetUS += (timeouts.PreRangeUS + PreRangeOverhead);
 		}
 
-		if (enables & SEQUENCE_ENABLE_FINAL_RANGE) {
+		if (enables & SEQUENCE_ENABLE_FINAL_RNG) {
 			budgetUS += (timeouts.FinalRangeUS + FinalRangeOverhead);
 		}
 
@@ -723,21 +723,19 @@ private:
 
 		// assumptions: Linearity Corrective Gain is 1000 (default);
 		// fractional ranging is not enabled
-		range = Read16(RESULT_RANGE_STATUS + 10);
+		range = Read16(RESULT_RNG_STATUS + 10);
 		Write8(0x01, SYSTEM_INTERRUPT_CLEAR);
 		return range;
 	}
 
 	//----------------------------------------------------------------
-	//
 	// Read the current distance in mm
-	//
 	int32_t TOFReadDistance(  )
 	{
 		Write8(0x01, 0x80);
 		Write8(0x01, 0xFF);
 		Write8(0x00, 0x00);
-		Write8(stop_variable, 0x91);
+		Write8(_stop, INTERNAL_TUNING1);
 		Write8(0x01, 0x00);
 		Write8(0x00, 0xFF);
 		Write8(0x80, 0x00);
@@ -749,7 +747,7 @@ private:
 		while (Read8(SYSRANGE_START) & 0x01) {
 			++timeout;
 			delayMicroseconds(5000);
-			if (timeout > 50) {
+			if (timeout > 50u) {
 				return -1;
 			}
 		}
@@ -786,3 +784,22 @@ private:
 	}
 };
 
+vl53 *vl53::pBase = nullptr;
+
+//----------------------------------------------------------------
+SequenceStepTimeouts::SequenceStepTimeouts( const vl53 &aVL, uint8_t aEnables )
+{
+	PreRangeVcselPeriodPclks = ((aVL.Read8(PRE_RNG_CFG_VCSEL_PERIOD) + 1) << 1);
+	MSrcDssTccMclks = aVL.Read8(MSRC_CFG_TIMEOUT_MACROP) + 1;
+	MSrcDssTccUS = TimeoutMclks2US(MSrcDssTccMclks, PreRangeVcselPeriodPclks);
+	PreRangeMclks = DecodeTimeout(aVL.Read8(PRE_RNG_CFG_TIMEOUT_MACROP_HI));
+	PreRangeUS = TimeoutMclks2US(PreRangeMclks, PreRangeVcselPeriodPclks);
+	FinalRangeVcselPeriodPclks = ((aVL.Read8(FINAL_RNG_CFG_VCSEL_PERIOD) + 1) << 1);
+	FinalRangeMclks = DecodeTimeout(aVL.Read16(FINAL_RNG_CFG_TIMEOUT_MACROP_HI));
+
+	if (aEnables & SEQUENCE_ENABLE_PRE_RNG) {
+		FinalRangeMclks -= PreRangeMclks;
+	}
+
+	FinalRangeUS = TimeoutMclks2US(FinalRangeMclks, FinalRangeVcselPeriodPclks);
+}
