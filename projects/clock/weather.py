@@ -6,8 +6,8 @@ from time import sleep
 locprefix = 'https://weather.com/weather/today/l/'
 locsuffix = ':4:US'
 
-tempdivname = '_-_-node_modules--wxu-components-src-organism-CurrentConditions-CurrentConditions--primary--3xWnK'
-conddivname = '_-_-node_modules--wxu-components-src-organism-CurrentConditions-CurrentConditions--phraseValue--2xXSr'
+tempdivname = '_-_-node_modules-@wxu-components-src-organism-CurrentConditions-CurrentConditions--primary--3xWnK'
+conddivname = '_-_-node_modules-@wxu-components-src-organism-CurrentConditions-CurrentConditions--phraseValue--2xXSr'
 
 def get( aZip ):
   temp = 0
@@ -34,9 +34,9 @@ def get( aZip ):
 #    print('try', x)
     sleep(3.0)                                    #Wait 3 seconds before trying again.
 
-  if temp == 0:
+#   if temp == 0:
 #     print(soup)
-    print("Temp Error:", page.status_code)
+#     print("Temp Error:", page.status_code)
 
   return (temp, cond)
 
