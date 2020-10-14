@@ -6,42 +6,42 @@ from time import sleep
 locprefix = 'https://weather.com/weather/today/l/'
 locsuffix = ':4:US'
 
-tempdivname = '_-_-node_modules-@wxu-components-src-organism-CurrentConditions-CurrentConditions--primary--3xWnK'
-conddivname = '_-_-node_modules-@wxu-components-src-organism-CurrentConditions-CurrentConditions--phraseValue--2xXSr'
+tempdivname = 'CurrentConditions--dataWrapperInner--2h2vG'
 
 def get( aZip ):
   temp = 0
   cond = ''
   loc = locprefix + str(aZip) + locsuffix
+  savepage = False
 
   #We sometimes get different data that we can't parse, so iterate and keep re-trying.
-  for x in range(0, 4):
+  for x in range(0, 1):
     page = requests.get(loc)
+    if savepage:
+      savepage = False
+      with open('weather.txt', 'w') as f:
+        f.write(str(page.content))
+
     soup = BeautifulSoup(page.content, 'html.parser')
 
     tempdiv = soup.find_all('div', class_=tempdivname)
     if len(tempdiv):
-#       print('found temp')
       span = tempdiv[0]
-      tempstr = span.contents[0].text[:-1] #Get temperature text and remove deg symbol.
+#      print(span.contents[0].text)
+      tempstr = span.contents[0].text #Get temperature text and remove deg symbol.
+      tempstr, cond = tempstr.split('°')
       temp = int(tempstr)
-
-      conddiv = soup.find_all('div', class_=conddivname)
-      if len(conddiv):
-#         print('found cond')
-        cond = conddiv[0].text
-
       break
 
 #    print('try', x)
     sleep(3.0)                                    #Wait 3 seconds before trying again.
 
-  if temp == 0:
+#   if temp == 0:
 #     print(soup)
-    print("Temp Error:", page.status_code)
+#     print("Temp Error:", page.status_code)
 
   return (temp, cond)
 
 
-print('Weather is:', get(21774))
-# print('Weather in Rockville is:', get('20850'))
+#print('Weather is:', get(21774))
+print('Weather in Rockville is:', get('20878'))
