@@ -5,10 +5,11 @@
 
 from gamepad import *
 from wheel import *
+from strobe import *
 from buttons import gpioinit, button
 
-import pca
 import ps2
+import pca
 import onestick
 import RPi.GPIO as GPIO
 # GPIO.setwarnings(False)
@@ -70,6 +71,7 @@ class tank(object):
     self._left = wheel(pca, 8, 9, 10)
     self._right = wheel(pca, 4, 6, 5)
     self._lights = 0.0
+    self._strobe = strobe(pca, 15, 14)
     self.togglelights()
     onestick.adjustpoints(tank._DZ)             # Set point to minimum value during interpretation.
 
@@ -83,7 +85,7 @@ class tank(object):
 
 #--------------------------------------------------------
   def __del__( self ):
-    self._contoller = None
+    pca.AllOff()
 
 #--------------------------------------------------------
   @property
@@ -119,7 +121,7 @@ class tank(object):
     #If button pressed
     if aValue & 0x01:
       self._buttonpressed.add(aButton)
-      if aButton == ecodes.BTN_Y:
+      if aButton == ecodes.BTN_B:
         self.brake()
       elif aButton == ecodes.BTN_TL:
         self._prevspeed()
@@ -127,10 +129,12 @@ class tank(object):
         self._nextspeed()
       elif aButton == ecodes.BTN_SELECT:
         self._controllernum = 3 - self._controllernum
+      elif aButton == ecodes.BTN_X:
+        self._strobe.on = not self._strobe.on
     elif aButton == gamepad.GAMEPAD_DISCONNECT:
       self.brake()
     else: #Handle release events.
-      if aButton == ecodes.BTN_X:
+      if aButton == ecodes.BTN_Y:
         self.togglelights()
 
       #On release, make sure to remove button from pressed state set.
@@ -206,26 +210,29 @@ class tank(object):
   def run( self ):
     self._initcontroller()
     prevtime = perf_counter()
+    try:
+      while self.running:
+        if self._haskeyboard and keyboard.is_pressed('q'):
+          self._running = False
+          print("quitting.")
+        else:
+          nexttime = perf_counter()
+          delta = max(0.01, nexttime - prevtime)
+          prevtime = nexttime
+          if delta > _dtime:
+            delta = _dtime
 
-    while self.running:
-      if self._haskeyboard and keyboard.is_pressed('q'):
-        self._running = False
-        print("quitting.")
-      else:
-        nexttime = perf_counter()
-        delta = max(0.01, nexttime - prevtime)
-        prevtime = nexttime
-        if delta > _dtime:
-          delta = _dtime
+          self._strobe.update(delta)
+          if self._controllernum > 0:
+            ps2.Update(self._ps2action)
+            self.updatetracks()
 
-        if self._controllernum > 0:
-          ps2.Update(self._ps2action)
-          self.updatetracks()
-
-        nexttime = perf_counter()
-        sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted.
-        if sleeptime > 0.0:
-          sleep(sleeptime)
+          nexttime = perf_counter()
+          sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted.
+          if sleeptime > 0.0:
+            sleep(sleeptime)
+    finally:
+      pca.AllOff()
 
 #--------------------------------------------------------
 if __name__ == '__main__':
