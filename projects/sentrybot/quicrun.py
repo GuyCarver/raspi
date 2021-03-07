@@ -362,17 +362,17 @@ class quicrun(object):
 
 #--------------------------------------------------------
 if __name__ == '__main__':  #start server
-  from pca9865 import *
+  import pca
 
-  p = pca9865()
-  q = quicrun(p, 8, 'test')
+  pca.startup()
+  q = quicrun(pca, 8, 'test')
   q.rate = 10.0
 
   def waitforit():
     print(q.speed)
     while(q.distance()):
       sleep(0.01)
-      q.update(0.01)
+      q.update(1.0)
 
   q.speed = 25.0
   waitforit()
