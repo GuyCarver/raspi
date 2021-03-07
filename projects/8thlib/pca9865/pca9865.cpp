@@ -55,7 +55,11 @@ namespace
 // 	constexpr uint32_t _ALLLED_OFF_H = 0xFD;
 
 	constexpr uint32_t _DEFAULTFREQ = 100;
-
+	//The min/max were determined using trial and error with a frequency of 100.
+	constexpr uint32_t _MINPULSE = 260; //120;
+	constexpr uint32_t _MAXPULSE = 1080; //868;
+	constexpr uint32_t _RANGE = _MAXPULSE - _MINPULSE;
+	constexpr uint32_t _END = 4095; // - _RANGE;
 }	//namespace
 
 //--------------------------------------------------------
@@ -126,21 +130,17 @@ public:
 			off(aServo);
 		}
 		else {
-			uint32_t one, two;
+			uint32_t base = _MINPULSE + (_RANGE * aServo);
+			while (base > _END) {
+				base -= _END;
+			}
 
-			if (aPerc == 1.0) {
-				one = 4096;
-				two = 0;
+			int32_t val = base + static_cast<int32_t>((_RANGE * aPerc));
+			while (val > _END) {
+				val -= _END;
 			}
-			else if (aPerc == 0.0) {
-				one = 0;
-				two = 4096;
-			}
-			else {
-				one = 0;
-				two = static_cast<uint32_t>(4096.0f * aPerc);
-			}
-			_setpwm(aServo, one, two);
+// 			std::cout << "Vals: " << base << val << std::endl;
+			_setpwm(aServo, base, val);
 		}
 	}
 
@@ -153,6 +153,11 @@ public:
 		set(aServo, perc);
 	}
 
+	void setpwm( uint32_t aServo, uint32_t aOn, uint32_t aOff )
+	{
+		_setpwm(aServo, aOn, aOff);
+	}
+
 	//--------------------------------------------------------
 	static pca9865 *QInstance(  ) { return _instance; }
 
@@ -161,22 +166,9 @@ public:
 
 private:
 	int32_t _i2c = 0;
-	uint32_t _min = 0;
-	uint32_t _max = 0;
-	uint32_t _range = 0;
-	uint32_t _end = 0;
 	bool bGood = true;
 
 	static pca9865 *_instance;
-
-	//--------------------------------------------------------
-	void _minmax( uint32_t aMin, uint32_t aMax )
-	{
-		_min = aMin;
-		_max = aMax;
-		_range = _max - _min;
-		_end = 4095 - _range;
-	}
 
 	//--------------------------------------------------------
 	// Read 8 bit value and return.
@@ -228,7 +220,7 @@ private:
 
 pca9865 *pca9865::_instance = nullptr;
 
-//Following are the 8th interface functions.
+//Following are the external interface functions.
 extern "C"
 {
 
@@ -301,6 +293,14 @@ void SetAngle( uint32_t aServo, float aAngle )
 	auto p = pca9865::QInstance();
 	if (p) {
 		p->setangle(aServo, aAngle);
+	}
+}
+
+void SetPWM( uint32_t aServo, uint32_t aOn, uint32_t aOff )
+{
+	auto p = pca9865::QInstance();
+	if (p) {
+		p->setpwm(aServo, aOn, aOff);
 	}
 }
 
