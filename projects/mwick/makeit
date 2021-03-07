@@ -1,0 +1,6 @@
+#!/bin/sh
+
+g++ -std=c++17 -shared -g -O3 -fPIC mwick.cpp \
+	-o mwicklib.so \
+	-I "/usr/include/" -I "/usr/local/include/"
+
