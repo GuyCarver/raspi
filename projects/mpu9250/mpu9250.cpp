@@ -40,64 +40,97 @@
 #include <errno.h>
 #include <wiringPiI2C.h>
 #include <wiringPi.h>
+#include <thread>
+#include <mutex>
+#include "Matrix3.h"
+
+// Possibly move all initialization into the background thread?
+// Lock data reading from the main thread?
+// Move mwick into here.
 
 namespace
 {
-	constexpr uint32_t _ADDRESS = 0x68;			// gy-6500 address.
-	constexpr uint32_t CALIBRATE_COUNT = 250;
-	constexpr float ACCEL_FACTOR = (1.0f / 4096.0f);
-	constexpr float GYRO_FACTOR = (1.0f / 65.5f);
-	constexpr float TODEG = 180.0f / 3.14159265f;
+	constexpr uint32_t ONETENTH = 100000;		// 1/10th second in microseconds
 
-	constexpr uint32_t CLOCK_PLL_XGYRO = 0x01;
-	constexpr uint32_t GYRO_FS_250 = 0x00;
-	constexpr uint32_t ACCEL_FS_2 = 0x00;
+	constexpr uint32_t MPU9050_ADDRESS_68 = 0x68;	// gy-6500 address.
 
-	constexpr uint32_t RA_SMPLRT_DIV   = 0x19;
-	constexpr uint32_t RA_CONFIG       = 0x1A;
-	constexpr uint32_t RA_GYRO_CONFIG  = 0x1B;
-	constexpr uint32_t RA_ACCEL_CONFIG = 0x1C;
-	constexpr uint32_t RA_INT_ENABLE   = 0x38;
-	constexpr uint32_t RA_ACCEL_XOUT_H = 0x3B;
-	constexpr uint32_t RA_ACCEL_YOUT_H = 0x3D;
-	constexpr uint32_t RA_ACCEL_ZOUT_H = 0x3F;
-	constexpr uint32_t RA_GYRO_XOUT_H  = 0x43;
-	constexpr uint32_t RA_GYRO_YOUT_H  = 0x45;
-	constexpr uint32_t RA_GYRO_ZOUT_H  = 0x47;
+	constexpr uint32_t PWR_MGMT_1 = 0x6B;	// Power Management 1
+	constexpr uint32_t PWR_MGMT_2 = 0x6C;	// Power Management 2
+	constexpr uint32_t CONFIG = 0x1A;		// Configuration
+	constexpr uint32_t SMPLRT_DIV = 0x19;	// Sample rate divider
+	constexpr uint32_t GYRO_CONFIG = 0x1B;	// Gyroscope configuration
+	constexpr uint32_t ACCEL_CONFIG = 0x1C;	// Accelerometer Configuration
+	constexpr uint32_t ACCEL_CONFIG_2 = 0x1D;	// Accelerometer Configuration 2
 
-	constexpr uint32_t RA_PWR_MGMT_1 = 0x6B;
+	constexpr uint32_t FIFO_EN = 0x23;
+	constexpr uint32_t I2C_MST_CTRL = 0x24;
+	constexpr uint32_t INT_ENABLE = 0x38;
 
-	constexpr uint8_t PWR1_DEVICE_RESET_BIT = 7;
-	constexpr uint8_t PWR1_SLEEP_BIT  = 6;
-	constexpr uint8_t PWR1_CLKSEL_BIT = 2;
-	constexpr uint8_t PWR1_CLKSEL_LENGTH = 3;
+	constexpr uint32_t ACCEL_XOUT_H = 0x3B;
+	constexpr uint32_t GYRO_XOUT_H = 0x43;
 
-	constexpr uint8_t GCONFIG_FS_SEL_BIT    = 4;
-	constexpr uint8_t GCONFIG_FS_SEL_LENGTH = 2;
+	constexpr uint32_t FIFO_COUNTH = 0x72;
+	constexpr uint32_t FIFO_R_W = 0x74;
 
-	constexpr uint8_t ACONFIG_AFS_SEL_BIT    = 4;
-	constexpr uint8_t ACONFIG_AFS_SEL_LENGTH = 2;
+	// INT Pin / Bypass Enable Configuration
+	// BYPASS_EN[1]:
+	// When asserted, the i2c_master interface pins(ES_CL and ES_DA) will go into ‘bypass mode’ when the i2c master interface is disabled.
+	// The pins will float high due to the internal pull-up if not enabled and the i2c master interface is disabled.
+	constexpr uint32_t INT_PIN_CFG = 0x37;
 
-// 	constexpr uint32_t _LED0_ON_H = 0x7;
-// 	constexpr uint32_t _LED0_OFF_L = 0x8;
-// 	constexpr uint32_t _LED0_OFF_H = 0x9;
-// 	constexpr uint32_t _ALLLED_ON_L = 0xFA;
-// 	constexpr uint32_t _ALLLED_ON_H = 0xFB;
-// 	constexpr uint32_t _ALLLED_OFF_L = 0xFC;
-// 	constexpr uint32_t _ALLLED_OFF_H = 0xFD;
+	// User Control
+	// I2C_MST_EN[5]:
+	// 1 – Enable the I2C Master I/F module; pins ES_DA and ES_SCL are isolated from pins SDA/SDI and SCL/ SCLK.
+	// 0 – Disable I2C Master I/F module; pins ES_DA and ES_SCL are logically driven by pins SDA/SDI and SCL/ SCLK.
+	constexpr uint32_t USER_CTRL = 0x6A;
 
+
+	// Gyro Full Scale Select
+	constexpr uint32_t GFS_250 = 0x00;	// 250dps
+	constexpr uint32_t GFS_500 = 0x01;	// 500dps
+	constexpr uint32_t GFS_1000 = 0x02;	// 1000dps
+	constexpr uint32_t GFS_2000 = 0x03;	// 2000dps
+
+	// Accel Full Scale Select
+	constexpr uint32_t AFS_2G = 0x00;	// 2G
+	constexpr uint32_t AFS_4G = 0x01;	// 4G
+	constexpr uint32_t AFS_8G = 0x02;	// 8G
+	constexpr uint32_t AFS_16G = 0x03;	// 16G
+
+	// Accelerometer Scale Modifiers
+	constexpr float ACCEL_SCALE_MODIFIER_2G = 2.0f / 32768.0f;
+	constexpr float ACCEL_SCALE_MODIFIER_4G = 4.0f / 32768.0f;
+	constexpr float ACCEL_SCALE_MODIFIER_8G = 8.0f / 32768.0f;
+	constexpr float ACCEL_SCALE_MODIFIER_16G = 16.0f / 32768.0f;
+
+	// Gyroscope Scale Modifiers
+	constexpr float GYRO_SCALE_MODIFIER_250DEG = 250.0f / 32768.0f;
+	constexpr float GYRO_SCALE_MODIFIER_500DEG = 500.0f / 32768.0f;
+	constexpr float GYRO_SCALE_MODIFIER_1000DEG = 1000.0f / 32768.0f;
+	constexpr float GYRO_SCALE_MODIFIER_2000DEG = 2000.0f / 32768.0f;
 
 //--------------------------------------------------------
-	constexpr uint32_t _ADDRESS_AK = 0x0C;		// gy-9250 address.
+	constexpr uint32_t AK8963_ADDRESS = 0x0C;
+
+	// Magneto Scale Select
+	constexpr uint32_t AK_BIT_14 = 0x00;	// 14bit output
+	constexpr uint32_t AK_BIT_16 = 0x01;	// 16bit output
+
+	// Continous data output
+	constexpr uint32_t AK_MODE_C8HZ = 0x02;		// 8Hz
+	constexpr uint32_t AK_MODE_C100HZ = 0x06;	// 100Hz
+
+	constexpr float MAGNOMETER_SCALE_MODIFIER_BIT_14 = 4912.0f / 8190.0f;
+	constexpr float MAGNOMETER_SCALE_MODIFIER_BIT_16 = 4912.0f / 32760.0f;
 
 	constexpr uint32_t AK_ST1 = 0x02;
 	constexpr uint32_t AK_ST2 = 0x09;
-	constexpr uint32_t AK_CNTL = 0x0A;
+	constexpr uint32_t AK_CNTL1 = 0x0A;
+	constexpr uint32_t AK_CNTL2 = 0x0B;
 	constexpr uint32_t AK_HX = 0x03;
-	constexpr uint32_t AK_AX = 0x10;
+	constexpr uint32_t AK_ASAX = 0x10;
 
 	constexpr uint32_t MODE_FUSE_ROM_ACCESS = 0x0F;
-	constexpr float MAG_SENSE = 4900.0f;
 
 	constexpr uint32_t _DEFAULTFREQ = 100;
 }	//namespace
@@ -112,60 +145,24 @@ public:
 	{
 		_pinstance = this;
 
-		_i2cak = wiringPiI2CSetup(_ADDRESS_AK);	// If this is -1 an error occurred.
+		_magangle.MakeZRotation(M_PI / -4.0f);
 
-		uint32_t a = _ADDRESS + (bHigh ? 1 : 0);
+		_i2cak = wiringPiI2CSetup(AK8963_ADDRESS);	// If this is -1 an error occurred.
+
+		uint32_t a = MPU9050_ADDRESS_68 + (bHigh ? 1 : 0);
 		_i2cgy = wiringPiI2CSetup(a);			// If this is -1 an error occurred.
 		delayMicroseconds(50);					// Wait for init to settle.
 
-// 		_write8(_i2cgy, 0, RA_SMPLRT_DIV);		// Set sample rate to 8hkz/1+0 for stability.
-// 		delayMicroseconds(50);
-// 		_write8(_i2cgy, 1, RA_PWR_MGMT_1);
-// 		delayMicroseconds(50);
-// 		_write8(_i2cgy, 0, RA_CONFIG);
-// 		delayMicroseconds(50);
-// 		_write8(_i2cgy, 0, RA_GYRO_CONFIG);
-// 		delayMicroseconds(50);
-// 		_write8(_i2cgy, 0, RA_ACCEL_CONFIG);
-// 		delayMicroseconds(50);
-// 		_write8(_i2cgy, 1, RA_INT_ENABLE);
-// 		delayMicroseconds(50);
-
- 		_write8(_i2cgy, 0, RA_SMPLRT_DIV);		// Set sample rate to 8hkz/1+0 for stability.
-		delayMicroseconds(50);					// Wait for init to settle.
-		_write8(_i2cgy, 0, RA_PWR_MGMT_1);
-		delayMicroseconds(50);
-		_write8(_i2cgy, 1, RA_PWR_MGMT_1);
-		delayMicroseconds(50);
-		_write8(_i2cgy, 3, RA_CONFIG);
-		delayMicroseconds(50);
-		_write8(_i2cgy, 16, RA_GYRO_CONFIG);
-		delayMicroseconds(50);
-		_write8(_i2cgy, 16, RA_ACCEL_CONFIG);
-		delayMicroseconds(50);
-
-		Calibrate();
-
-		auto makemagadj = []( int32_t aVal ) {
-			return ((aVal - 128) / 256.0f) + 1.0f;
-		};
-
-		_write8(_i2cak, 0, AK_CNTL);
-		delayMicroseconds(100);
-		_write8(_i2cak, MODE_FUSE_ROM_ACCESS, AK_CNTL);
-		delayMicroseconds(100);
-		_magadj[0] = makemagadj(wiringPiI2CReadReg8(_i2cak, AK_AX));
-		_magadj[1] = makemagadj(wiringPiI2CReadReg8(_i2cak, AK_AX + 1));
-		_magadj[2] = makemagadj(wiringPiI2CReadReg8(_i2cak, AK_AX + 2));
-// 		std::cout << _magadj[0] << ", " << _magadj[1] << ", " << _magadj[2] << std::endl;
-		_write8(_i2cak, 0, AK_CNTL);
-		delayMicroseconds(100);
-		_write8(_i2cak, 0x16, AK_CNTL);
+		_pLoop = new std::thread([] () { _pinstance->MainLoop(); });
 	}
 
 	//--------------------------------------------------------
 	~mpu9250(  )
 	{
+		_bRunning = false;						// Turn off loop.
+		Suspend(false);							// Make sure we haven't suspending the BG thread.
+		_pLoop->join();							// Wait for _pLoop to exit.
+		delete _pLoop;
 		close(_i2cgy);
 		close(_i2cak);
 		_pinstance = nullptr;
@@ -174,52 +171,180 @@ public:
 	static mpu9250 *QInstance(  ) { return _pinstance; }
 
 	//--------------------------------------------------------
-	const float *GetAccelTempRot(  )
+	void Suspend( bool abTF )
 	{
-		auto pdata = _readbuffer(_i2cgy, RA_ACCEL_XOUT_H, 7);
-		uint32_t i = 0;
-		for ( ; i < 3; ++i) {
-			pdata[i] = pdata[i] * ACCEL_FACTOR;
+		if (abTF) {
+			if (!_bSuspended) {
+				_bSuspended = true;
+				_suspend.lock();
+			}
 		}
-		++i;									// Skip temperature.
-		for ( ; i < 7; ++i) {
-			pdata[i] = pdata[i] * GYRO_FACTOR;
+		else if (_bSuspended) {
+			_bSuspended = false;
+			_suspend.unlock();
 		}
-		return pdata;
 	}
 
+	//--------------------------------------------------------
+	const float *GetAccelTempRot(  )
+	{
+		//Might want to lock before reading.
+		return _atp;
+	}
+
+	//--------------------------------------------------------
 	const float *GetMag(  )
 	{
-		float *pdata = nullptr;
-		pdata = _readbuffer(_i2cak, AK_HX, 3);
-		wiringPiI2CReadReg8(_i2cak, AK_ST2);	// Indicate we need updated readings.
-
-		//Convert to mag data to +/-.
-		for ( uint32_t i = 0; i < 3; ++i) {
-			float v = pdata[i];
-			_mag[i] = v * 0.149536f;	// (v / 32768) * MAG_SENSE
-		}
+		//Might want to lock before reading.
 		return _mag;
 	}
 
+	//--------------------------------------------------------
+	//Set the mag rotation for x/y to the given angle in radians.
+	void SetMagAngle( float aAngle )
+	{
+		_magangle.MakeZRotation(aAngle);
+	}
+
 private:
+	Matrix3 _magangle;
+
+	std::thread *_pLoop = nullptr;
+	std::mutex _suspend;
+
 	int32_t _i2cgy = 0;							// gy-6500
 	int32_t _i2cak = 0;							// gy-9250
+
 	float _buffer[8];
-	float _adj[8];
-	float _magadj[3];
-	float _rpy[3] = {0.0f, 0.0f, 0.0f};
+
+	float _atp[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 	float _mag[3] = {0.0f, 0.0f, 0.0f};
-	float timer = 0.0f;
+
+	float _magcalibration[3] = {1.0f, 1.0f, 1.0f};
+	float _magscale[3] = {1.0f, 1.0f, 1.0f};
+
+	float _gbias[3] = {0.0f, 0.0f, 0.0f};
+	float _abias[3] = {0.0f, 0.0f, 0.0f};
+	float _mbias[3] = {0.0f, 0.0f, 0.0f};
+
+	uint32_t _gfs = GFS_2000;
+	uint32_t _afs = AFS_16G;
+	uint32_t _mfs = AK_BIT_16;
+	uint32_t _mode = AK_MODE_C100HZ;
+
+	float _gres = 1.0f;
+	float _ares = 1.0f;
+	float _mres = 1.0f;
+
+	bool _bRunning = true;
+	bool _bSuspended = false;
 
 	static mpu9250 *_pinstance;
 
 	//--------------------------------------------------------
-	// Read 16 bit value and return.
-	const int32_t _read16( uint32_t aAddress, uint32_t aLoc )
+	void Configure(  )
 	{
-		int32_t ret = wiringPiI2CReadReg16(aAddress, aLoc);
-		return ret >= 0 ? ret : 0;
+		ConfigureMPU6500();
+		ConfigureAK8963();
+	}
+
+	//--------------------------------------------------------
+	void ConfigureMPU6500(  )
+	{
+		switch (_gfs) {
+			case GFS_250:
+				_gres = GYRO_SCALE_MODIFIER_250DEG;
+				break;
+			case GFS_500:
+				_gres = GYRO_SCALE_MODIFIER_500DEG;
+				break;
+			case GFS_1000:
+				_gres = GYRO_SCALE_MODIFIER_1000DEG;
+				break;
+			default:
+				_gres = GYRO_SCALE_MODIFIER_2000DEG;
+				break;
+		}
+
+		switch (_afs) {
+			case AFS_2G:
+				_ares = ACCEL_SCALE_MODIFIER_2G;
+				break;
+			case AFS_4G:
+				_ares = ACCEL_SCALE_MODIFIER_4G;
+				break;
+			case AFS_8G:
+				_ares = ACCEL_SCALE_MODIFIER_8G;
+				break;
+			default:
+				_ares = ACCEL_SCALE_MODIFIER_16G;
+				break;
+		}
+
+		//Sleep off
+		_write8(_i2cgy, 0, PWR_MGMT_1, ONETENTH);
+		//Auto select clock source.
+		_write8(_i2cgy, 1, PWR_MGMT_1, ONETENTH);
+		//DLPF_CFG
+		_write8(_i2cgy, 0, CONFIG);		//Or 3.
+		//Sample rate divider
+		_write8(_i2cgy, 0, SMPLRT_DIV);	//Or 4.
+		//Gyro full scale select
+		_write8(_i2cgy, _gfs << 3, GYRO_CONFIG);
+		//Accel full scale select
+		_write8(_i2cgy, _afs << 3, ACCEL_CONFIG);
+		//A_DLPFCFG
+		_write8(_i2cgy, 0, ACCEL_CONFIG_2);
+		//BYPASS_EN
+		_write8(_i2cgy, 2, INT_PIN_CFG, ONETENTH);
+		//Disable master
+		_write8(_i2cgy, 0, USER_CTRL, ONETENTH);
+	}
+
+	//--------------------------------------------------------
+	void ConfigureAK8963(  )
+	{
+		_mres = (_mfs == AK_BIT_14)
+			? MAGNOMETER_SCALE_MODIFIER_BIT_14
+			: MAGNOMETER_SCALE_MODIFIER_BIT_16;
+
+		//Set power down mode
+		_write8(_i2cak, 0, AK_CNTL1, ONETENTH);
+		//Set read FuseROM mode
+		_write8(_i2cak, MODE_FUSE_ROM_ACCESS, AK_CNTL1, ONETENTH);
+
+		//Read coef data
+
+		auto makemagadj = []( int32_t aVal ) {
+			return ((aVal - 128) / 256.0f) + 1.0f;
+		};
+
+		_mbias[0] = makemagadj(wiringPiI2CReadReg8(_i2cak, AK_ASAX));
+		_mbias[1] = makemagadj(wiringPiI2CReadReg8(_i2cak, AK_ASAX + 1));
+		_mbias[2] = makemagadj(wiringPiI2CReadReg8(_i2cak, AK_ASAX + 2));
+
+		//Set power down mode
+		_write8(_i2cak, 0, AK_CNTL1, ONETENTH);
+		//Set scale and continuous mode
+		_write8(_i2cak, (_mfs << 4 | _mode), AK_CNTL1, ONETENTH);
+	}
+
+	//--------------------------------------------------------
+	void Reset(  )
+	{
+		_write8(_i2cgy, 0x80, PWR_MGMT_1, ONETENTH);
+		//Gyro full scale select
+		_write8(_i2cgy, _gfs << 3, GYRO_CONFIG);
+		//Accel full scale select
+		_write8(_i2cgy, _afs << 3, ACCEL_CONFIG);
+	}
+
+	//--------------------------------------------------------
+	const int16_t _read16( uint32_t aAddress, uint32_t aLoc )
+	{
+		int8_t vh = wiringPiI2CReadReg8(aAddress, aLoc);
+		int8_t vl = wiringPiI2CReadReg8(aAddress, aLoc + 1);
+		return (vh << 8) | (vl & 0xFF);
 	}
 
 	//--------------------------------------------------------
@@ -227,8 +352,27 @@ private:
 	{
 		for ( uint32_t i = 0; i < aCount; ++i) {
 			auto v = _read16(aAddress, aLoc + (i * 2));
-			if (v > 32768) {
-				v -= 65536;
+			if (v & (1 << 15)) {
+				v -= 1 << 16;
+			}
+			_buffer[i] = static_cast<float>(v);
+		}
+		return _buffer;
+	}
+
+	//--------------------------------------------------------
+	const int16_t _read16LH( uint32_t aAddress, uint32_t aLoc )
+	{
+		return wiringPiI2CReadReg16(aAddress, aLoc);
+	}
+
+	//--------------------------------------------------------
+	float *_readbufferLH( uint32_t aAddress, uint32_t aLoc, uint32_t aCount )
+	{
+		for ( uint32_t i = 0; i < aCount; ++i) {
+			auto v = _read16LH(aAddress, aLoc + (i * 2));
+			if (v & (1 << 15)) {
+				v -= 1 << 16;
 			}
 			_buffer[i] = static_cast<float>(v);
 		}
@@ -237,42 +381,183 @@ private:
 
 	//--------------------------------------------------------
 	// Write 8 bit integer aVal to given address aLoc.
-	int32_t _write8( uint32_t aAddress, uint8_t aValue, uint32_t aLoc )
+	int32_t _write8( uint32_t aAddress, uint8_t aValue, uint32_t aLoc, uint32_t aDelay = 50 )
 	{
-		return wiringPiI2CWriteReg8(aAddress, aLoc, aValue);
-	}
-
-	//--------------------------------------------------------
-	// Write array of 8 bit integer aVal to given address aLoc.
-	void _writebuffer8( uint32_t aAddress, uint32_t aLoc, uint8_t *apBuffer, uint32_t aCount )
-	{
-		for ( uint32_t i = 0; i < aCount; ++i) {
-			_write8(aAddress, aLoc++, apBuffer[i]);
+		auto v = wiringPiI2CWriteReg8(aAddress, aLoc, aValue);
+		if (aDelay) {
+			delayMicroseconds(aDelay);
 		}
+		return v;
 	}
 
 	//--------------------------------------------------------
 	void Calibrate(  )
 	{
-		for ( auto &v : _adj ) {
+		CalibrateAK8963();
+		CalibrateMPU6500();
+	}
+
+	//--------------------------------------------------------
+	void CalibrateMPU6500(  )
+	{
+
+//#define FIFO_CALIBRATE 1
+#ifdef FIFO_CALIBRATE
+		Reset();
+
+		//Get stable time source; Auto select clock source to be PLL gyroscope reference if ready, else use the internal oscillator, bits 2:0 = 001
+		_write8(_i2cgy, 1, PWR_MGMT_1);
+		_write8(_i2cgy, 0, PWR_MGMT_2, ONETENTH * 2);
+
+		//Configure device for bias calculation
+		_write8(_i2cgy, 0, INT_ENABLE);			// Disable Interrupts
+		_write8(_i2cgy, 0, FIFO_EN);			// Disable FIFO
+		_write8(_i2cgy, 0, PWR_MGMT_1);			// Turn on internal clock source
+		_write8(_i2cgy, 0, I2C_MST_CTRL);		// Disable I2C master
+		_write8(_i2cgy, 0, USER_CTRL);			// Disable FIFO and I2C master modes
+		_write8(_i2cgy, 0x0C, USER_CTRL);		// Reset FIFO and DMP
+
+		_write8(_i2cgy, 1, CONFIG);				// Set low-pass filter to 188hz
+		_write8(_i2cgy, 0, SMPLRT_DIV);			// Set sample rate to 1khz
+		_write8(_i2cgy, 0, GYRO_CONFIG);		// 250 dps.
+		_write8(_i2cgy, 0, ACCEL_CONFIG);		// 2g
+
+		_write8(_i2cgy, 0x40, USER_CTRL);		// Enable FIFO.
+		_write8(_i2cgy, 0x78, FIFO_EN, 40000);	// Enable gyro/accel sensors and wait 4/100ths of a second
+		_write8(_i2cgy, 0x00, FIFO_EN);			// Disable gyro/accel sensors for FIFO
+
+		int32_t count = _read16(_i2cgy, FIFO_COUNTH) / 12;
+// 		std::cout << "count:" << count << std::endl;
+		if (count > 0) {
+			for ( uint32_t i = 0; i < count; ++i) {
+				auto pdata = _readbuffer(_i2cgy, FIFO_R_W, 6);
+// 				for ( uint32_t j = 0; j < 6; ++j) {
+// 					std::cout << pdata[j] << ", ";
+// 				}
+// 				std::cout << std::endl;
+				_abias[0] += pdata[0];
+				_abias[1] += pdata[1];
+				_abias[2] += pdata[2];
+				_gbias[0] += pdata[3];
+				_gbias[1] += pdata[4];
+				_gbias[2] += pdata[5];
+			}
+
+			float f = 1.0f / static_cast<float>(count);
+			_abias[0] = _abias[0] * f * ACCEL_SCALE_MODIFIER_2G;
+			_abias[1] = _abias[1] * f * ACCEL_SCALE_MODIFIER_2G;
+			_abias[2] = _abias[2] * f;
+			//Remove gravity from the z-axis.
+			// This assumes the chip is oriented to z axis as up/down, but does
+			//  support upside down.
+			_abias[2] += 1.0f / (
+				(_abias[2] > 0.0f)
+					? -ACCEL_SCALE_MODIFIER_2G
+					: ACCEL_SCALE_MODIFIER_2G
+				);
+
+			_abias[2] *= ACCEL_SCALE_MODIFIER_2G;
+			_abias[2] += 0.53f;					// Additional value to get z to 0-1 range.
+
+			_gbias[0] = _gbias[0] * f * GYRO_SCALE_MODIFIER_250DEG;
+			_gbias[1] = _gbias[1] * f * GYRO_SCALE_MODIFIER_250DEG;
+			_gbias[2] = _gbias[2] * f * GYRO_SCALE_MODIFIER_250DEG;
+
+		}
+
+		Reset();
+#else //FIFO_CALIBRATE
+		constexpr uint32_t CALIBRATE_COUNT = 200;
+
+		//Reset the bias values.
+		for ( auto &v : _abias ) {
+			v = 0.0f;
+		}
+		for ( auto &v : _gbias ) {
 			v = 0.0f;
 		}
 
 		for ( uint32_t i = 0; i < CALIBRATE_COUNT; ++i) {
+			UpdateAccelTempRot();
 			auto pdata = GetAccelTempRot();
-			uint32_t j = 0;
-			for ( auto &v : _adj ) {
-				v += pdata[j++];
-			}
-			delayMicroseconds(5);
+// 			for ( uint32_t i = 0; i < 7; ++i) {
+// 				std::cout << pdata[i] << ", ";
+// 			}
+// 			std::cout << std::endl;
+
+			_abias[0] += pdata[0];
+			_abias[1] += pdata[1];
+			_abias[2] += pdata[2];
+			_gbias[0] += pdata[4];				// Index 4 as 3 is the temperature.
+			_gbias[1] += pdata[5];
+			_gbias[2] += pdata[6];
+			delayMicroseconds(20);
 		}
 
-		for ( auto &v : _adj ) {
+		//Get the average for bias values.
+		for ( auto &v : _abias ) {
 			v /= static_cast<float>(CALIBRATE_COUNT);
 		}
+		for ( auto &v : _gbias ) {
+			v /= static_cast<float>(CALIBRATE_COUNT);
+		}
+#endif //FIFO_CALIBRATE
+	}
 
-		//Don't adjust temperature.
-		_adj[3] = 0.0f;
+	//--------------------------------------------------------
+	void CalibrateAK8963(  )
+	{
+		//Note: We don't currently bother doing this.
+	}
+
+	//--------------------------------------------------------
+	void UpdateAccelTempRot(  )
+	{
+		auto pdata = _readbuffer(_i2cgy, ACCEL_XOUT_H, 7);
+		uint32_t i = 0;
+		for ( ; i < 3; ++i) {
+			_atp[i] = (pdata[i] * _ares) - _abias[i];
+		}
+
+		//Convert temperature value to celcius.
+		_atp[i] = (pdata[i++] / 333.87) + 21.0;		// Just copy the temperature over.
+
+		for ( uint32_t j = 0; j < 3; ++i, ++j) {
+			_atp[i] = (pdata[i] * _gres) - _gbias[j];
+		}
+	}
+
+	//--------------------------------------------------------
+	void UpdateMag(  )
+	{
+		float *pdata = nullptr;
+		pdata = _readbufferLH(_i2cak, AK_HX, 3);
+		auto ov = wiringPiI2CReadReg8(_i2cak, AK_ST2);	// Check for overflow.
+
+		if ((ov & 0x08) != 0x08) {
+			//Convert to mag data to +/-.
+			for ( uint32_t i = 0; i < 3; ++i) {
+				float v = (pdata[i] * _mres * _magcalibration[i]) - _mbias[i];
+				_mag[i] = v * _magscale[i];
+			}
+
+// 			_magangle.Rotate(_mag);
+		}
+	}
+
+	//--------------------------------------------------------
+	void MainLoop(  )
+	{
+		Configure();
+		Calibrate();
+
+		while(_bRunning) {
+			_suspend.lock();
+			UpdateAccelTempRot();
+			UpdateMag();
+			_suspend.unlock();
+			delayMicroseconds(33333);			// We are going to run this at 30hz.
+		}
 	}
 };
 
@@ -298,6 +583,14 @@ void Startup(  )
 {
 	if (mpu9250::QInstance() == nullptr) {
 		auto p = new mpu9250();
+	}
+}
+
+void Suspend( bool abTF )
+{
+	auto p = mpu9250::QInstance();
+	if (p) {
+		p->Suspend(abTF);
 	}
 }
 
@@ -329,6 +622,15 @@ const float *GetMag(  )
 		d = p->GetMag();
 	}
 	return d;
+}
+
+//--------------------------------------------------------
+void SetMagAngle( float aAngle )
+{
+	auto p = mpu9250::QInstance();
+	if (p) {
+		p->SetMagAngle(aAngle);
+	}
 }
 
 } //extern "C"
