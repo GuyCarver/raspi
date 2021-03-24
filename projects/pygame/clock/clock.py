@@ -74,9 +74,7 @@ class Clock:
   beepfreq = 1.0                                #Frequency in seconds for beep.
 
   def __init__( self ):
-    #Frederick = 2458710
-    #Rockville = 2483553
-    os.environ['SDL_VIDEO_WINDOW_POS'] = '900,600'
+    os.environ['SDL_VIDEO_WINDOW_POS'] = '910,600'
 
     self._buttons = [ button(i) for i in Clock.buttonids ]
     self._pressedtime = 0                         #Used to track amount of time the hour/minute set buttons are pressed.
