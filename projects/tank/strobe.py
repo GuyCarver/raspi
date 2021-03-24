@@ -26,7 +26,7 @@ class strobe(object):
     self._on = aValue
     if not aValue:
       for i in self._lights:
-        self._pca.Set(i, 0.0)
+        self._pca.set(i, 0.0)
       self._index = 0
       self._time = 0.0
 
@@ -42,16 +42,16 @@ class strobe(object):
     self._time = strobe._DELAY
     side = (self._index >> 2) & 0x01
     self._index += 1
-    self._pca.Set(self._lights[side], 1.0 if (self._index & 1) else 0.0)
+    self._pca.set(self._lights[side], 1.0 if (self._index & 1) else 0.0)
 
 if __name__ == '__main__':
   import pca
   from time import sleep, perf_counter
-  pca.Startup()
-  pca.Set(0, 1.0)
-  pca.Set(1, 1.0)
-  pca.Set(2, 1.0)
-  pca.Set(3, 1.0)
+  pca.startup()
+  pca.set(0, 1.0)
+  pca.set(1, 1.0)
+  pca.set(2, 1.0)
+  pca.set(3, 1.0)
   s = strobe(pca, 15, 14)
   s.on = True
   prevtime = perf_counter()

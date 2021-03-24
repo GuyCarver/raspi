@@ -42,9 +42,9 @@ class wheel(object):
     ''' Write data to the pca. '''
     f, b, s = aValues
 
-    self._pca.Set(self._fi, f)
-    self._pca.Set(self._bi, b)
-    self._pca.Set(self._si, s)
+    self._pca.set(self._fi, f)
+    self._pca.set(self._bi, b)
+    self._pca.set(self._si, s)
 
 #--------------------------------------------------------
   def brake( self ):
@@ -68,4 +68,4 @@ class wheel(object):
 #--------------------------------------------------------
   def off( self ):
     ''' Turn the servo/led output signal off. '''
-    self._pca.Off(self._si)
+    self._pca.off(self._si)
