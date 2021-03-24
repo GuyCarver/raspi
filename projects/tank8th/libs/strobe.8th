@@ -1,0 +1,76 @@
+#! /usr/bin/env 8th
+
+(* This module strobes 2 pca indexes twice each repeatedly with the given
+  delay while on. *)
+
+needs pca
+needs guy with: guy
+
+ns: strobe
+
+private
+
+0.05 constant _DELAY
+0 constant _L
+1 constant _R
+2 constant _TIME
+3 constant _INDEX
+
+: _blink \ a -- a
+  _INDEX a:@ dup >r
+  n:1+ dup -rot                       \ Increment index and rotate out
+  _INDEX swap a:!                     \ Store new index
+  r> 2 >> 1 n:band a:@                \ Get the side from bit 2 of index
+  rot                                 \ a s i
+  1 n:band if 1.0 else 0.0 then
+  pca:Set
+;
+
+public
+with: #p
+
+_DELAY var, rate
+
+: on@ \ a -- a T
+  _TIME a:@ 0.0 n:>                   \ On if timer is > 0
+;
+
+: on! \ a T -- a
+  if
+    _TIME rate @ a:!                  \ Store rate into time to start
+  else
+    _INDEX 0 a:!                      \ Reset index
+    _TIME 0.0 a:!                     \ Set time 0 to stop
+  then
+;
+
+: stop \ a --
+  false on!
+  _L a:@ 0.0 pca.Set
+  _R a:@ 0.0 pca.Set
+  drop
+;
+
+\ L R time index
+: init \ L R -- a
+  0.0 0 4 a:close                     \ L R time index
+  dup stop                            \ Make sure it's off by default
+;
+
+: update \ dt a --
+  _TIME a:@ dup                       \ Get time
+  0.0 n:> if                          \ If > 0 then enabled
+    rot n:-                           \ Subtract dt from time
+    dup 0.0 n:> not if                \ If <= 0 then blink
+      drop                            \ Drop negative time
+      _blink
+      rate @                          \ Get rate for new time value
+    then
+    _TIME swap a:!                    \ Store new time value
+    drop                              \ Drop strobe array
+  else
+    2drop                             \ Drop dt and strobe array
+  then
+;
+
+ns: user
