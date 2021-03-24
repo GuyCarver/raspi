@@ -1,7 +1,0 @@
-#!/bin/sh
-
-g++ -std=c++11 -shared -fPIC checkface.cpp \
-	-o checkface.so -L "/opt/vc/lib/" \
-	-I "/usr/include/" -I "/usr/local/include/" \
-	-lraspicam -lraspicam_cv -lmmal -lmmal_core -lmmal_util \
-	-lopencv_core -lopencv_imgcodecs -lopencv_imgproc -lopencv_objdetect
