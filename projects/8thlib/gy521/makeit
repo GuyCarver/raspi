@@ -1,7 +1,0 @@
-#!/bin/sh
-
-g++ -std=c++17 -shared -O3 -fPIC gy521.cpp \
-	-o gy521.so -lwiringPi \
-	-I "/usr/include/" -I "/usr/local/include/"
-
-echo "Copy gy521.so to /usr/local/bin"

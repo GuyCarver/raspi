@@ -1,7 +1,0 @@
-#!/bin/sh
-
-g++ -std=c++17 -shared -O3 -fPIC pca9865.cpp \
-	-o pca9865.so -lwiringPi \
-	-I "/usr/include/" -I "/usr/local/include/"
-
-echo "Copy pca9865.so to /usr/local/bin"
