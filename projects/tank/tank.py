@@ -8,8 +8,8 @@ from wheel import *
 from strobe import *
 from buttons import gpioinit, button
 
-import ps2
-import pca
+import ps2con as ps2
+import pca9865 as pca
 import onestick
 import RPi.GPIO as GPIO
 # GPIO.setwarnings(False)
@@ -65,7 +65,7 @@ class tank(object):
 #--------------------------------------------------------
   def __init__( self ):
     self._controllernum = 1                     # Type of controller 0=FC30, 1=ps2, 2=ps2onestick
-    pca.Startup()
+    pca.startup()
     self._gpmacaddress = '' #'E4:17:D8:2C:08:68'
     self._buttonpressed = set()                 # A set used to hold button pressed states, used for debounce detection and button combos. #
     self._left = wheel(pca, 8, 9, 10)
@@ -85,7 +85,7 @@ class tank(object):
 
 #--------------------------------------------------------
   def __del__( self ):
-    pca.AllOff()
+    pca.alloff()
 
 #--------------------------------------------------------
   @property
@@ -95,7 +95,7 @@ class tank(object):
   def _initcontroller( self ):
     '''Create the controller if necessary.'''
     if self._controllernum > 0:
-#      print('starting ps2 controller')
+#      print('starting ps2 controller') cmd, data, clk att
       ps2.Startup(24, 25, 18, 23)
 
 #--------------------------------------------------------
@@ -146,14 +146,14 @@ class tank(object):
     ''' Set all lights to self._lights value. '''
     if self._lights:
       for v in tank._HEADLIGHTS:
-        pca.Set(v, self._lights)
+        pca.set(v, self._lights)
       for v in tank._TAILLIGHTS:
-        pca.Set(v, self._lights)
+        pca.set(v, self._lights)
     else:
       for v in tank._HEADLIGHTS:
-        pca.Off(v)
+        pca.off(v)
       for v in tank._TAILLIGHTS:
-        pca.Off(v)
+        pca.off(v)
 
 #--------------------------------------------------------
   def togglelights( self ):
@@ -232,7 +232,7 @@ class tank(object):
           if sleeptime > 0.0:
             sleep(sleeptime)
     finally:
-      pca.AllOff()
+      pca.alloff()
 
 #--------------------------------------------------------
 if __name__ == '__main__':
