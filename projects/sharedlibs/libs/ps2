@@ -1,0 +1,70 @@
+needs guy with: guy
+
+ns: ps2
+
+"ps2con" lib ps2lib
+ps2lib "Could not find ps2lib.so" thrownull drop
+
+\ void cmd, data, clk, att
+"TUUUU" "Startup" func: Startup       \ Startup controller and return true if successful
+"V" "Shutdown" func: Shutdown         \ Shut down controller communications
+"U" "Update" func: Update             \ Read new data from the controller, returns # of button events
+"V" "Config" func: Config             \ Configure the controller
+"U" "NumButtons" func: NumButtons     \ Get Number of buttons
+"UU" "GetEvent" func: GetEvent        \ Get given event value (See Button States)
+"UU" "GetButton" func: GetButton      \ Get given button value (See Button States)
+"NN" "GetJoy" func: GetJoy            \ Get joystick value +/-255
+"ZU" "GetName" func: GetName          \ Get name of given button
+"Z" "GetString" func: GetString       \ Get string representing all values of the controller
+
+\ Button states (Values returned by GetButton)
+0 constant UP
+1 constant DOWN
+2 constant RELEASED
+3 constant PRESSED
+
+\ Buttons (Used for GetButton and GetName)
+0 constant SELECT
+1 constant L_HAT
+2 constant R_HAT
+3 constant START
+4 constant DPAD_U
+5 constant DPAD_R
+6 constant DPAD_D
+7 constant DPAD_L
+8 constant L_TRIGGER
+9 constant R_TRIGGER
+10 constant L_SHOULDER
+11 constant R_SHOULDER
+12 constant TRIANGLE
+13 constant CIRCLE
+14 constant CROSS
+15 constant SQUARE
+
+\ Joystick (Used for GetJoy and GetName)
+16 constant RX
+17 constant RY
+18 constant LX
+19 constant LY
+
+\ Update then process events
+: UpdateE \ cb --
+  >r                                  \ Put callback on r stack
+  Update                              \ Do update getting event count
+  1-                                  \ Event loop is inclusive of high value so dec by 1
+  ( GetEvent
+    dup 8 n:shr                       \ Get button index
+    swap 3 n:band                     \ Get event bits
+    r@ w:exec                         \ Process with callback
+  ) 0 rot                             \ Call the callback on each event
+  loop                                \ Loop for number of events
+  rdrop                               \ Drop callback
+;
+
+\ 27 22 18 17 Startup
+\ 1 GetButton
+
+\ ps2:Update
+
+ns: user
+

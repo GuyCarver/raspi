@@ -1,0 +1,3 @@
+This folder contains all libraries shareable between languages.
+The libs directory is required for the 8th language as it has specific naming requirements.
+It is expected that all shared libraries are copied into the project directory rather than insalled in /usr/lib

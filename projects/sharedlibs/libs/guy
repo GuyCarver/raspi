@@ -1,0 +1,47 @@
+#! /usr/bin/env 8th
+
+(* This file contains all words in the guy namespace. *)
+
+ns: guy
+
+\ --------------------------------------------------------
+\ replace "if drop else" pattern with not?
+: not?
+  p: if
+  ' drop p: compile
+  p: else
+i;
+
+\ --------------------------------------------------------
+\ replace "not if drop else" pattern with if?
+: if? \ x T --
+  ' not p: compile p: not?
+i;
+
+\ --------------------------------------------------------
+\ Not equal
+: <> \ x -- T
+  compiling? if
+    ' n:= p: compile ' not p: compile
+  else
+    n:= not
+  then
+i;
+
+\ --------------------------------------------------------
+\ Left shift
+: << \ n n -- n
+  n:shl
+;
+
+\ --------------------------------------------------------
+\ Right shift
+: >> \ n n -- n
+  n:shr
+;
+
+\ --------------------------------------------------------
+\ Print string and add cr
+: .n \ s --
+  . cr
+;
