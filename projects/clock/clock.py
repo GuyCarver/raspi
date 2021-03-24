@@ -933,6 +933,11 @@ def run(  ):
     c = Clock()
     c.run()
 
-run()
-print("Clock done.")
+if __name__ == '__main__':
+  if len(sys.argv) <= 1:
+    sys.stdout = open('clock.log', 'w')
+    sys.stderr = sys.stdout
+
+  run()
+  print("Clock done.")
 
