@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#8Bitdo FC30 Pro device driver
+#PS4 Wireless Controller
 #
 
 # pip install evdev and pyudev
@@ -35,20 +35,22 @@ from bt import *
 #ABS_HAT0Y = 17, val = -1 or 1 dpad up/down
 
 class gamepad(object):
-  '''8Bitdo FC30 Pro gamepad device driver.'''
+  '''PS4 Wireless Controller device driver.'''
 
   debug = 0
-  _NAME = '8Bitdo FC30 Pro'
+  _NAME = 'Wireless Controller'
 
   _LX = 0 #ecodes.ABS_X
   _LY = 1 #ecodes.ABS_Y
-  _RX = 2 #ecodes.ABS_Z
-  _RY = 3 #This one isn't mapped right so we convert ABS_RZ(5) to 3.
+  _LT = 2 #Code for left trigger analog value. ecodes.ABS_Z
+  _RX = 3 #ecodes.ABS_RX
+  _RY = 4 #ecodes.ABS_RY.
+  _RT = 5 #Code for right trigger analog values. ecode.ABS_RZ
 
-  BTN_DPADU = 4
-  BTN_DPADR = 5
-  BTN_DPADD = 6
-  BTN_DPADL = 7
+  BTN_DPADU = 10
+  BTN_DPADR = 11
+  BTN_DPADD = 12
+  BTN_DPADL = 13
 
   GAMEPAD_DISCONNECT = 32                       #Special button action to indicate disconnect.
 
@@ -104,7 +106,7 @@ class gamepad(object):
 
   @staticmethod
   def isconnected(  ):
-    '''  '''
+    '''Return true if gamepad device is connected.'''
     return gamepad.finddevice() != None
 
   def __init__( self, aID, aCallback = None ):
@@ -114,7 +116,7 @@ class gamepad(object):
     self._dcondetect = False                    #Set to true when disconnect detected.
     self._errcount = 0
     self._id = aID
-    self._joys = [0] * 4
+    self._joys = [0] * 5
     self._callback = None
     self._device = None
     self._input = ''
@@ -257,6 +259,7 @@ class gamepad(object):
     if self.connected and not self._dcondetect:
       try:
         for event in self._device.read():
+#           print(event)
           if event.type == ecodes.EV_KEY:
 #            print(event)
             self._docallback(event)
@@ -273,10 +276,7 @@ class gamepad(object):
               event.code = gamepad.BTN_DPADU if v > 0 else gamepad.BTN_DPADD
               self._docallback(event)
             elif event.code <= 5: #l/r triggers pass abs codes in as well as btn codes.
-#              print(event)
-              #This code is 5 but we want 0-3
-              if event.code == ecodes.ABS_RZ:
-                event.code = gamepad._RY
+#               print(event)
               self._joys[event.code] = gamepad._translate(event.value, event.code & 1)
         self._errcount = 0
       except Exception as e:
@@ -306,7 +306,7 @@ if __name__ == '__main__':  #start server
 
     print(btn, ('pressed' if aValue else 'released'))
 
-  p = gamepad('', mytest)
+  p = gamepad('41:42:E4:57:3E:9E', mytest)
   while 1:
     p.update()
     j1 = p.getjoy(p._RY)
