@@ -1,7 +1,0 @@
-#!/bin/sh
-
-g++ -std=c++17 -shared -O3 -fPIC mpu9250.cpp Matrix3.cpp \
-	-o mpu9250.so -lwiringPi \
-	-I "/usr/include/" -I "/usr/local/include/"
-
-echo "mpu9250.so make done."
