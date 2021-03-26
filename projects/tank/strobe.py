@@ -45,7 +45,7 @@ class strobe(object):
     self._pca.set(self._lights[side], 1.0 if (self._index & 1) else 0.0)
 
 if __name__ == '__main__':
-  import pca
+  import pca9865 as pca
   from time import sleep, perf_counter
   pca.startup()
   pca.set(0, 1.0)

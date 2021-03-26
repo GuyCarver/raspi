@@ -2,7 +2,7 @@
 #test wheel velocity with a3144lib.
 
 #from buttons import *
-import pca
+import pca9865 as pca
 import a3144
 from wheel import *
 # from buttons import *
