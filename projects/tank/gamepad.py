@@ -251,7 +251,7 @@ class gamepad(object):
   def getjoy( self, aIndex ):
     '''Get joystick value for given index _LX, _LY, _RX or _RY
        Value is range +/- 255.'''
-    return self._joys[aIndex & 0x03]
+    return self._joys[aIndex]
 
   def update( self ):
     '''Read events from the input device, update joy values
