@@ -88,6 +88,7 @@ public:
 	//--------------------------------------------------------
 	~pca9865(  )
 	{
+		alloff();
 		close(_i2c);
 		_instance = nullptr;
 	}
@@ -139,7 +140,7 @@ public:
 				base -= _END;
 			}
 
-			auto val = base + static_cast<uint32_t>((_RANGE * aPerc));
+			auto val = base + static_cast<uint32_t>(_RANGE * aPerc);
 			while (val > _END) {
 				val -= _END;
 			}
@@ -157,6 +158,7 @@ public:
 		set(aServo, perc);
 	}
 
+	//--------------------------------------------------------
 	void setpwm( uint32_t aServo, uint32_t aOn, uint32_t aOff )
 	{
 		_setpwm(aServo, aOn, aOff);
@@ -287,6 +289,7 @@ void Set( uint32_t aServo, float aPerc )
 {
 	auto p = pca9865::QInstance();
 	if (p) {
+// 		std::cout << "setting: " << aServo << " to " << aPerc << std::endl;
 		p->set(aServo, aPerc);
 	}
 }
