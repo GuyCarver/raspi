@@ -40,24 +40,24 @@ class wheel(object):
 #--------------------------------------------------------
   def _write( self, aValues ):
     ''' Write data to the pca. '''
-    f, b, s = aValues
+    fwd, back, spd = aValues
 
-    self._pca.set(self._fi, f)
-    self._pca.set(self._bi, b)
-    self._pca.set(self._si, s)
+    #Set full range of PWM signal to get a value from 0 to 1 on the pin.
+    self._pca.setpwm(self._fi, 0, int(fwd * 4095.0))
+    self._pca.setpwm(self._bi, 0, int(back * 4095.0))
+    self._pca.setpwm(self._si, 0, int(spd * 4095.0))
 
 #--------------------------------------------------------
   def brake( self ):
     ''' Emergency stop by setting all values to 1. '''
-    v = (1.0, 1.0, 1.0)
-    self._write
+    self._write((1.0, 1.0, 1.0))
 
 #--------------------------------------------------------
   def speed( self, aSpeed ):
     ''' Set speed from -1.0 to 1.0 '''
     aSpeed *= wheel._scale
     if aSpeed < 0.0:
-      v = (0.0, 1.0, wheel.clamp(-aSpeed))
+      v = (0.0, 1.0, -wheel.clamp(aSpeed))
     elif (aSpeed > 0):
       v = (1.0, 0.0, wheel.clamp(aSpeed))
     else:
