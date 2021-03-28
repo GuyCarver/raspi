@@ -7,6 +7,7 @@ import sys
 from gamepad import *
 from wheel import *
 from strobe import *
+import state
 
 import pca9865 as pca
 import onestick
@@ -30,7 +31,11 @@ class tank(object):
   _MACADDRESS = '41:42:E4:57:3E:9E'              # Controller mac address
   _HEADLIGHTS = (0, 1)
   _TAILLIGHTS = (2, 3)
+  _SPEEDPINL = 27
+  _SPEEDPINR = 22
   _DZ = 0.015                                    # Dead zone.
+
+  _HUMAN, _TURNING, _MOVEFWD = range(3)
 
   _speedchange = 0.25
 
@@ -40,10 +45,20 @@ class tank(object):
     pca.startup()
     self._gpmacaddress = '' #'E4:17:D8:2C:08:68'
     self._buttonpressed = set()                 # A set used to hold button pressed states, used for debounce detection and button combos. #
-    self._left = wheel(pca, 8, 9, 10)
-    self._right = wheel(pca, 4, 6, 5)
+    self._left = wheel(pca, 8, 9, 10, tank._SPEEDPINL)
+    self._left.name = 'lw'
+    self._right = wheel(pca, 4, 6, 5, tank._SPEEDPINR)
+    self._right.name = 'rw'
     self._lights = 0.0
     self._onestick = False
+
+    #Initialize the states.
+    self._states = {}
+    self._states[tank._HUMAN] = state.create(u = self._humanUD, i = self._humanIN)
+    self._states[tank._TURNING] = state.create()
+    self._states[tank._MOVEFWD] = state.create(s = self._movefwdST, u = self._movefwdUD)
+    self._curstate = tank._HUMAN
+
     self._strobe = strobe(pca, 15, 14)
     self.togglelights()
     onestick.adjustpoints(tank._DZ)             # Set point to minimum value during interpretation.
@@ -67,31 +82,14 @@ class tank(object):
   def running( self ): return self._running
 
 #--------------------------------------------------------
+  @property
+  def curstate( self ):
+    return self._states[self._curstate]
+
+#--------------------------------------------------------
   def _buttonaction( self, aButton, aValue ):
     '''Callback function for controller.'''
-
-    #If button pressed
-    if aValue & 0x01:
-      self._buttonpressed.add(aButton)
-      if aButton == ecodes.BTN_B:
-        self.brake()
-      elif aButton == ecodes.BTN_TL:
-        self._prevspeed()
-      elif aButton == ecodes.BTN_TR:
-        self._nextspeed()
-      elif aButton == ecodes.BTN_SELECT:
-        self._onestick = not self._onestick
-      elif aButton == ecodes.BTN_X:
-        self._strobe.on = not self._strobe.on
-    elif aButton == gamepad.GAMEPAD_DISCONNECT:
-      self.brake()
-    else: #Handle release events.
-      if aButton == ecodes.BTN_Y:
-        self.togglelights()
-
-      #On release, make sure to remove button from pressed state set.
-      if aButton in self._buttonpressed:
-        self._buttonpressed.remove(aButton)
+    state.input(self.curstate, aButton, aValue)
 
 #--------------------------------------------------------
   def setlights( self ):
@@ -148,8 +146,20 @@ class tank(object):
     return v if abs(v) >= tank._DZ else 0.0
 
 #--------------------------------------------------------
-  def updatetracks( self ):
-    ''' Update the track speeds. '''
+  def _setstate( self, aState ):
+    '''  '''
+    try:
+      if self._curstate != aState:
+        state.end(self.curstate)
+        self._curstate = aState
+        state.start(self.curstate)
+    except Exception as e:
+      print(e)
+      raise e
+
+#--------------------------------------------------------
+  def _humanUD( self, aState, aDT ):
+    ''' Update method for human control state. '''
     l = self._joydz(gamepad._LY)
     if self._onestick:
       r = -self._joydz(gamepad._LX)
@@ -158,7 +168,79 @@ class tank(object):
       r = -self._joydz(gamepad._RY)
 
     self._left.speed(l)
+    self._left.update(aDT)
     self._right.speed(r)
+    self._right.update(aDT)
+    print('        ', end='\r')
+
+#--------------------------------------------------------
+  def _humanIN( self, aState, aButton, aValue ):
+    '''  '''
+    #Capture expections so we can print them because the gamepad driver catches and ignores
+    # exceptions to control behaviour for controller issues.
+    try:
+      #If button pressed
+      if aValue & 0x01:
+        self._buttonpressed.add(aButton)
+        if aButton == ecodes.BTN_B:
+          self.brake()
+        elif aButton == ecodes.BTN_TL:
+          self._prevspeed()
+        elif aButton == ecodes.BTN_TR:
+          self._nextspeed()
+        elif aButton == ecodes.BTN_SELECT:
+          self._onestick = not self._onestick
+        elif aButton == ecodes.BTN_X:
+          self._strobe.on = not self._strobe.on
+        elif aButton == gamepad.BTN_DPADU:
+          self._setstate(tank._MOVEFWD)
+      elif aButton == gamepad.GAMEPAD_DISCONNECT:
+        self.brake()
+      else: #Handle release events.
+        if aButton == ecodes.BTN_Y:
+          self.togglelights()
+
+        #On release, make sure to remove button from pressed state set.
+        if aButton in self._buttonpressed:
+          self._buttonpressed.remove(aButton)
+    except Exception as e:
+      print(e)
+      raise e
+
+#--------------------------------------------------------
+  def _movefwdUD( self, aState, aDT ):
+    '''  '''
+    lw = aState.get('lw')
+    rw = aState.get('rw')
+    moving = 2
+
+    self._left.update(aDT)
+    self._right.update(aDT)
+    print('        ', end='\r')
+    ld = self._left.dist
+    rd = self._right.dist
+
+    print(ld, lw, rd, rw)
+    if (ld < lw):
+      self._left.speed(.15)
+      moving -= 1
+
+    if rd < rw:
+      self._right.speed(.15)
+      moving -= 1
+
+    if moving == 2:
+      self._setstate(tank._HUMAN)
+
+#--------------------------------------------------------
+  def _movefwdST( self, aState ):
+    '''  '''
+    self._left.update(0)
+    self._right.update(0)
+    print('        ', end='\r')
+
+    aState['lw'] = self._left.dist + 30
+    aState['rw'] = self._right.dist + 30
 
 #--------------------------------------------------------
   def run( self ):
@@ -177,7 +259,7 @@ class tank(object):
 
           self._strobe.update(delta)
           self._controller.update()
-          self.updatetracks()
+          state.update(self.curstate, delta)
 
           nexttime = perf_counter()
           sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted.

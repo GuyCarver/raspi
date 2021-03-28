@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from speedo import *
+
 #--------------------------------------------------------
 class wheel(object):
   '''The wheels are run by an n298 dual h-bridge. The forward, backward and speed
@@ -14,15 +16,36 @@ class wheel(object):
   _SPEEDRANGE = 1.0 - _MINSPEED
 
 #--------------------------------------------------------
-  def __init__( self, pca, si, fi, bi ):
-    ''' Initialize the wheel with pca, speed, forward and back indexes. '''
+  def __init__( self, pca, si, fi, bi, sop ):
+    ''' Initialize the wheel with pca, speed, forward and back indexes.
+        Also the pin number for the speedomoter. '''
     super(wheel, self).__init__()
 
     self._pca = pca
     self._si = si
     self._fi = fi
     self._bi = bi
+    self._so = speedo(sop)
+    self._name = ''
     self.speed(0.0)
+
+#--------------------------------------------------------
+  @property
+  def name( self ):
+    return self._name
+
+#--------------------------------------------------------
+  @name.setter
+  def name( self, aValue ):
+    self._name = aValue
+
+#--------------------------------------------------------
+  @property
+  def dist( self ): return self._so._dist
+
+#--------------------------------------------------------
+  @property
+  def time( self ): return self._so._time
 
 #--------------------------------------------------------
   @classmethod
@@ -56,6 +79,8 @@ class wheel(object):
   def speed( self, aSpeed ):
     ''' Set speed from -1.0 to 1.0 '''
     aSpeed *= wheel._scale
+    self._so.dir = aSpeed                       # Set direction on speedometer
+
     if aSpeed < 0.0:
       v = (0.0, 1.0, -wheel.clamp(aSpeed))
     elif (aSpeed > 0):
@@ -69,3 +94,9 @@ class wheel(object):
   def off( self ):
     ''' Turn the servo/led output signal off. '''
     self._pca.off(self._si)
+
+#--------------------------------------------------------
+  def update( self, aDT ):
+    '''  '''
+    self._so.update(aDT)
+    print(self.name, self._so.dist, self._so.time, end=' ')

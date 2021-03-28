@@ -273,7 +273,7 @@ class gamepad(object):
             elif event.code == ecodes.ABS_HAT0Y:
               v = event.value if event.value != 0 else self._dpadud
               self._dpadud = event.value
-              event.code = gamepad.BTN_DPADU if v > 0 else gamepad.BTN_DPADD
+              event.code = gamepad.BTN_DPADD if v > 0 else gamepad.BTN_DPADU
               self._docallback(event)
             elif event.code <= 5: #l/r triggers pass abs codes in as well as btn codes.
 #               print(event)
