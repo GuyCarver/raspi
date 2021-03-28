@@ -15,6 +15,7 @@ def release( aHall ):
   _lib.Release(aHall)
 
 def data( aHall ):
+  '''Get count, time.'''
   return _lib.GetData(aHall).contents
 
 
