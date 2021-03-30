@@ -59,7 +59,7 @@ class tank(object):
     self._states[tank._MOVEFWD] = state.create(s = self._movefwdST, u = self._movefwdUD)
     self._curstate = tank._HUMAN
 
-    self._strobe = strobe(pca, 15, 14)
+    self._strobe = strobe(25, 8)
     self.togglelights()
     onestick.adjustpoints(tank._DZ)             # Set point to minimum value during interpretation.
 
@@ -176,7 +176,7 @@ class tank(object):
 #--------------------------------------------------------
   def _humanIN( self, aState, aButton, aValue ):
     '''  '''
-    #Capture expections so we can print them because the gamepad driver catches and ignores
+    #Capture exceptions so we can print them because the gamepad driver catches and ignores
     # exceptions to control behaviour for controller issues.
     try:
       #If button pressed

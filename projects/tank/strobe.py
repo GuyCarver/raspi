@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 
+import RPi.GPIO as gp
+
 class strobe(object):
-  '''Strobe 2 pca indexes (labelled left/right) twice each repeatedly while on.'''
+  '''Strobe 2 pins (labelled left/right) twice each repeatedly while on.
+     assume gpio has been initialized to BCM mode.'''
 
   _DELAY = 0.05
 
-  def __init__( self, pca, left, right, delay = _DELAY ):
-    '''pca module, left index, right index, delay in seconds (Default to _DELAY)'''
+  def __init__( self, left, right, delay = _DELAY ):
+    '''left index, right index, delay in seconds (Default to _DELAY)'''
     super(strobe, self).__init__()
-    self._pca = pca
     self._lights = (left, right)
     self._time = 0.0
     self._index = 0
+    gp.setup(left, gp.OUT)
+    gp.setup(right, gp.OUT)
     self.on = False
 
   def __del__( self ):
@@ -24,9 +28,9 @@ class strobe(object):
   @on.setter
   def on( self, aValue ):
     self._on = aValue
-    if not aValue:
+    if not aValue:                              # If turning off then turn off now instead of in update.
       for i in self._lights:
-        self._pca.set(i, 0.0)
+        gp.output(i, 0)
       self._index = 0
       self._time = 0.0
 
@@ -42,17 +46,14 @@ class strobe(object):
     self._time = strobe._DELAY
     side = (self._index >> 2) & 0x01
     self._index += 1
-    self._pca.set(self._lights[side], 1.0 if (self._index & 1) else 0.0)
+    gp.output(self._lights[side], (self._index & 1))
 
 if __name__ == '__main__':
-  import pca9865 as pca
+  gp.setwarnings(False)
+  gp.setmode(gp.BCM)
   from time import sleep, perf_counter
-  pca.startup()
-  pca.set(0, 1.0)
-  pca.set(1, 1.0)
-  pca.set(2, 1.0)
-  pca.set(3, 1.0)
-  s = strobe(pca, 15, 14)
+
+  s = strobe(25, 8)
   s.on = True
   prevtime = perf_counter()
   try:
