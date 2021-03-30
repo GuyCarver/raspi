@@ -6,6 +6,7 @@ import onestick
 from gamepad import *
 from quicrun import *
 from base import *
+from wheel import *
 
 from time import perf_counter, sleep
 from buttons import gpioinit, button
@@ -36,6 +37,8 @@ class goliath(object):
     self._buttonpressed = set()                 # Create empty set to keep track of button press events.
 
     onestick.adjustpoints(goliath._DZ)          # Adjust onestick values to account for dead zone.
+    self._riser = wheel(pca, 8, 10, 9)
+    self._pitch = wheel(pca, 12, 13, 14)
 
     def qr( aIndex ):
       q = quicrun(pca, aIndex)
@@ -76,8 +79,7 @@ class goliath(object):
 #--------------------------------------------------------
   def _buttonaction( self, aButton, aValue ):
     '''  '''
-    #Value of 2 indicates a change in pressed/released state.
-    if aValue & 0x02:
+    try:
       if aValue & 0x01:
         self._buttonpressed.add(aButton)
         if aButton == ecodes.BTN_TL:
@@ -90,7 +92,9 @@ class goliath(object):
         #On release, make sure to remove button from pressed state set.
         if aButton in self._buttonpressed:
           self._buttonpressed.remove(aButton)
-
+    except Exception as e:
+      print(e)
+      raise e
 #--------------------------------------------------------
   def _nextspeed( self ):
     ''' Increment speed value. '''
@@ -109,7 +113,7 @@ class goliath(object):
 
 #--------------------------------------------------------
   def joydz( self, aInput ):
-  ''' Get joystick value and remove deadzone. '''
+    ''' Get joystick value and remove deadzone. '''
 
     v = self._joy(aInput)
     return v if abs(v) >= goliath._DZ else 0.0
@@ -130,6 +134,21 @@ class goliath(object):
     self._waist.speed = self.joydz(gamepad._RX)
 
 #--------------------------------------------------------
+  def updateriser( self ):
+    dir = 1.0 if ecodes.BTN_SELECT in self._buttonpressed else 0.0
+    if ecodes.BTN_START in self._buttonpressed:
+      dir -= 1
+#    print('riser:', dir)
+
+    self._riser.speed(dir)
+#    self._pitch.speed(dir)
+
+#--------------------------------------------------------
+  def updatepitch( self ):
+    dir = self.joydz(gamepad._RY)
+    self._pitch.speed(dir)
+
+#--------------------------------------------------------
   def run( self ):
     ''' Main loop to update inputs and outputs '''
     prevtime = perf_counter()
@@ -144,6 +163,8 @@ class goliath(object):
         self._controller.update()
         self.updatetracks()
         self.updatewaist()
+        self.updateriser()
+        self.updatepitch()
 
         for q in self._qs:
           q.update(delta)
@@ -152,6 +173,9 @@ class goliath(object):
         sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted.
         if sleeptime > 0.0:
           sleep(sleeptime)
+    except Exception as ex:
+      print(ex)
+      raise ex
     finally:
       pca.alloff()
 
