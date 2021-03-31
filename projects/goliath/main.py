@@ -37,8 +37,8 @@ class goliath(object):
     self._buttonpressed = set()                 # Create empty set to keep track of button press events.
 
     onestick.adjustpoints(goliath._DZ)          # Adjust onestick values to account for dead zone.
-    self._riser = wheel(pca, 8, 10, 9)
-    self._pitch = wheel(pca, 12, 13, 14)
+    self._riser = wheel(pca, 2, 19, 26)
+    self._pitch = wheel(pca, 3, 6, 13)
 
     def qr( aIndex ):
       q = quicrun(pca, aIndex)

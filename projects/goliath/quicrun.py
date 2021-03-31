@@ -3,7 +3,6 @@
 # Controller for the quicrun 10bl60 Electronic Speed Control (ESP) for brushless motors
 
 from time import sleep
-from os import environ
 
 #--------------------------------------------------------
 class quicrun(object):
@@ -261,7 +260,7 @@ class quicrun(object):
 
 #--------------------------------------------------------
 if __name__ == '__main__':  #start server
-  import pca
+  import pca9865 as pca
 
   pca.startup()
   q = quicrun(pca, 8, 'test')
