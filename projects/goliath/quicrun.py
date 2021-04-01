@@ -7,25 +7,27 @@ from time import sleep
 #--------------------------------------------------------
 class quicrun(object):
   '''Controller for quicrun 1060 ESP.
-     This controller works through the pca9865 servo controller.'''
+     This controller works through the pca9865 servo controller.
+     Converts speed values -1.0 to 1.0 into PWM signal values required to reflect that
+     speed on the ESP.'''
 
-  _IDLE = 0.75
+  _IDLE = 0.76
   _FORWARD_MAX = 1.0
-  _FORWARD_MIN = 0.76
+  _FORWARD_MIN = 0.78
   _BACKWARD_MAX = 0.50
   _BACKWARD_MIN = 0.74
 
   #States
   _STOPPED, _FORWARD, _REVERSE = range(3)
 
-  _defminmax = (-100.0, 100.0)
+  _defminmax = (-1.0, 1.0)                      # Minimum/Maximum values for speed settings.
 
 #--------------------------------------------------------
   @staticmethod
-  def getperc( aMin, aMax, aPerc ) :
-    '''Interpolate between aMin and aMax by aPerc 0-100.
+  def getinterp( aMin, aMax, aValue ) :
+    '''Interpolate between aMin and aMax by aValue 0.0-1.0.
        Returns and integer value.'''
-    return int((((aMax - aMin) * aPerc) // 100) + aMin)
+    return ((aMax - aMin) * aValue) + aMin
 
 #--------------------------------------------------------
   def __init__(self, aPCA, aIndex, aName = ''):
@@ -36,9 +38,9 @@ class quicrun(object):
     self._pca = aPCA
     self._index = aIndex
     self._name = aName
-    self._rate = 0.0
+    self._rate = 0.0                            #Rate in units per second change allowed.
     self._delay = 0.0                           #Delay value used for reverse init state changes.
-    self._speed = 0.0
+    self._speed = 0.0                           #Speed value between -1.0 and 1.0.
     self._scale = 1.0                           #Additional scaler used for temporary throttling.
     self._targetspeed = 0.0
     self._minmax = quicrun._defminmax
@@ -60,6 +62,7 @@ class quicrun(object):
 
   @rate.setter
   def rate( self, aValue ):
+    '''Set rate in units/second for update.'''
     self._rate = aValue
 
 #--------------------------------------------------------
@@ -78,6 +81,8 @@ class quicrun(object):
 
   @minmax.setter
   def minmax( self, aValue ):
+    '''Set min/maximum speed values between -1.0 and 1.0'''
+
     #If tuple just use directly without checking legitimate ranges.
     if isinstance(aValue, tuple) or isinstance(aValue, list):
       self._minmax = aValue
@@ -125,6 +130,7 @@ class quicrun(object):
 #--------------------------------------------------------
   def _set( self, aValue ) :
     '''Set the ESP speed.'''
+    print('setting:', aValue)
     self._pca.set(self._index, aValue)
 
 #--------------------------------------------------------
@@ -154,7 +160,8 @@ class quicrun(object):
 
   @speed.setter
   def speed( self, aValue ):
-    #Set target speed and scale it based on the scale value.
+    '''Set target speed -1.0 to 1.0 and scale it based on the scale value.'''
+
     self._targetspeed = self.clamp(aValue) * self._scale
     #If rate is 0, we just set speed to target speed and send to ESP.
     #  This way update() doesn't need to be called.
@@ -207,16 +214,22 @@ class quicrun(object):
     return
 
 #--------------------------------------------------------
+  def stop( self ):
+    '''Immediately stop the device'''
+    self._speed = self._targetspeed = 0.0
+    self._checkstop()
+
+#--------------------------------------------------------
   def ud_forward( self, aDelta ):
     '''Update speed and look for reverse/stopped state changes.'''
-    self._set(quicrun.getperc(quicrun._FORWARD_MIN, quicrun._FORWARD_MAX, self._speed))
+    self._set(quicrun.getinterp(quicrun._FORWARD_MIN, quicrun._FORWARD_MAX, self._speed))
     if not self._checkstop():
       self._checkreverse(aDelta)
 
 #--------------------------------------------------------
   def ud_reverse( self, aArg ):
     '''In reverse.  Look to go to forward or stop.'''
-    self._set(quicrun.getperc(quicrun._BACKWARD_MAX, quicrun._BACKWARD_MIN, 100.0 + self._speed))
+    self._set(quicrun.getinterp(quicrun._BACKWARD_MAX, quicrun._BACKWARD_MIN, 1.0 + self._speed))
     if not self._checkstop():
       self._checkforward()
 
@@ -236,7 +249,7 @@ class quicrun(object):
 
     if diff != 0.0:
       #If no rate or diff too small just set directly.
-      if (self._rate > 0.0) and (abs(diff) > 0.01):
+      if (self._rate > 0.0) and (abs(diff) > 0.001):
         #Interpolate between src, target by delta.
         if diff < 0.0:
           mm = max
@@ -263,8 +276,8 @@ if __name__ == '__main__':  #start server
   import pca9865 as pca
 
   pca.startup()
-  q = quicrun(pca, 8, 'test')
-  q.rate = 10.0
+  q = quicrun(pca, 0, 'test')
+  q.rate = 1.0
 
   def waitforit():
     print(q.speed)
@@ -272,11 +285,12 @@ if __name__ == '__main__':  #start server
       sleep(0.01)
       q.update(0.01)
 
-  q.speed = 25.0
+  q.speed = 1.0
   waitforit()
-  q.speed = -25.0
+  q.speed = -1.0
   waitforit()
-  q.speed = 5.0
+  q.speed = 0.5
   waitforit()
   q.speed = 0.0
+  waitforit()
   print('done.')
