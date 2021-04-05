@@ -3,6 +3,8 @@
 
 # sudo apt install rpi.gpio
 
+#todo: convert leds to output through mux. STROBE, LIGHTBANK
+
 import sys
 from gamepad import *
 from wheel import *
@@ -28,12 +30,18 @@ def deadzone( aValue, aLimit ):
 #--------------------------------------------------------
 class tank(object):
 
-  _MACADDRESS = '41:42:E4:57:3E:9E'              # Controller mac address
+  _MACADDRESS = '41:42:E4:57:3E:9E'             # Controller mac address
   _HEADLIGHTS = (0, 1)
   _TAILLIGHTS = (2, 3)
-  _SPEEDPINL = 27
+  _LIGHTBANK = 25                               # Pin to control bank of 12v lights on front of tank
+
+  _SPEEDPINL = 27                               # Input pins for speedometer reading
   _SPEEDPINR = 22
-  _DZ = 0.015                                    # Dead zone.
+
+  _STROBERED = 23                               # Pins to control red/blue strobe lights
+  _STROBEBLUE = 24
+
+  _DZ = 0.015                                   # Dead zone.
 
   _HUMAN, _TURNING, _MOVEFWD = range(3)
 
@@ -59,7 +67,9 @@ class tank(object):
     self._states[tank._MOVEFWD] = state.create(s = self._movefwdST, u = self._movefwdUD)
     self._curstate = tank._HUMAN
 
-    self._strobe = strobe(25, 8)
+    self._strobe = strobe(tank._STROBERED, tank._STROBEBLUE)
+    self._lightbank = lightbank(tank._LIGHTBANK)
+
     self.togglelights()
     onestick.adjustpoints(tank._DZ)             # Set point to minimum value during interpretation.
 
@@ -76,6 +86,8 @@ class tank(object):
 #--------------------------------------------------------
   def __del__( self ):
     pca.alloff()
+    self._strobe.on = False
+    self._lightbank.on = False
 
 #--------------------------------------------------------
   @property
@@ -190,8 +202,10 @@ class tank(object):
           self._nextspeed()
         elif aButton == ecodes.BTN_SELECT:
           self._onestick = not self._onestick
+        elif aButton == ecodes.BTN_A:
+          self._lightbank.toggle()
         elif aButton == ecodes.BTN_X:
-          self._strobe.on = not self._strobe.on
+          self._strobe.toggle()
         elif aButton == gamepad.BTN_DPADU:
           self._setstate(tank._MOVEFWD)
       elif aButton == gamepad.GAMEPAD_DISCONNECT:
