@@ -239,7 +239,7 @@ class gamepad(object):
       if gamepad.debug:
         if gamepad.debug > 1:
           raise(e)
-        print(e)
+#         print(e)
 
     return self.connected
 
