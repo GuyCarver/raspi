@@ -3,23 +3,28 @@
 
 # sudo apt install rpi.gpio
 
-import RPi.GPIO as GPIO
-# GPIO.output(sentrybot._SMOKEPIN, GPIO.HIGH if abTF else GPIO.LOW)
-# GPIO.setup(sentrybot._SMOKEPIN, GPIO.OUT)
-# GPIO.setup(channel, GPIO.IN, pull_up_down = GPIO.PUD_UP)
-# res = GPIO.input(self._channel)
+import RPi.GPIO as gp
+# gp.output(sentrybot._SMOKEPIN, gp.HIGH if abTF else gp.LOW)
+# gp.setup(sentrybot._SMOKEPIN, gp.OUT)
+# gp.setup(channel, gp.IN, pull_up_down = gp.PUD_UP)
+# res = gp.input(self._channel)
 
 def gpioinit(  ):
-  GPIO.setwarnings(False)
-  GPIO.setmode(GPIO.BCM)
+  gp.setwarnings(False)
+  gp.setmode(gp.BCM)
 
 class button(object):
-  ''' Handle input from a single button channel on GPIO. '''
+  ''' Handle input from a single button channel on gp. '''
 
   def __init__( self, channel ):
     super(button, self).__init__()
+
+    #Make sure gpio is initialized.
+    if gp.getmode() != gp.BCM:
+      gpioinit()
+
     self._channel = channel
-    GPIO.setup(channel, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+    gp.setup(channel, gp.IN, pull_up_down = gp.PUD_UP)
     self._curstate = False
     self._prevstate = False
 
@@ -49,6 +54,6 @@ class button(object):
   def update( self ):
     ''' Update button state and returns state + change flag. '''
     self._prevstate = self._curstate
-    res = GPIO.input(self._channel)
+    res = gp.input(self._channel)
     self._curstate = (res == 0)                 # 0 = button pressed.
 

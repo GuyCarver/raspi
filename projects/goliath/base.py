@@ -4,9 +4,9 @@
 import RPi.GPIO as gp
 from mcp4725 import *
 
-# def gpioinit(  ):
-#   GPIO.setwarnings(False)
-#   GPIO.setmode(GPIO.BCM)
+def gpioinit(  ):
+  GPIO.setwarnings(False)
+  GPIO.setmode(GPIO.BCM)
 
 class base(object):
   ''' Object to handle the motor controller controlling the base rotation motor. '''
@@ -14,6 +14,11 @@ class base(object):
   def __init__( self, aRevPin ):
     ''' reverse button # '''
     gp.setup(aRevPin, gp.OUT)
+
+    #Make sure gpio is initialized.
+    if gp.getmode() != gp.BCM:
+      gpioinit()
+
     self._mcp = mcp()
     self._speed = 0.0
     self._reverse = False
