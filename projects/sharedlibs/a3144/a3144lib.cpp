@@ -31,7 +31,7 @@
 // DATE    03/18/2021 11:04 AM
 //----------------------------------------------------------------------
 
-//Compiled with g++ -Wall -pthread -o a3144lib a3144lib.cpp -lpigpio -lrt
+//Compiled with g++ -Wall -pthread -o a3144lib a3144lib.cpp -lwiringpi -lrt
 
 #include <cstdlib>
 #include <cstdint>
