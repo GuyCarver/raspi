@@ -9,6 +9,7 @@ import sys
 from gamepad import *
 from wheel import *
 from strobe import *
+from sides import *
 import state
 
 import pca9865 as pca
@@ -59,6 +60,7 @@ class tank(object):
     self._right.name = 'rw'
     self._lights = 0.0
     self._onestick = False
+    self._sides = sides((7,8), (9,10))          # Left/Right Pin #s for trigger/echo.
 
     #Initialize the states.
     self._states = {}
@@ -271,6 +273,7 @@ class tank(object):
           if delta > _dtime:
             delta = _dtime
 
+          self._sides.update()                  # Update the side distance sensors
           self._strobe.update(delta)
           self._controller.update()
           state.update(self.curstate, delta)
