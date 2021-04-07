@@ -9,14 +9,18 @@
 // Much of this was pulled from Pololy library for arduino at:
 // https://github.com/pololu/vl53l0X-arduino
 
-#include <iostream>
-#include <unistd.h>
-#include <errno.h>
-#include <wiringPiI2C.h>
-#include <wiringPi.h>
+//Compiled with g++ -Wall -pthread -o vl53lib vl53lib.cpp -lwiringpi -lrt
 
-//TODO: Determing if address change is permanent.  If not make constructor
-//  change the address.  If so then we can do it once and forget about it.
+#define DEBUGOUT 1
+#ifdef DEBUGOUT
+#include <iostream>
+#endif //DEBUGOUT
+
+#include <unistd.h>								// for close()
+#include <cstdint>
+#include <wiringPiI2C.h>
+#include <wiringPi.h>							// for delayMicroseconds()
+#include <algorithm>							// for std::min/max
 
 namespace
 {
@@ -141,14 +145,12 @@ namespace
 	//----------------------------------------------------------------
 	uint32_t CalcMacroPeriod( uint32_t aValue )
 	{
+		//(2304 * 1655 * period + 500) / 1000
 		return (3813120u * aValue + 500u) / 1000u;
 	}
 
 	//----------------------------------------------------------------
-	// Decode sequence step timeout in MCLKs from register value
-	// based on VL53L0X_decode_timeout()
-	// Note: the original function returned a uint32_t, but the return value is
-	// always stored in a uint16_t.
+	// Decode sequence step timeout in MCLKs from register value based on VL53L0X_decode_timeout()
 	uint16_t DecodeTimeout( uint16_t aVal )
 	{
 		// format: "(LSByte * 2^MSByte) + 1"
@@ -156,10 +158,7 @@ namespace
 	}
 
 	//----------------------------------------------------------------
-	// Encode sequence step timeout register value from timeout in MCLKs
-	// based on VL53L0X_encode_timeout()
-	// Note: the original function took a uint16_t, but the argument passed to it
-	// is always a uint16_t.
+	// Encode sequence step timeout register value from timeout in MCLKs based on VL53L0X_encode_timeout()
 	uint16_t EncodeTimeout( uint16_t aTimeout )
 	{
 		// format: "(LSByte * 2^MSByte) + 1"
@@ -223,42 +222,94 @@ class vl53
 {
 public:
 	//----------------------------------------------------------------
-	vl53( uint32_t aAddress, uint32_t aType ) : _address(aAddress)
+	vl53( uint32_t aAddress, bool abLongRange ) : _address(aAddress)
 	{
 		// Add to instance array.
-		pNext = pBase;
-		pBase = this;
 		_i2c = wiringPiI2CSetup(aAddress);
-		Init(aType);
+		Init(abLongRange);
 	}
 
 	//----------------------------------------------------------------
 	~vl53(  )
 	{
 		close(_i2c);
+	}
 
-		// Remove from instance array.
-		vl53 *pprev = nullptr;
-		vl53 *pthis = pBase;
-		while (pthis) {
-			if (pthis == this) {
-				if (pprev) {
-					pprev->pNext = pNext;
-				}
-				else {
-					pBase = pNext;
-				}
-				break;
+	//----------------------------------------------------------------
+	int32_t ReadRangeContinuousMM(  )
+	{
+		uint32_t timeout = 0;
+		uint16_t range;
+
+		while ((Read8(RESULT_INTERRUPT_STATUS) & 0x07) == 0) {
+			++timeout;
+			delayMicroseconds(5000);
+			if (timeout > 50) {
+				return -1;
 			}
-			pprev = pthis;
-			pthis = pthis->pNext;
 		}
+
+		// assumptions: Linearity Corrective Gain is 1000 (default);
+		// fractional ranging is not enabled
+		range = Read16(RESULT_RNG_STATUS + 10);
+		Write8(0x01, SYSTEM_INTERRUPT_CLEAR);
+		return range;
+	}
+
+	//----------------------------------------------------------------
+	// Read the current distance in mm
+	int32_t TOFReadDistance(  )
+	{
+		Write8(0x01, 0x80);
+		Write8(0x01, 0xFF);
+		Write8(0x00, 0x00);
+		Write8(_stop, INTERNAL_TUNING1);
+		Write8(0x01, 0x00);
+		Write8(0x00, 0xFF);
+		Write8(0x80, 0x00);
+
+		Write8(0x01, SYSRANGE_START);
+
+		// "Wait until start bit has been cleared"
+		uint32_t timeout = 0;
+		while (Read8(SYSRANGE_START) & 0x01) {
+			++timeout;
+			delayMicroseconds(5000);
+			if (timeout > 50u) {
+				return -1;
+			}
+		}
+
+		return ReadRangeContinuousMM();
+	}
+
+	//----------------------------------------------------------------
+	void GetModel( int32_t &arModel, int32_t &arRevision )
+	{
+		Write8(1, REG_IDENTIFICATION_MODEL_ID); // write address of register to read
+		arModel = Read8(REG_IDENTIFICATION_MODEL_ID);
+
+		Write8(1, REG_IDENTIFICATION_REVISION_ID);
+		arRevision = Read8(REG_IDENTIFICATION_REVISION_ID);
+	}
+
+	//----------------------------------------------------------------
+	// Address change lasts only per session and is
+	void ChangeAddress( uint8_t aAddress )
+	{
+		if (aAddress == _address) {
+			return;
+		}
+
+		//Read then write ID to unlock address change.
+		uint16_t adr = Read16(ADDR_UNIT_ID_HIGH);
+		Write16(adr, ADDR_I2C_ID_HIGH);
+		//Write the new address.
+		Write8(aAddress, ADDR_I2C_SEC_ADDR);
+		_address = aAddress;
 	}
 
 private:
-	static vl53 *pBase;
-
-	vl53 *pNext = nullptr;
 	uint32_t _i2c = 0;
 	uint32_t MeasurementTimingBudgetUS = 0;
 	uint8_t _address = 0x29;
@@ -343,7 +394,7 @@ private:
 	}
 
 	//----------------------------------------------------------------
-	void Init( uint32_t aType )
+	void Init( bool abLongRange )
 	{
 		uint8_t spadCount = 0;
 		uint8_t spadTypeIsAperture = 0;
@@ -382,7 +433,7 @@ private:
 		WriteArray(DefTuning, arrlen(DefTuning)); // long list of magic numbers
 
 		// change some settings for long range mode
-		if (aType) {
+		if (abLongRange) {
 			Write16(0x0D, FINAL_RNG_CFG_MIN_COUNT_RATE_RTN_LIMIT); // 0.1
 			SetPulsePeriod(PeriodType::PRE_RANGE, 18);
 			SetPulsePeriod(PeriodType::FINAL_RANGE, 14);
@@ -707,84 +758,24 @@ private:
 		return true;
 	}
 
-	//----------------------------------------------------------------
-	int32_t ReadRangeContinuousMM(  )
-	{
-		uint32_t timeout = 0;
-		uint16_t range;
-
-		while ((Read8(RESULT_INTERRUPT_STATUS) & 0x07) == 0) {
-			++timeout;
-			delayMicroseconds(5000);
-			if (timeout > 50) {
-				return -1;
-			}
-		}
-
-		// assumptions: Linearity Corrective Gain is 1000 (default);
-		// fractional ranging is not enabled
-		range = Read16(RESULT_RNG_STATUS + 10);
-		Write8(0x01, SYSTEM_INTERRUPT_CLEAR);
-		return range;
-	}
-
-	//----------------------------------------------------------------
-	// Read the current distance in mm
-	int32_t TOFReadDistance(  )
-	{
-		Write8(0x01, 0x80);
-		Write8(0x01, 0xFF);
-		Write8(0x00, 0x00);
-		Write8(_stop, INTERNAL_TUNING1);
-		Write8(0x01, 0x00);
-		Write8(0x00, 0xFF);
-		Write8(0x80, 0x00);
-
-		Write8(0x01, SYSRANGE_START);
-
-		// "Wait until start bit has been cleared"
-		uint32_t timeout = 0;
-		while (Read8(SYSRANGE_START) & 0x01) {
-			++timeout;
-			delayMicroseconds(5000);
-			if (timeout > 50u) {
-				return -1;
-			}
-		}
-
-		return ReadRangeContinuousMM();
-	}
-
-	//----------------------------------------------------------------
-	void GetModel( int32_t *model, int32_t *revision )
-	{
-		if (model) {
-			Write8(1, REG_IDENTIFICATION_MODEL_ID); // write address of register to read
-			*model = Read8(REG_IDENTIFICATION_MODEL_ID);
-		}
-		if (revision) {
-			Write8(1, REG_IDENTIFICATION_REVISION_ID);
-			*revision = Read8(REG_IDENTIFICATION_REVISION_ID);
-		}
-	}
-
-	//----------------------------------------------------------------
-	void ChangeAddress( uint8_t aAddress )
-	{
-		if (aAddress == _address) {
-			return;
-		}
-
-		//Read then write ID to unlock address change.
-		uint16_t adr = Read16(ADDR_UNIT_ID_HIGH);
-		Write16(adr, ADDR_I2C_ID_HIGH);
-		//Write the new address.
-		Write8(aAddress, ADDR_I2C_SEC_ADDR);
-		_address = aAddress;
-	}
 };
 
-vl53 *vl53::pBase = nullptr;
+//----------------------------------------------------------------
+int32_t main( int32_t aArgs, char *aArgv[] )
+{
+	auto v = vl53(0x29, true);
+	int32_t model, revision;
+	v.GetModel(model, revision);
+	std::cout << "model: " << model << " revision: " << revision << std::endl;
+
+	while (true) {
+		auto dist = v.TOFReadDistance();
+		std::cout << "distance: " << dist << "        \r";
+		delayMicroseconds(50000);
+	}
+
+	return 0;
+}
 
 //----------------------------------------------------------------
 SequenceStepTimeouts::SequenceStepTimeouts( const vl53 &aVL, uint8_t aEnables )
@@ -803,3 +794,36 @@ SequenceStepTimeouts::SequenceStepTimeouts( const vl53 &aVL, uint8_t aEnables )
 
 	FinalRangeUS = TimeoutMclks2US(FinalRangeMclks, FinalRangeVcselPeriodPclks);
 }
+
+//Following are the external interface functions.
+extern "C"
+{
+
+//--------------------------------------------------------
+void *Create( uint32_t aAddress, uint32_t aType )
+{
+	return new vl53(aAddress, aType);
+}
+
+//--------------------------------------------------------
+void Release( void *apInstance )
+{
+	auto pinstance = reinterpret_cast<vl53*>(apInstance);
+	delete pinstance;
+}
+
+//--------------------------------------------------------
+void SetAddress( void *apInstance, uint32_t aAddress )
+{
+	auto pinstance = reinterpret_cast<vl53*>(apInstance);
+	pinstance->ChangeAddress(static_cast<uint8_t>(aAddress));
+}
+
+//--------------------------------------------------------
+uint32_t GetData( void *apInstance )
+{
+	auto pinstance = reinterpret_cast<vl53*>(apInstance);
+	return pinstance->TOFReadDistance();
+}
+
+} //extern "C"
