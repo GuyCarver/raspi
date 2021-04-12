@@ -130,7 +130,7 @@ class quicrun(object):
 #--------------------------------------------------------
   def _set( self, aValue ) :
     '''Set the ESP speed.'''
-    print('setting:', aValue)
+#     print('setting:', aValue)
     self._pca.set(self._index, aValue)
 
 #--------------------------------------------------------
