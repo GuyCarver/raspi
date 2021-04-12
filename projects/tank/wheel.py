@@ -99,4 +99,4 @@ class wheel(object):
   def update( self, aDT ):
     '''  '''
     self._so.update(aDT)
-    print(self.name, self._so.dist, self._so.time, end=' ')
+#     print(self.name, self._so.dist, self._so.time, end=' ')
