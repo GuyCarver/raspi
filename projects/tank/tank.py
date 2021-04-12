@@ -4,6 +4,9 @@
 # sudo apt install rpi.gpio
 
 #todo: convert leds to output through mux. STROBE, LIGHTBANK
+#todo: Add light sensor so we know when it's dark
+#todo: Add sound sensor to listen for triggers
+#todo: Add motion sensor?
 
 import sys
 from gamepad import *
@@ -20,6 +23,10 @@ from time import perf_counter, sleep
 from buttons import gpioinit, button
 import keyboard
 
+_DISPLAY = False                                   # Set this to true to support oled output.
+if _DISPLAY:
+  from oled import *
+
 gpioinit() # Initialize the GPIO system so we may use the pins for I/O.
 
 _dtime = .03
@@ -33,21 +40,37 @@ def deadzone( aValue, aLimit ):
 class tank(object):
 
   _MACADDRESS = '41:42:E4:57:3E:9E'             # Controller mac address
-  _HEADLIGHTS = (0, 1)
-  _TAILLIGHTS = (2, 3)
-  _LIGHTBANK = 25                               # Pin to control bank of 12v lights on front of tank
 
-  _SPEEDPINL = 27                               # Input pins for speedometer reading
-  _SPEEDPINR = 22
+#--------------------------------------------------------
+#__RASPI Pin Indexes
+  _LSIDE = (17, 18)                             # Left/right distance sensor (trigger/echo) pins.
+  _RSIDE = (9, 10)
+
+  _SPEEDOL = 27                                 # Input pins for speedometer reading
+  _SPEEDOR = 22
 
   _STROBERED = 23                               # Pins to control red/blue strobe lights
   _STROBEBLUE = 24
 
-  _DZ = 0.015                                   # Dead zone.
+  _LIGHTBANK = 25                               # Pin to control bank of 12v lights on front of tank
 
-  _HUMAN, _TURNING, _MOVEFWD = range(3)
+#--------------------------------------------------------
+#__PCA Indexes.
+  _HEADLIGHTS = (0, 1)
+  _TAILLIGHTS = (2, 3)
+  _RS, _RF, _RB = 4, 6, 5
+  _LS, _LF, _LB = 8, 9, 10                      # Left/Right speed, forward, backward pins
 
-  _speedchange = 0.25
+  _CAMERAPAN = 12                               # Front camera pca indexes for pan/tilt
+  _CAMERATILT = 13
+
+#--------------------------------------------------------
+#__Misc values
+  _DZ = 0.015                                   # Gamepad Dead zone.
+  _SPEEDCHANGE = 0.25
+
+  _HUMAN, _CAMERACONTROL, _TURNING, _MOVEFWD = range(4)
+
 
 #--------------------------------------------------------
   def __init__( self ):
@@ -55,18 +78,19 @@ class tank(object):
     pca.startup()
     self._gpmacaddress = '' #'E4:17:D8:2C:08:68'
     self._buttonpressed = set()                 # A set used to hold button pressed states, used for debounce detection and button combos. #
-    self._left = wheel(pca, 8, 9, 10, tank._SPEEDPINL)
+    self._left = wheel(pca, tank._LS, tank._LF, tank._LB, tank._SPEEDOL)
     self._left.name = 'lw'
-    self._right = wheel(pca, 4, 6, 5, tank._SPEEDPINR)
+    self._right = wheel(pca, tank._RS, tank._RF, tank._RB, tank._SPEEDOR)
     self._right.name = 'rw'
     self._lights = 0.0
     self._onestick = False
-    self._sides = sides((7,8), (9,10))          # Left/Right Pin #s for trigger/echo.
+    self._sides = sides(tank._LSIDE, tank._RSIDE)  # Left/Right Pin #s for trigger/echo.
     self._front = vl53.create()
 
     #Initialize the states.
     self._states = {}
     self._states[tank._HUMAN] = state.create(u = self._humanUD, i = self._humanIN)
+    self._states[tank._HUMAN] = state.create(u = self._cameraUD, i = self._cameraIN)
     self._states[tank._TURNING] = state.create()
     self._states[tank._MOVEFWD] = state.create(s = self._movefwdST, u = self._movefwdUD)
     self._curstate = tank._HUMAN
@@ -84,6 +108,9 @@ class tank(object):
       self._haskeyboard = True
     except:
       self._haskeyboard = False
+
+    if _DISPLAY:
+      self._DISPLAY = oled()
 
     self._running = True
 
@@ -141,12 +168,12 @@ class tank(object):
 #--------------------------------------------------------
   def _nextspeed( self ):
     ''' Increment speed value. '''
-    wheel.changegear(tank._speedchange)
+    wheel.changegear(tank._SPEEDCHANGE)
 
 #--------------------------------------------------------
   def _prevspeed( self ):
     ''' Decrement speed value. '''
-    wheel.changegear(-tank._speedchange)
+    wheel.changegear(-tank._SPEEDCHANGE)
 
 #--------------------------------------------------------
   def _joy( self, aIndex ):
@@ -187,7 +214,7 @@ class tank(object):
     self._left.update(aDT)
     self._right.speed(r)
     self._right.update(aDT)
-    print('        ', end='\r')
+#     print('        ', end='\r')
 
 #--------------------------------------------------------
   def _humanIN( self, aState, aButton, aValue ):
@@ -210,10 +237,52 @@ class tank(object):
           self._lightbank.toggle()
         elif aButton == ecodes.BTN_X:
           self._strobe.toggle()
+        elif aButton == ecodes.BTN_THUMBR:
+          self._setstate(tank._CAMERACONTROL)
         elif aButton == gamepad.BTN_DPADU:
           self._setstate(tank._MOVEFWD)
       elif aButton == gamepad.GAMEPAD_DISCONNECT:
         self.brake()
+      else: #Handle release events.
+        if aButton == ecodes.BTN_Y:
+          self.togglelights()
+
+        #On release, make sure to remove button from pressed state set.
+        if aButton in self._buttonpressed:
+          self._buttonpressed.remove(aButton)
+    except Exception as e:
+      print(e)
+      raise e
+
+#--------------------------------------------------------
+  def _cameraUD( self, aState, aDT ):
+    ''' Handle camera state update '''
+
+    rx = self._joydz(gamepad._RX)
+    ry = self._joydz(gamepad._RY)
+
+    panAngle = rx * 90.0
+    tiltAngle = -ry * 90.0
+
+    #Set camera pan/tilt values.
+    pca.setangle(tank._CAMERAPAN, panAngle)
+    pca.setangle(tank._CAMERATILT, tiltAngle)
+
+#--------------------------------------------------------
+  def _cameraIN( self, aState, aButton, aValue ):
+    ''' Handle camera state input '''
+    #Capture exceptions so we can print them because the gamepad driver catches and ignores
+    # exceptions to control behaviour for controller issues.
+    try:
+      #If button pressed
+      if aValue & 0x01:
+        self._buttonpressed.add(aButton)
+        if aButton == ecodes.BTN_A:
+          self._lightbank.toggle()
+        elif aButton == ecodes.BTN_X:
+          self._strobe.toggle()
+        elif aButton == ecodes.BTN_THUMBR:
+          self._setstate(tank._HUMAN)
       else: #Handle release events.
         if aButton == ecodes.BTN_Y:
           self.togglelights()
@@ -290,6 +359,7 @@ class tank(object):
           self._strobe.update(delta)
           self._controller.update()
           #todo: read front distance.
+          #todo: Disply fron/side distances.
           state.update(self.curstate, delta)
 
           nexttime = perf_counter()
