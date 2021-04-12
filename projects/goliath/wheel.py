@@ -14,20 +14,17 @@ class wheel(object):
   _SPEEDRANGE = 1.0 - _MINSPEED
 
 #--------------------------------------------------------
-  def __init__( self, pca, mx, si, fi, bi ):
-    ''' Initialize the wheel with pca, multiplexer, pca pin for speed,
-        and multiplexer pins for forward and back. '''
-
+  def __init__( self, pca, si, fi, bi ):
+    ''' Initialize the wheel with pca, speed, forward and back indexes. '''
     super(wheel, self).__init__()
 
     self._pca = pca
-    self._mx = mx
     self._si = si
     self._fi = fi
     self._bi = bi
-
     self._name = ''
-   
+    self.speed(0.0)
+
 #--------------------------------------------------------
   @property
   def name( self ):
@@ -37,6 +34,14 @@ class wheel(object):
   @name.setter
   def name( self, aValue ):
     self._name = aValue
+
+#--------------------------------------------------------
+  @property
+  def dist( self ): return self._so._dist
+
+#--------------------------------------------------------
+  @property
+  def time( self ): return self._so._time
 
 #--------------------------------------------------------
   @classmethod
@@ -56,9 +61,9 @@ class wheel(object):
     ''' Write data to the pca. '''
     fwd, back, spd = aValues
 
-    self._mx.write(self._fi, fwd)
-    self._mx.write(self._bi, back)
-
+    #Set full range of PWM signal to get a value from 0 to 1 on the pin.
+    self._pca.setpwm(self._fi, 0, int(fwd * 4095.0))
+    self._pca.setpwm(self._bi, 0, int(back * 4095.0))
     self._pca.setpwm(self._si, 0, int(spd * 4095.0))
 
 #--------------------------------------------------------
@@ -72,11 +77,11 @@ class wheel(object):
     aSpeed *= wheel._scale
 
     if aSpeed < 0.0:
-      v = (0, 1, wheel.clamp(-aSpeed))
+      v = (0.0, 1.0, -wheel.clamp(aSpeed))
     elif (aSpeed > 0):
-      v = (1, 0, wheel.clamp(aSpeed))
+      v = (1.0, 0.0, wheel.clamp(aSpeed))
     else:
-      v = (0, 0, 0.0)
+      v = (0.0, 0.0, 0.0)
 
     self._write(v)
 
@@ -84,3 +89,4 @@ class wheel(object):
   def off( self ):
     ''' Turn the servo/led output signal off. '''
     self._pca.off(self._si)
+
