@@ -12,6 +12,7 @@ from strobe import *
 from sides import *
 import state
 
+import vl53
 import pca9865 as pca
 import onestick
 
@@ -61,6 +62,7 @@ class tank(object):
     self._lights = 0.0
     self._onestick = False
     self._sides = sides((7,8), (9,10))          # Left/Right Pin #s for trigger/echo.
+    self._front = vl53.create()
 
     #Initialize the states.
     self._states = {}
@@ -226,26 +228,36 @@ class tank(object):
 #--------------------------------------------------------
   def _movefwdUD( self, aState, aDT ):
     '''  '''
-    lw = aState.get('lw')
+    lw = aState.get('lw')                       # Get left/right target distances.
     rw = aState.get('rw')
-    moving = 2
+    done = 0
 
-    self._left.update(aDT)
+    self._left.update(aDT)                      # Update the distance values
     self._right.update(aDT)
-    print('        ', end='\r')
-    ld = self._left.dist
+
+    ld = self._left.dist                        # Get current distance values
     rd = self._right.dist
 
-    print(ld, lw, rd, rw)
+    #If left wheel hasn't reached target distance keep moving
     if (ld < lw):
-      self._left.speed(.15)
-      moving -= 1
+      ls = .15
+    else:
+      ls = 0.0
+      done += 1                                 # Inc done value to indicate left is done.
 
+    self._left.speed(ls)                        # Set speed on left wheel.
+
+    #If right wheel hasn't reached target distance keep moving.
     if rd < rw:
-      self._right.speed(.15)
-      moving -= 1
+      rs = .15
+    else:
+      rs = 0.0
+      done += 1                                 # Inc done value to indicate right is done.
 
-    if moving == 2:
+    self._right.speed(rs)
+
+    #If both wheels are done switch to human input state
+    if done == 2:
       self._setstate(tank._HUMAN)
 
 #--------------------------------------------------------
@@ -273,9 +285,11 @@ class tank(object):
           if delta > _dtime:
             delta = _dtime
 
+          vl53.update(self._front)
           self._sides.update()                  # Update the side distance sensors
           self._strobe.update(delta)
           self._controller.update()
+          #todo: read front distance.
           state.update(self.curstate, delta)
 
           nexttime = perf_counter()
