@@ -3,7 +3,6 @@
 
 # sudo apt install rpi.gpio
 
-#todo: convert leds to output through mux. STROBE, LIGHTBANK
 #todo: Add light sensor so we know when it's dark
 #todo: Add sound sensor to listen for triggers
 #todo: Add motion sensor?
@@ -23,9 +22,9 @@ from time import perf_counter, sleep
 from buttons import gpioinit, button
 import keyboard
 
-_DISPLAY = False                                   # Set this to true to support oled output.
+_DISPLAY = True                                   # Set this to true to support oled output.
 if _DISPLAY:
-  from oled import *
+  from area import *
 
 gpioinit() # Initialize the GPIO system so we may use the pins for I/O.
 
@@ -43,8 +42,8 @@ class tank(object):
 
 #--------------------------------------------------------
 #__RASPI Pin Indexes
-  _LSIDE = (17, 18)                             # Left/right distance sensor (trigger/echo) pins.
-  _RSIDE = (9, 10)
+  _LSIDE = (9, 10)                              # Left/right distance sensor (trigger/echo) pins.
+  _RSIDE = (17, 18)
 
   _SPEEDOL = 27                                 # Input pins for speedometer reading
   _SPEEDOR = 22
@@ -68,6 +67,8 @@ class tank(object):
 #__Misc values
   _DZ = 0.015                                   # Gamepad Dead zone.
   _SPEEDCHANGE = 0.25
+  _MAXSIDE = 3200                               # In us.
+  _MAXFRONT = 560                               # In mm.
 
   _HUMAN, _CAMERACONTROL, _TURNING, _MOVEFWD = range(4)
 
@@ -90,7 +91,7 @@ class tank(object):
     #Initialize the states.
     self._states = {}
     self._states[tank._HUMAN] = state.create(u = self._humanUD, i = self._humanIN)
-    self._states[tank._HUMAN] = state.create(u = self._cameraUD, i = self._cameraIN)
+    self._states[tank._CAMERACONTROL] = state.create(u = self._cameraUD, i = self._cameraIN)
     self._states[tank._TURNING] = state.create()
     self._states[tank._MOVEFWD] = state.create(s = self._movefwdST, u = self._movefwdUD)
     self._curstate = tank._HUMAN
@@ -110,7 +111,7 @@ class tank(object):
       self._haskeyboard = False
 
     if _DISPLAY:
-      self._DISPLAY = oled()
+      self._area = area(tank._MAXSIDE, tank._MAXFRONT)
 
     self._running = True
 
@@ -332,12 +333,14 @@ class tank(object):
 #--------------------------------------------------------
   def _movefwdST( self, aState ):
     '''  '''
+    amount = 100
+
     self._left.update(0)
     self._right.update(0)
     print('        ', end='\r')
 
-    aState['lw'] = self._left.dist + 30
-    aState['rw'] = self._right.dist + 30
+    aState['lw'] = self._left.dist + amount
+    aState['rw'] = self._right.dist + amount
 
 #--------------------------------------------------------
   def run( self ):
@@ -354,13 +357,17 @@ class tank(object):
           if delta > _dtime:
             delta = _dtime
 
-          vl53.update(self._front)
+          vl53.update(self._front)              # Update front distance
           self._sides.update()                  # Update the side distance sensors
           self._strobe.update(delta)
           self._controller.update()
-          #todo: read front distance.
-          #todo: Disply fron/side distances.
           state.update(self.curstate, delta)
+
+          if _DISPLAY:
+            # Disply front/side distances.
+            l, r = self._sides.gettimes()
+            f = vl53.distance(self._front)
+            self._area.update(l, r, f)
 
           nexttime = perf_counter()
           sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted.
