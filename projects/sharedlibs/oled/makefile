@@ -3,21 +3,24 @@
 # compiler flags:
 #  -g    adds debugging information to the executable file
 #  -Wall turns on most, but not all, compiler warnings
-CFLAGS  = -std=c++17 -O3 -fPIC
+LFLAGS  = -lwiringPi
+CFLAGS = -Wall -c -std=c++17 -fPIC -O3
 
 
 # the build target executable:
-TARGET = oled
+TARGET = oledlib
 
-lib: $(TARGET)lib
+OBJ = $(TARGET).o
 
-$(TARGET)lib: $(TARGET).cpp
-	$(CC) $(CFLAGS) -shared -o $(TARGET)lib.so $(TARGET).cpp
+%.o: %.cpp
+	$(CC) $(CFLAGS) -o $@ $<
 
-exe: $(TARGET)
-
-$(TARGET): $(TARGET).cpp
-	$(CC) $(CFLAGS) -g -o $(TARGET) $(TARGET).cpp
+lib: $(OBJ)
+	$(CC) $(LFLAGS) -shared -o $(TARGET).so $^
 
 clean:
-	$(RM) $(TARGET)
+	$(RM) $(OBJ)
+
+cleanall: clean
+	$(RM) $(TARGET).so
+
