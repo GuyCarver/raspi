@@ -3,9 +3,14 @@
 
 # sudo apt install rpi.gpio
 
+#todo: Figure out what is causes the input delay.
+#todo: Add limits for camera movement.
+#todo: Add animation of camera movement rather than direct controller input.
+#todo: Test using x axis for camera control during movement.
 #todo: Add light sensor so we know when it's dark
 #todo: Add sound sensor to listen for triggers
 #todo: Add motion sensor?
+#todo: Put gamepad update into thread?
 
 import sys
 from gamepad import *
@@ -70,7 +75,7 @@ class tank(object):
   _MAXSIDE = 3200                               # In us.
   _MAXFRONT = 560                               # In mm.
 
-  _HUMAN, _CAMERACONTROL, _TURNING, _MOVEFWD = range(4)
+  _CONNECT, _HUMAN, _CAMERACONTROL, _TURNING, _MOVEFWD = range(5)
 
 
 #--------------------------------------------------------
@@ -90,11 +95,12 @@ class tank(object):
 
     #Initialize the states.
     self._states = {}
+    self._states[tank._CONNECT] = state.create(u = self._connectUD)
     self._states[tank._HUMAN] = state.create(u = self._humanUD, i = self._humanIN)
     self._states[tank._CAMERACONTROL] = state.create(u = self._cameraUD, i = self._cameraIN)
     self._states[tank._TURNING] = state.create()
     self._states[tank._MOVEFWD] = state.create(s = self._movefwdST, u = self._movefwdUD)
-    self._curstate = tank._HUMAN
+    self._curstate = tank._CONNECT
 
     self._strobe = strobe(tank._STROBERED, tank._STROBEBLUE)
     self._lightbank = lightbank(tank._LIGHTBANK)
@@ -126,14 +132,9 @@ class tank(object):
   def running( self ): return self._running
 
 #--------------------------------------------------------
-  @property
-  def curstate( self ):
-    return self._states[self._curstate]
-
-#--------------------------------------------------------
   def _buttonaction( self, aButton, aValue ):
     '''Callback function for controller.'''
-    state.input(self.curstate, aButton, aValue)
+    state.input(self.stateobj, aButton, aValue)
 
 #--------------------------------------------------------
   def setlights( self ):
@@ -190,20 +191,51 @@ class tank(object):
     return v if abs(v) >= tank._DZ else 0.0
 
 #--------------------------------------------------------
-  def _setstate( self, aState ):
-    '''  '''
-    try:
-      if self._curstate != aState:
-        state.end(self.curstate)
-        self._curstate = aState
-        state.start(self.curstate)
-    except Exception as e:
-      print(e)
-      raise e
+  @property
+  def stateobj( self ):
+    return self._states[self._curstate]
+
+#--------------------------------------------------------
+  @property
+  def curstate( self ):
+    return self._curstate
+
+#--------------------------------------------------------
+  @curstate.setter
+  def curstate( self, aState ):
+    ''' Set and start a new state if changed and end the previous one. '''
+    if self._curstate != aState:
+      state.end(self.stateobj)
+      self._curstate = aState
+      state.start(self.stateobj)
+
+#--------------------------------------------------------
+  def _connectUD( self, aState, aDT ):
+    ''' State for controller connect. '''
+    self._controller.update()
+    if self._controller.isconnected():
+      self.curstate = tank._HUMAN
+
+#--------------------------------------------------------
+  def _sharedUD( self, aDelta ):
+    ''' Updates to system shared by most states. '''
+    vl53.update(self._front)                    # Update front distance
+    self._sides.update()                        # Update the side distance sensors
+    self._strobe.update(aDelta)
+    self._controller.update()
+
+    if _DISPLAY:
+      # Disply front/side distances.
+      l, r = self._sides.gettimes()
+      f = vl53.distance(self._front)
+      self._area.update(l, r, f)
 
 #--------------------------------------------------------
   def _humanUD( self, aState, aDT ):
     ''' Update method for human control state. '''
+
+    self._sharedUD(aDT)
+
     l = self._joydz(gamepad._LY)
     if self._onestick:
       r = -self._joydz(gamepad._LX)
@@ -239,9 +271,9 @@ class tank(object):
         elif aButton == ecodes.BTN_X:
           self._strobe.toggle()
         elif aButton == ecodes.BTN_THUMBR:
-          self._setstate(tank._CAMERACONTROL)
+          self.curstate = tank._CAMERACONTROL
         elif aButton == gamepad.BTN_DPADU:
-          self._setstate(tank._MOVEFWD)
+          self.curstate = tank._MOVEFWD
       elif aButton == gamepad.GAMEPAD_DISCONNECT:
         self.brake()
       else: #Handle release events.
@@ -283,7 +315,7 @@ class tank(object):
         elif aButton == ecodes.BTN_X:
           self._strobe.toggle()
         elif aButton == ecodes.BTN_THUMBR:
-          self._setstate(tank._HUMAN)
+          self.curstate = tank._HUMAN
       else: #Handle release events.
         if aButton == ecodes.BTN_Y:
           self.togglelights()
@@ -328,7 +360,7 @@ class tank(object):
 
     #If both wheels are done switch to human input state
     if done == 2:
-      self._setstate(tank._HUMAN)
+      self.curstate = tank._HUMAN
 
 #--------------------------------------------------------
   def _movefwdST( self, aState ):
@@ -352,22 +384,10 @@ class tank(object):
           print("quitting.")
         else:
           nexttime = perf_counter()
-          delta = max(0.01, nexttime - prevtime)
           prevtime = nexttime
-          if delta > _dtime:
-            delta = _dtime
+          delta = min(max(0.01, nexttime - prevtime), _dtime)
 
-          vl53.update(self._front)              # Update front distance
-          self._sides.update()                  # Update the side distance sensors
-          self._strobe.update(delta)
-          self._controller.update()
-          state.update(self.curstate, delta)
-
-          if _DISPLAY:
-            # Disply front/side distances.
-            l, r = self._sides.gettimes()
-            f = vl53.distance(self._front)
-            self._area.update(l, r, f)
+          state.update(self.stateobj, delta)
 
           nexttime = perf_counter()
           sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted.
