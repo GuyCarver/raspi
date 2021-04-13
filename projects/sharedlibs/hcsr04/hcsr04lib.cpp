@@ -125,6 +125,7 @@ public:
 		}
 	}
 
+	//--------------------------------------------------------
 	uint32_t QTime(  ) const { return Time; }
 
 private:
