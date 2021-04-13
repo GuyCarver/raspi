@@ -43,7 +43,7 @@
 // It takes ~41ms to read the sensor.  This is too long to wait for so the
 //  read should take place in a background thread.
 // Separating the distance read into a trigger and read reduces the time to 5-7ms with
-//  4-5ms taken in the trigger.  This is acceptable to me so I will not bother
+//  4-5ms of that taken in the trigger.  This is acceptable to me so I will not bother
 //  putting the system into a background thread and instead use separated trigger/read calls.
 
 // #define DEBUGOUT 1
