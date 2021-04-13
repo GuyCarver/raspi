@@ -60,10 +60,10 @@ namespace
 
 	constexpr uint32_t _DEFAULTFREQ = 100;
 	//The min/max were determined using trial and error with a frequency of 100.
-	constexpr uint32_t _MINPULSE = 260; //120;
-	constexpr uint32_t _MAXPULSE = 1080; //868;
+	constexpr uint32_t _MINPULSE = 200;
+	constexpr uint32_t _MAXPULSE = 930;
 	constexpr uint32_t _RANGE = _MAXPULSE - _MINPULSE;
-	constexpr uint32_t _END = 4095; // - _RANGE;
+	constexpr uint32_t _END = 4095;
 }	//namespace
 
 //--------------------------------------------------------
@@ -97,9 +97,9 @@ public:
 	// Set frequency for all servos.  A good value is 60hz (default).
 	void setfreq( float aFreq )
 	{
-		aFreq *= 0.9999f;						// Correct for overshoot in frequency setting.
-		if (aFreq < 1.0f) { aFreq = 1.0f; } else if (aFreq > 3500.0f) { aFreq = 3500.0f; }
-		float prescalefloat = (6103.51562f / aFreq) - 1.0f;  // 25000000 / 4096 / freq.
+		auto f = static_cast<float>(aFreq) * 0.9999f;	// Correct for overshoot in frequency setting.
+		if (f < 1.0f) { f = 1.0f; } else if (f > 3500.0f) { f = 3500.0f; }
+		float prescalefloat = (6103.51562f / f) - 1.0f;  // 25000000 / 4096 / freq.
 		auto prescale = static_cast<uint8_t>(prescalefloat + 0.5f);
 
 		uint8_t oldmode = _read(_MODE1);
@@ -128,24 +128,19 @@ public:
 	}
 
 	//--------------------------------------------------------
-	// Set the 0.0-1.0. If < 0 turns servo off.
-	void set( uint32_t aServo, float aPerc )
+	// Perc is an integer value from 0-100 * 100 to include 2 digits of fractional precision.
+	void set( uint32_t aServo, uint32_t aPerc )
 	{
-		if (aPerc < 0.0f) {
+		if (aPerc < 0) {
 			off(aServo);
 		}
 		else {
-			uint32_t base = _MINPULSE + (_RANGE * aServo);
-			while (base > _END) {
-				base -= _END;
-			}
+			uint32_t base = _RANGE * aServo;
 
-			auto val = base + static_cast<uint32_t>(_RANGE * aPerc);
-			while (val > _END) {
-				val -= _END;
-			}
+			//Range times percentage then divided by 100% and 100 for 2 decimal digits.
+			uint32_t val = (_MINPULSE + base + ((_RANGE * aPerc) / 10000u)) & _END;
 // 			std::cout << "Vals: " << base << val << std::endl;
-			_setpwm(aServo, base, val);
+			_setpwm(aServo, base & _END, val);
 		}
 	}
 
@@ -154,8 +149,8 @@ public:
 	void setangle( uint32_t aServo, float aAngle )
 	{
 		// (a + 90.0) / 180.0
-		float perc = (aAngle + 90.0f) * 0.005556f;  //Convert angle +/- 90 to 0.0-1.0
-		set(aServo, perc);
+		float perc = (aAngle + 90.0f) * 55.56f;  //Convert angle +/- 90 to 0.0-10000
+		set(aServo, static_cast<int32_t>(perc));
 	}
 
 	//--------------------------------------------------------
@@ -211,6 +206,7 @@ private:
 	// aOff = 16 bit off value.
 	void _setpwm( uint32_t aServo, uint32_t aOn, uint32_t aOff )
 	{
+// 		std::cout << aOn << ", " << aOff << std::endl;
 		if ((0 <= aServo) && (aServo <= 15)) {
 			uint8_t buffer[4];
 			// Data = on-low, on-high, off-low and off-high.  That's 4 bytes each servo.
@@ -290,7 +286,8 @@ void Set( uint32_t aServo, float aPerc )
 	auto p = pca9865::QInstance();
 	if (p) {
 // 		std::cout << "setting: " << aServo << " to " << aPerc << std::endl;
-		p->set(aServo, aPerc);
+		//Convert percentage 0.0-1.0 into 0-100 plus 2 digits of precision.
+		p->set(aServo, static_cast<int32_t>(aPerc * 10000.0f));
 	}
 }
 
@@ -304,6 +301,8 @@ void SetAngle( uint32_t aServo, float aAngle )
 	}
 }
 
+//--------------------------------------------------------
+//Set PWM values 0-4095
 void SetPWM( uint32_t aServo, uint32_t aOn, uint32_t aOff )
 {
 	auto p = pca9865::QInstance();
