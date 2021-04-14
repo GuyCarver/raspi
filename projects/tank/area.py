@@ -29,12 +29,10 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # FILE    area.py
-# BY      gcarver
 # DATE    04/12/2021 08:35 PM
 #----------------------------------------------------------------------
 
-from oled import oled
-from oled.terminalfont import terminalfont
+import oled
 
 #--------------------------------------------------------
 class area(object):
@@ -48,53 +46,71 @@ class area(object):
   def __init__( self, aSideMax, aFrontMax ):
     ''' aSideMax is in us, aFrontMax is in mm. '''
     super(area, self).__init__()
-    self._front = 0.0
     self._left = 0.0
     self._right = 0.0
+    self._front = 0.0
     self._max = (aSideMax, aFrontMax)
 
-    self._oled = oled()
-    w, h = self._oled.size
+    oled.startup()
+    self._size = oled.getsize()
+    w, h = self._size
     self._center = (w // 2, h // 2)
+
+  #--------------------------------------------------------
+  @property
+  def on( self ):
+    return oled.geton()
+
+  #--------------------------------------------------------
+  @on.setter
+  def on( self, aValue ):
+    oled.seton(aValue)
 
   #--------------------------------------------------------
   def update( self, aLeft, aRight, aFront ):
     ''' Draw left/right/front lines '''
+    if self.on:
+      if (self._left != aLeft) or (self._right != aRight) or (self._front != aFront):
+        self._left = aLeft
+        self._right = aRight
+        self._front = aFront
 
-    self._oled.clear()
+        oled.clear()
 
-    #Calculate line for left/right/front.
+        #Calculate line for left/right/front.
+        oled.pixel(self._center)
 
-    lx = 0
-    rx = self._oled.size[0] - 1
-    fy = 0
-    by = (self._oled.size[1] // 2) - 1
+        lx = 0
+        rx = self._size[0] - 1
+        fy = 0
+        by = (self._size[1] // 2) - 1
 
-    bleft = aLeft < self._max[0]
-    bright = aRight < self._max[0]
-    bfront = aFront < self._max[1]
+        bleft = aLeft < self._max[0]
+        bright = aRight < self._max[0]
+        bfront = aFront < self._max[1]
 
-    if bleft:
-      frac = aLeft / self._max[0]
-      lx = self._center[0]  - int(self._center[0] * frac)
+        if bleft:
+          frac = aLeft / self._max[0]
+          lx = self._center[0]  - int(self._center[0] * frac)
 
-    if bright:
-      frac = aRight / self._max[0]
-      rx = self._center[0] + int(self._center[0] * frac)
+        if bright:
+          frac = aRight / self._max[0]
+          rx = self._center[0] + int(self._center[0] * frac)
 
-    if bfront:
-      frac = aFront / self._max[1]
-      fy = self._center[1]  - int(self._center[1] * frac)
-      self._oled.line((lx, fy), (rx, fy), True)
 
-    if bright:
-      self._oled.line((rx, fy), (rx, by), True)
-    if bleft:
-      self._oled.line((lx, fy), (lx, by), True)
+        if bfront:
+          frac = aFront / self._max[1]
+          fy = self._center[1]  - int(self._center[1] * frac)
+          oled.line((lx, fy), (rx, fy))
 
-    #Print distances.
-    self._oled.text(area._LPOS, f'L: {aLeft}', 1, terminalfont)
-    self._oled.text(area._RPOS, f'R: {aRight}', 1, terminalfont)
-    self._oled.text(area._FPOS, f'F: {aFront}', 1, terminalfont)
+        if bright:
+          oled.line((rx, fy), (rx, by))
+        if bleft:
+          oled.line((lx, fy), (lx, by))
 
-    self._oled.display()
+        #Print distances.
+        oled.text(area._LPOS, f'L: {aLeft}')
+        oled.text(area._RPOS, f'R: {aRight}')
+        oled.text(area._FPOS, f'F: {aFront}')
+
+        oled.display()
