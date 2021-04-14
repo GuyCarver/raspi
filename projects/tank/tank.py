@@ -17,6 +17,7 @@ from gamepad import *
 from wheel import *
 from strobe import *
 from sides import *
+from area import *
 import state
 
 import vl53
@@ -27,11 +28,8 @@ from time import perf_counter, sleep
 from buttons import gpioinit, button
 import keyboard
 
-_DISPLAY = True                                   # Set this to true to support oled output.
-if _DISPLAY:
-  from area import *
 
-gpioinit() # Initialize the GPIO system so we may use the pins for I/O.
+gpioinit() # Initialize the GPIO system so we may use the pins for I/O
 
 _dtime = .03
 _startupswitch = button(16)
@@ -47,7 +45,7 @@ class tank(object):
 
 #--------------------------------------------------------
 #__RASPI Pin Indexes
-  _LSIDE = (9, 10)                              # Left/right distance sensor (trigger/echo) pins.
+  _LSIDE = (9, 10)                              # Left/right distance sensor (trigger/echo) pins
   _RSIDE = (17, 18)
 
   _SPEEDOL = 27                                 # Input pins for speedometer reading
@@ -105,6 +103,8 @@ class tank(object):
     self._strobe = strobe(tank._STROBERED, tank._STROBEBLUE)
     self._lightbank = lightbank(tank._LIGHTBANK)
 
+    self._counter = 0
+
     self.togglelights()
     onestick.adjustpoints(tank._DZ)             # Set point to minimum value during interpretation.
 
@@ -116,8 +116,7 @@ class tank(object):
     except:
       self._haskeyboard = False
 
-    if _DISPLAY:
-      self._area = area(tank._MAXSIDE, tank._MAXFRONT)
+    self._area = area(tank._MAXSIDE, tank._MAXFRONT)
 
     self._running = True
 
@@ -153,7 +152,7 @@ class tank(object):
 #--------------------------------------------------------
   def togglelights( self ):
     ''' Toggle lights on/off. '''
-    # Max of 0.9 because 1.0 causes flickering, probably because we go slightly over max.
+    # Max of 0.9 because 1.0 causes flickering, probably because we go slightly over max
     self._lights = 0.9 -  self._lights
     self.setlights()
 
@@ -217,22 +216,18 @@ class tank(object):
       self.curstate = tank._HUMAN
 
 #--------------------------------------------------------
-  def _sharedUD( self, aDelta ):
+  def _sharedUD( self, aDT ):
     ''' Updates to system shared by most states. '''
-    vl53.update(self._front)                    # Update front distance
-    self._sides.update()                        # Update the side distance sensors
-    self._strobe.update(aDelta)
-    self._controller.update()
-
-    if _DISPLAY:
-      # Disply front/side distances.
-      l, r = self._sides.gettimes()
-      f = vl53.distance(self._front)
-      self._area.update(l, r, f)
+    pass
 
 #--------------------------------------------------------
   def _humanUD( self, aState, aDT ):
     ''' Update method for human control state. '''
+
+    self._sides.update()                        # Update the side distance sensors
+    vl53.update(self._front)                    # Update front distance
+    self._strobe.update(aDT)
+    self._controller.update()
 
     self._sharedUD(aDT)
 
@@ -249,11 +244,19 @@ class tank(object):
     self._right.update(aDT)
 #     print('        ', end='\r')
 
+    if self._area.on:
+      self._counter += 1
+      if self._counter & 1:
+        # Disply front/side distances.
+        l, r = self._sides.gettimes()
+        f = vl53.distance(self._front)
+        self._area.update(l, r, f)
+
 #--------------------------------------------------------
   def _humanIN( self, aState, aButton, aValue ):
     '''  '''
     #Capture exceptions so we can print them because the gamepad driver catches and ignores
-    # exceptions to control behaviour for controller issues.
+    # exceptions to control behaviour for controller issues
     try:
       #If button pressed
       if aValue & 0x01:
@@ -266,6 +269,8 @@ class tank(object):
           self._nextspeed()
         elif aButton == ecodes.BTN_SELECT:
           self._onestick = not self._onestick
+        elif aButton == ecodes.BTN_START:
+          self._area.on = not self._area.on
         elif aButton == ecodes.BTN_A:
           self._lightbank.toggle()
         elif aButton == ecodes.BTN_X:
@@ -281,7 +286,7 @@ class tank(object):
         if aButton == ecodes.BTN_Y:
           self.togglelights()
 
-        #On release, make sure to remove button from pressed state set.
+        #On release, make sure to remove button from pressed state set
         if aButton in self._buttonpressed:
           self._buttonpressed.remove(aButton)
     except Exception as e:
@@ -308,7 +313,7 @@ class tank(object):
   def _cameraIN( self, aState, aButton, aValue ):
     ''' Handle camera state input '''
     #Capture exceptions so we can print them because the gamepad driver catches and ignores
-    # exceptions to control behaviour for controller issues.
+    # exceptions to control behaviour for controller issues
     try:
       #If button pressed
       if aValue & 0x01:
@@ -323,7 +328,7 @@ class tank(object):
         if aButton == ecodes.BTN_Y:
           self.togglelights()
 
-        #On release, make sure to remove button from pressed state set.
+        #On release, make sure to remove button from pressed state set
         if aButton in self._buttonpressed:
           self._buttonpressed.remove(aButton)
     except Exception as e:
@@ -333,7 +338,7 @@ class tank(object):
 #--------------------------------------------------------
   def _movefwdUD( self, aState, aDT ):
     '''  '''
-    lw = aState.get('lw')                       # Get left/right target distances.
+    lw = aState.get('lw')                       # Get left/right target distances
     rw = aState.get('rw')
     done = 0
 
@@ -347,17 +352,17 @@ class tank(object):
     if (ld < lw):
       ls = .15
     else:
-      ls = 0.0
-      done += 1                                 # Inc done value to indicate left is done.
+      ls = -.15                                 # A little bit of backward force
+      done += 1                                 # Inc done value to indicate left is done
 
-    self._left.speed(ls)                        # Set speed on left wheel.
+    self._left.speed(ls)                        # Set speed on left wheel
 
-    #If right wheel hasn't reached target distance keep moving.
+    #If right wheel hasn't reached target distance keep moving
     if rd < rw:
       rs = .15
     else:
-      rs = 0.0
-      done += 1                                 # Inc done value to indicate right is done.
+      rs = -0.15                                # A little bit of backward force
+      done += 1                                 # Inc done value to indicate right is done
 
     self._right.speed(rs)
 
@@ -393,7 +398,7 @@ class tank(object):
           state.update(self.stateobj, delta)
 
           nexttime = perf_counter()
-          sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted.
+          sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted
           if sleeptime > 0.0:
             sleep(sleeptime)
     finally:
@@ -401,7 +406,7 @@ class tank(object):
 
 #--------------------------------------------------------
 if __name__ == '__main__':
-  #If the startup button is on then start up.
+  #If the startup button is on then start up
   _startupswitch.update()
   if len(sys.argv) > 1 or (_startupswitch.on):
     t = tank()
