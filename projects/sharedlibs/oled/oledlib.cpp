@@ -47,6 +47,11 @@
 
 //NOTE: This current code will set the pixel at 0,0 but the scrolling will not scroll it.  Don't know if it's software causing it or not.
 
+//TODO: Background thread, at least for display update.
+//TODO: Multiple fonts
+//TODO: Scrolling
+//TODO: Multiple instances?
+
 // Buffer layout in bits.  128 columns by 64 rows.
 // Each byte represents 8 pixels in a row.
 //    Column
@@ -68,14 +73,21 @@
 //    407 40F
 
 //Make the following values visible to the outside.
-extern "C"
-{
-	const uint32_t STOP = 0;
-	const uint32_t LEFT = 1;
-	const uint32_t RIGHT = 2;
-	const uint32_t DIAGLEFT = 3;
-	const uint32_t DIAGRIGHT = 3;
-} //extern "C"
+extern const uint8_t STOP = 0;
+extern const uint8_t LEFT = 1;
+extern const uint8_t RIGHT = 2;
+extern const uint8_t DIAGLEFT = 3;
+extern const uint8_t DIAGRIGHT = 4;
+
+//Indexes for the Fonts array used for text/char rendering.
+extern const uint8_t TERMINAL = 0;
+extern const uint8_t SYS = 1;
+extern const uint8_t SERIF = 2;
+
+//Include the fonts here.
+#include "terminalfont.ipp"
+#include "sysfont.ipp"
+#include "seriffont.ipp"
 
 namespace
 {
@@ -83,107 +95,6 @@ namespace
 
 	constexpr uint8_t I2C_SMBUS_I2C_BLOCK_DATA = 8u;
 	constexpr uint32_t I2C_SMBUS_BLOCK_MAX = 32u; //As specified in SMBus standard
-
-	//w, h, start (ascii), end (ascii), data...
-	uint8_t terminalfont[] = {6, 8, 31, 127,
-		0x20, 0x3E, 0x61, 0x61, 0x3E, 0x20, //#Bell icon at 0x31.
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x06, 0x5F, 0x06, 0x00,
-		0x00, 0x07, 0x03, 0x00, 0x07, 0x03,
-		0x00, 0x24, 0x7E, 0x24, 0x7E, 0x24,
-		0x00, 0x24, 0x2B, 0x6A, 0x12, 0x00,
-		0x00, 0x63, 0x13, 0x08, 0x64, 0x63,
-		0x00, 0x36, 0x49, 0x56, 0x20, 0x50,
-		0x00, 0x00, 0x07, 0x03, 0x00, 0x00,
-		0x00, 0x00, 0x3E, 0x41, 0x00, 0x00,
-		0x00, 0x00, 0x41, 0x3E, 0x00, 0x00,
-		0x00, 0x08, 0x3E, 0x1C, 0x3E, 0x08,
-		0x00, 0x08, 0x08, 0x3E, 0x08, 0x08,
-		0x00, 0x00, 0xE0, 0x60, 0x00, 0x00,
-		0x00, 0x08, 0x08, 0x08, 0x08, 0x08,
-		0x00, 0x00, 0x60, 0x60, 0x00, 0x00,
-		0x00, 0x20, 0x10, 0x08, 0x04, 0x02,
-		0x00, 0x3E, 0x51, 0x49, 0x45, 0x3E,
-		0x00, 0x00, 0x42, 0x7F, 0x40, 0x00,
-		0x00, 0x62, 0x51, 0x49, 0x49, 0x46,
-		0x00, 0x22, 0x49, 0x49, 0x49, 0x36,
-		0x00, 0x18, 0x14, 0x12, 0x7F, 0x10,
-		0x00, 0x2F, 0x49, 0x49, 0x49, 0x31,
-		0x00, 0x3C, 0x4A, 0x49, 0x49, 0x30,
-		0x00, 0x01, 0x71, 0x09, 0x05, 0x03,
-		0x00, 0x36, 0x49, 0x49, 0x49, 0x36,
-		0x00, 0x06, 0x49, 0x49, 0x29, 0x1E,
-		0x00, 0x00, 0x6C, 0x6C, 0x00, 0x00,
-		0x00, 0x00, 0xEC, 0x6C, 0x00, 0x00,
-		0x00, 0x08, 0x14, 0x22, 0x41, 0x00,
-		0x00, 0x24, 0x24, 0x24, 0x24, 0x24,
-		0x00, 0x00, 0x41, 0x22, 0x14, 0x08,
-		0x00, 0x02, 0x01, 0x59, 0x09, 0x06,
-		0x00, 0x3E, 0x41, 0x5D, 0x55, 0x1E,
-		0x00, 0x7E, 0x11, 0x11, 0x11, 0x7E,
-		0x00, 0x7F, 0x49, 0x49, 0x49, 0x36,
-		0x00, 0x3E, 0x41, 0x41, 0x41, 0x22,
-		0x00, 0x7F, 0x41, 0x41, 0x41, 0x3E,
-		0x00, 0x7F, 0x49, 0x49, 0x49, 0x41,
-		0x00, 0x7F, 0x09, 0x09, 0x09, 0x01,
-		0x00, 0x3E, 0x41, 0x49, 0x49, 0x7A,
-		0x00, 0x7F, 0x08, 0x08, 0x08, 0x7F,
-		0x00, 0x00, 0x41, 0x7F, 0x41, 0x00,
-		0x00, 0x30, 0x40, 0x40, 0x40, 0x3F,
-		0x00, 0x7F, 0x08, 0x14, 0x22, 0x41,
-		0x00, 0x7F, 0x40, 0x40, 0x40, 0x40,
-		0x00, 0x7F, 0x02, 0x04, 0x02, 0x7F,
-		0x00, 0x7F, 0x02, 0x04, 0x08, 0x7F,
-		0x00, 0x3E, 0x41, 0x41, 0x41, 0x3E,
-		0x00, 0x7F, 0x09, 0x09, 0x09, 0x06,
-		0x00, 0x3E, 0x41, 0x51, 0x21, 0x5E,
-		0x00, 0x7F, 0x09, 0x09, 0x19, 0x66,
-		0x00, 0x26, 0x49, 0x49, 0x49, 0x32,
-		0x00, 0x01, 0x01, 0x7F, 0x01, 0x01,
-		0x00, 0x3F, 0x40, 0x40, 0x40, 0x3F,
-		0x00, 0x1F, 0x20, 0x40, 0x20, 0x1F,
-		0x00, 0x3F, 0x40, 0x3C, 0x40, 0x3F,
-		0x00, 0x63, 0x14, 0x08, 0x14, 0x63,
-		0x00, 0x07, 0x08, 0x70, 0x08, 0x07,
-		0x00, 0x71, 0x49, 0x45, 0x43, 0x00,
-		0x00, 0x00, 0x7F, 0x41, 0x41, 0x00,
-		0x00, 0x02, 0x04, 0x08, 0x10, 0x20,
-		0x00, 0x00, 0x41, 0x41, 0x7F, 0x00,
-		0x00, 0x04, 0x02, 0x01, 0x02, 0x04,
-		0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
-		0x00, 0x00, 0x03, 0x07, 0x00, 0x00,
-		0x00, 0x20, 0x54, 0x54, 0x54, 0x78,
-		0x00, 0x7F, 0x44, 0x44, 0x44, 0x38,
-		0x00, 0x38, 0x44, 0x44, 0x44, 0x28,
-		0x00, 0x38, 0x44, 0x44, 0x44, 0x7F,
-		0x00, 0x38, 0x54, 0x54, 0x54, 0x08,
-		0x00, 0x08, 0x7E, 0x09, 0x09, 0x00,
-		0x00, 0x18, 0xA4, 0xA4, 0xA4, 0x7C,
-		0x00, 0x7F, 0x04, 0x04, 0x78, 0x00,
-		0x00, 0x00, 0x00, 0x7D, 0x40, 0x00,
-		0x00, 0x40, 0x80, 0x84, 0x7D, 0x00,
-		0x00, 0x7F, 0x10, 0x28, 0x44, 0x00,
-		0x00, 0x00, 0x00, 0x7F, 0x40, 0x00,
-		0x00, 0x7C, 0x04, 0x18, 0x04, 0x78,
-		0x00, 0x7C, 0x04, 0x04, 0x78, 0x00,
-		0x00, 0x38, 0x44, 0x44, 0x44, 0x38,
-		0x00, 0xFC, 0x44, 0x44, 0x44, 0x38,
-		0x00, 0x38, 0x44, 0x44, 0x44, 0xFC,
-		0x00, 0x44, 0x78, 0x44, 0x04, 0x08,
-		0x00, 0x08, 0x54, 0x54, 0x54, 0x20,
-		0x00, 0x04, 0x3E, 0x44, 0x24, 0x00,
-		0x00, 0x3C, 0x40, 0x20, 0x7C, 0x00,
-		0x00, 0x1C, 0x20, 0x40, 0x20, 0x1C,
-		0x00, 0x3C, 0x60, 0x30, 0x60, 0x3C,
-		0x00, 0x6C, 0x10, 0x10, 0x6C, 0x00,
-		0x00, 0x9C, 0xA0, 0x60, 0x3C, 0x00,
-		0x00, 0x64, 0x54, 0x54, 0x4C, 0x00,
-		0x00, 0x08, 0x3E, 0x41, 0x41, 0x00,
-		0x00, 0x00, 0x00, 0x77, 0x00, 0x00,
-		0x00, 0x00, 0x41, 0x41, 0x3E, 0x08,
-		0x00, 0x02, 0x01, 0x02, 0x01, 0x00,
-		0x00, 0x3C, 0x26, 0x23, 0x26, 0x3C
-	};
 
 	constexpr uint8_t _ADDRESS = 0x3C;			// I2C address.
 
@@ -222,12 +133,17 @@ namespace
 	constexpr uint8_t _VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL = 0x29;
 	constexpr uint8_t _VERTICAL_AND_LEFT_HORIZONTAL_SCROLL = 0x2A;
 
+	//Array of fonts to use for text rendering.
+	const uint8_t *Fonts[] = { terminalfont, sysfont, seriffont };
+
+	//Commands to send during display.
 	uint8_t _displayCommands[] =
 	{
 		_COLUMNADDR, 0, 0,
 		_PAGEADDR, 0, 0
 	};
 
+	//Commands to send during init.
 	uint8_t _initCommands[] =
 	{
 		_SETDISPLAYCLOCKDIV, 0x80,				// Suggested ratio
@@ -286,7 +202,6 @@ public:
 		//Send the init commands.
 		SendCommands(_initCommands, sizeof(_initCommands));
 
-// 		_on = true;				//Put this in if the display off/on commands are added to _initCommands array.
 		SetOn(true);
 		Display();
 
@@ -307,12 +222,17 @@ public:
 	}
 
 	//--------------------------------------------------------
+	const uint32_t *QSize(  ) const
+	{
+		return _size;
+	}
+
+	//--------------------------------------------------------
 	void SetOn( bool aOn )
 	{
 		if (_on != aOn) {
 			_on = aOn;
-			uint8_t v = _on ? _DISPLAYON : _DISPLAYOFF;
-			SendCommands(&v, 1);
+			SendCommand(_on ? _DISPLAYON : _DISPLAYOFF);
 		}
 	}
 
@@ -321,8 +241,7 @@ public:
 	{
 		if (_inverted != aInverted) {
 			_inverted = aInverted;
-			uint8_t v = _inverted ? _INVERTDISPLAY : _NORMALDISPLAY;
-			SendCommands(&v, 1);
+			SendCommand(_inverted ? _INVERTDISPLAY : _NORMALDISPLAY);
 		}
 	}
 
@@ -336,7 +255,7 @@ public:
 	void SetDim( uint8_t aValue )
 	{
 		_dim = aValue;
-		SendCommands(&_dim, 1);
+		SendCommand(_dim);
 	}
 
 	//--------------------------------------------------------
@@ -455,15 +374,16 @@ public:
 	}
 
 	//--------------------------------------------------------
-	void Char( uint32_t aSX, uint32_t aSY, unsigned char aChar, bool aOn, uint8_t *apFont, uint32_t aSzX = 1, uint32_t aSzY = 1 )
+	void Char( uint32_t aSX, uint32_t aSY, unsigned char aChar, bool aOn, uint8_t aFont, uint32_t aSzX = 1, uint32_t aSzY = 1 )
 	{
-		auto startChar = apFont[2];
-		auto endChar = apFont[3];
-		auto charData = apFont + 4;
+		const uint8_t *pfont = Fonts[aFont];
+		uint8_t startChar = pfont[2];
+		uint8_t endChar = pfont[3];
+		const uint8_t *charData = pfont + 4;
 
 		if ((aChar >= startChar) && (aChar <= endChar)) {
-			auto w = apFont[0];
-			auto h = apFont[1];
+			auto w = pfont[0];
+			auto h = pfont[1];
 			uint32_t ci = (aChar - startChar) * w;
 			auto charA = charData + ci;
 			auto px = aSX;
@@ -499,19 +419,19 @@ public:
 	}
 
 	//--------------------------------------------------------
-	void Text( uint32_t aSX, uint32_t aSY, const char *apString, uint8_t aColor,
-		uint8_t *apFont, uint32_t aSzX = 1, uint32_t aSzY = 1 )
+	void Text( uint32_t aSX, uint32_t aSY, const char *apString, uint8_t aOn,
+		uint8_t aFont, uint32_t aSzX = 1, uint32_t aSzY = 1 )
 	{
 		auto x = aSX;
-		auto w = aSzX * apFont[0] + 1;			// Width.
+		auto w = aSzX * Fonts[aFont][0] + 1;	// Width.
 		//Loop until we hit the null terminator.
 		while (*apString) {
-			Char(x, aSY, *apString++, aColor, apFont, aSzX, aSzY);
+			Char(x, aSY, *apString++, aOn, aFont, aSzX, aSzY);
 			x += w;
 			//We check > rather than >= to let the right (blank) edge of the
 			// character print off the right of the screen.
 			if (x + w > _size[0]) {
-				aSY += aSzX * apFont[1] + 1;
+				aSY += aSzX * Fonts[aFont][1] + 1;
 				x = aSX;
 			}
 		}
@@ -522,15 +442,30 @@ public:
 	{
 		//Send the command array.
 		SendCommands(_displayCommands, sizeof(_displayCommands));
-// 		uint32_t tosend = _bytes;
-// 		auto pdata = _buffer;
-// 		while (tosend) {
-// 			uint32_t ds = std::min(32u, tosend);
-// 			tosend -= ds;
-// 			SendData(pdata, ds);
-// 			pdata += ds;
-// 		}
- 		SendData(_buffer, _bytes);
+		SendData(_buffer, _bytes);
+	}
+
+	//--------------------------------------------------------
+	void Scroll( uint8_t aDirection, uint8_t aStart, uint8_t aStop )
+	{
+		switch (aDirection) {
+			case LEFT:
+				ScrollLR(_LEFT_HORIZONTAL_SCROLL, aStart, aStop);
+				break;
+			case RIGHT:
+				ScrollLR(_RIGHT_HORIZONTAL_SCROLL, aStart, aStop);
+				break;
+			case DIAGLEFT:
+				ScrollDiag(_VERTICAL_AND_LEFT_HORIZONTAL_SCROLL, aStart, aStop);
+				break;
+			case DIAGRIGHT:
+				ScrollDiag(_VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL, aStart, aStop);
+				break;
+			case STOP:
+			default:
+				SendCommand(_DEACTIVATE_SCROLL);
+				break;
+		}
 	}
 
 	static oled *QInstance(  ) { return _pinstance; }
@@ -557,7 +492,7 @@ private:
 	static oled *_pinstance;
 
 	//--------------------------------------------------------
-	void WriteBlockData( uint8_t aCommand, uint8_t *aBuffer, uint32_t aElems )
+	void WriteBlockData( uint8_t aCommand, const uint8_t *aBuffer, uint32_t aElems )
 	{
 		uint8_t data[I2C_SMBUS_BLOCK_MAX + 2];
 		i2c_smbus_ioctl_data args;
@@ -567,6 +502,7 @@ private:
 		args.size = I2C_SMBUS_I2C_BLOCK_DATA;
 		args.data = reinterpret_cast<i2c_smbus_data*>(data);
 
+		//Cut buffer into allowable sizes and send each block.
 		while (aElems) {
 			uint32_t ds = std::min(I2C_SMBUS_BLOCK_MAX, aElems);
 			uint32_t i = 0;
@@ -585,15 +521,58 @@ private:
 	}
 
 	//--------------------------------------------------------
-	void SendData( uint8_t *aBuffer, uint32_t aElems )
+	void SendData( const uint8_t *aBuffer, uint32_t aElems )
 	{
 		WriteBlockData(_DATAMODE, aBuffer, aElems);
 	}
 
 	//--------------------------------------------------------
-	void SendCommands( uint8_t *aBuffer, uint32_t aElems )
+	void SendCommands( const uint8_t *aBuffer, uint32_t aElems )
 	{
 		WriteBlockData(_CMDMODE, aBuffer, aElems);
+	}
+
+	//--------------------------------------------------------
+	//Send a single command.
+	void SendCommand( uint8_t aValue )
+	{
+		WriteBlockData(_CMDMODE, &aValue, 1);
+	}
+
+	//--------------------------------------------------------
+	void ScrollLR( uint8_t aDirection, uint8_t aStart, uint8_t aStop )
+	{
+		uint8_t data[8];
+
+		data[0] = aDirection;
+		data[1] = 0;
+		data[2] = aStart;
+		data[3] = 0;
+		data[4] = aStop;
+		data[5] = 0;
+		data[6] = 0xFF;
+		data[7] = _ACTIVATE_SCROLL;
+
+		SendCommands(data, sizeof(data));
+	}
+
+	//--------------------------------------------------------
+	void ScrollDiag( uint8_t aDirection, uint8_t aStart, uint8_t aStop )
+	{
+		uint8_t data[10];
+
+		data[0] = _SET_VERTICAL_SCROLL_AREA;
+		data[1] = 0;
+		data[2] = static_cast<uint8_t>(_size[1]);
+		data[3] = aDirection;
+		data[4] = 0;
+		data[5] = aStart;
+		data[6] = 0;
+		data[7] = aStop;
+		data[8] = 1;
+		data[9] = _ACTIVATE_SCROLL;
+
+		SendCommands(data, sizeof(data));
 	}
 
 	//--------------------------------------------------------
@@ -645,21 +624,27 @@ void Shutdown(  )
 }
 
 //--------------------------------------------------------
-void Text( float aX, float aY, const char *apString, uint8_t aColor, uint32_t aSzX, uint32_t aSzY )
+void Text( uint32_t aX, uint32_t aY, const char *apString, uint8_t aOn, uint8_t aFont, uint32_t aSzX, uint32_t aSzY )
 {
 	auto p = oled::QInstance();
 	if (p) {
-		p->Text(aX, aY, apString, aColor, terminalfont, aSzX, aSzY);
+		if (aFont > 2) {
+			aFont = 0;
+		}
+		p->Text(aX, aY, apString, aOn, aFont, aSzX, aSzY);
 	}
 }
 
 //--------------------------------------------------------
 void Char( uint32_t aSX, uint32_t aSY, unsigned char aChar, bool aOn,
-	uint8_t *apFont, uint32_t aSzX = 1, uint32_t aSzY = 1 )
+	uint8_t aFont, uint32_t aSzX = 1, uint32_t aSzY = 1 )
 {
 	auto p = oled::QInstance();
 	if (p) {
-		p->Char(aSX, aSY, aChar, aOn, terminalfont, aSzX, aSzY);
+		if (aFont > 2) {
+			aFont = 0;
+		}
+		p->Char(aSX, aSY, aChar, aOn, aFont, aSzX, aSzY);
 	}
 }
 
@@ -753,15 +738,32 @@ void Display(  )
 	}
 }
 
+//--------------------------------------------------------
+const uint32_t *GetSize(  )
+{
+	static const uint32_t defsize[2] = {128, 64};
+	auto p = oled::QInstance();
+	return p != nullptr ? p->QSize() : defsize;
+}
+
+//--------------------------------------------------------
+void Scroll( uint8_t aDirection, uint8_t aStart, uint8_t aStop )
+{
+	auto p = oled::QInstance();
+	if (p) {
+		p->Scroll(aDirection, aStart, aStop);
+	}
+}
+
 } //extern "C"
 
-int32_t main(  )
-{
-	Startup();
-	Fill(0x3F);
-// 	Text(0, 0, "Hi", 0xFF, 1, 1);
-	Display();
-	usleep(4000000);
-	Shutdown();
-	return 0;
-}
+// int32_t main(  )
+// {
+// 	Startup();
+// 	Fill(0x3F);
+// // 	Text(0, 0, "Hi", 0xFF, 1, 1);
+// 	Display();
+// 	usleep(4000000);
+// 	Shutdown();
+// 	return 0;
+// }
