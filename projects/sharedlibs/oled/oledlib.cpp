@@ -224,6 +224,8 @@ public:
 		_bytes = _size[0] * _pages;
 		_buffer[0] = new uint8_t[_bytes];
 		_buffer[1] = new uint8_t[_bytes];
+		memset(_buffer[0], 0, _bytes);
+		memset(_buffer[1], 0, _bytes);
 		Clear();
 
 		//Set some values in the init command list.
@@ -600,8 +602,9 @@ private:
 	{
 		//NOTE: It takes ~0.16 seconds on RASPI3 to send the buffer.
 		SendCommands(_displayCommands, sizeof(_displayCommands));
-		SendData(_buffer[_index++], _bytes);
-		_presented.Notify();				// Signal present is done
+		SendData(_buffer[_index], _bytes);
+		_index = 1 - _index;					// Toggle the index.
+		_presented.Notify();					// Signal present is done
 	}
 
 	//--------------------------------------------------------

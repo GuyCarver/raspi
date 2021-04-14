@@ -53,7 +53,7 @@ def seton( aTF ):
 #--------------------------------------------------------
 def geton(  ):
   ''' Get the display on/off. '''
-  return _lib.GetOn().value
+  return _lib.GetOn()
 
 #--------------------------------------------------------
 def setinverted( aTF ):
@@ -63,7 +63,7 @@ def setinverted( aTF ):
 #--------------------------------------------------------
 def getinverted(  ):
   ''' Get the display on/off. '''
-  return _lib.GetInverted().value
+  return _lib.GetInverted()
 
 #--------------------------------------------------------
 def setrotation( aRotation ):
@@ -73,7 +73,7 @@ def setrotation( aRotation ):
 #--------------------------------------------------------
 def getrotation(  ):
   ''' Get the rotation to a value 0-3. '''
-  return _lib.GetRotation().value
+  return _lib.GetRotation()
 
 #--------------------------------------------------------
 def setdim( aDim ):
@@ -83,7 +83,7 @@ def setdim( aDim ):
 #--------------------------------------------------------
 def getdim(  ):
   ''' Get the display brightness 0x0-0xFF. '''
-  return _lib.GetDim().value
+  return _lib.GetDim()
 
 #--------------------------------------------------------
 def fill( aValue ):
