@@ -222,7 +222,8 @@ public:
 		_size[1] = aHeight;
 		_pages = aHeight / 8;
 		_bytes = _size[0] * _pages;
-		_buffer = new uint8_t[_bytes];
+		_buffer[0] = new uint8_t[_bytes];
+		_buffer[1] = new uint8_t[_bytes];
 		Clear();
 
 		//Set some values in the init command list.
@@ -248,7 +249,8 @@ public:
 	//--------------------------------------------------------
 	~oled(  )
 	{
-		delete [] _buffer;
+		delete [] _buffer[0];
+		delete [] _buffer[1];
 
 		_bRunning = false;						// Turn off loop
 		_present.Notify();						// Trigger the BG thread to run so it can exit
@@ -311,7 +313,7 @@ public:
 	//--------------------------------------------------------
 	void Fill( uint8_t aValue )
 	{
-		memset(_buffer, aValue, _bytes);
+		memset(_buffer[_index], aValue, _bytes);
 	}
 
 	//--------------------------------------------------------
@@ -354,10 +356,10 @@ public:
 			uint8_t bit = 1 << (y % 8);
 			uint32_t index = x + ((y >> 3) * _size[0]);
 			if (aOn) {
-				_buffer[index] |= bit;
+				_buffer[_index][index] |= bit;
 			}
 			else {
-				_buffer[index] &= ~bit;
+				_buffer[_index][index] &= ~bit;
 			}
 		}
 	}
@@ -528,18 +530,18 @@ private:
 	Semaphore _present;							// Signal to BG Thread to begin presentation
 	Semaphore _presented;						// Signal from BG Thread that presentation is complete
 
-	uint8_t *_buffer = nullptr;
+	uint8_t *_buffer[2] = { nullptr, nullptr };
 	
 	int32_t _i2c = 0;
 	uint32_t _size[2] = {128, 64};
 	uint32_t _pages;
 	uint32_t _bytes;
+	uint32_t _index = 0;
 	uint8_t _rotation = 0;
 	uint8_t _dim = 0x8F;
 
 	bool _inverted = false;
 	bool _on = false;
-
 	bool _bRunning = true;
 
 	static oled *_pinstance;
@@ -598,7 +600,7 @@ private:
 	{
 		//NOTE: It takes ~0.16 seconds on RASPI3 to send the buffer.
 		SendCommands(_displayCommands, sizeof(_displayCommands));
-		SendData(_buffer, _bytes);
+		SendData(_buffer[_index++], _bytes);
 		_presented.Notify();				// Signal present is done
 	}
 
