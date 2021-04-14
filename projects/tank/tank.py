@@ -276,6 +276,7 @@ class tank(object):
           self.curstate = tank._MOVEFWD
       elif aButton == gamepad.GAMEPAD_DISCONNECT:
         self.brake()
+        self.curstate = tank._CONNECT
       else: #Handle release events.
         if aButton == ecodes.BTN_Y:
           self.togglelights()
@@ -290,6 +291,8 @@ class tank(object):
 #--------------------------------------------------------
   def _cameraUD( self, aState, aDT ):
     ''' Handle camera state update '''
+
+    self._controller.update()
 
     rx = self._joydz(gamepad._RX)
     ry = self._joydz(gamepad._RY)
