@@ -2,11 +2,15 @@
 
 #Python interface to the oledlib.so module.
 
-from ctypes import CDLL, POINTER, c_uint, c_ubyte, c_char_p
+from ctypes import CDLL, POINTER, c_uint, c_ubyte, c_char_p, c_bool
 
 _lib = CDLL(__path__[0] + '/oledlib.so')
 _lib.Text.argtypes = [c_uint, c_uint, c_char_p, c_ubyte, c_uint, c_uint]
 _lib.GetSize.restype = POINTER(c_uint * 2)
+_lib.GetOn.restype = c_bool
+_lib.GetInverted.restype = c_bool
+_lib.GetRotation.restype = c_ubyte
+_lib.GetDim.restype = c_ubyte
 
 #--------------------------------------------------------
 #Scrolling values.
@@ -47,9 +51,19 @@ def seton( aTF ):
   _lib.SetOn(aTF)
 
 #--------------------------------------------------------
+def geton(  ):
+  ''' Get the display on/off. '''
+  return _lib.GetOn().value
+
+#--------------------------------------------------------
 def setinverted( aTF ):
   ''' Set the display inversion. '''
   _lib.SetInverted(aTF)
+
+#--------------------------------------------------------
+def getinverted(  ):
+  ''' Get the display on/off. '''
+  return _lib.GetInverted().value
 
 #--------------------------------------------------------
 def setrotation( aRotation ):
@@ -57,9 +71,19 @@ def setrotation( aRotation ):
   _lib.SetRotation(c_ubyte(aRotation))
 
 #--------------------------------------------------------
+def getrotation(  ):
+  ''' Get the rotation to a value 0-3. '''
+  return _lib.GetRotation().value
+
+#--------------------------------------------------------
 def setdim( aDim ):
-  ''' Set the display brightness. '''
+  ''' Set the display brightness 0x0-0xFF. '''
   _lib.SetDim(c_ubyte(aDim))
+
+#--------------------------------------------------------
+def getdim(  ):
+  ''' Get the display brightness 0x0-0xFF. '''
+  return _lib.GetDim().value
 
 #--------------------------------------------------------
 def fill( aValue ):
@@ -72,22 +96,22 @@ def clear(  ):
   _lib.Clear()
 
 #--------------------------------------------------------
-def pixel( aPos, aOn ):
+def pixel( aPos, aOn = True ):
   ''' Set the pixel at aPos(x,y). '''
   _lib.Pixel(*aPos, aOn)
 
 #--------------------------------------------------------
-def line( aStart, aEnd, aOn ):
+def line( aStart, aEnd, aOn = True ):
   ''' Draw a line from aStart(x,y) to aEnd(x,y). '''
   _lib.Line(*aStart, *aEnd, aOn)
 
 #--------------------------------------------------------
-def rect( aStart, aSize, aOn ):
+def rect( aStart, aSize, aOn = True ):
   ''' Fill given rectangle from aStart(x,y) by aSize(w,h). '''
   _lib.FillRect(*aStart, *aSize, aOn)
 
 #--------------------------------------------------------
-def char(aPos, aChar, aOn, aFont = TERMINAL, aSize = 1 ):
+def char(aPos, aChar, aOn = True, aFont = TERMINAL, aSize = 1 ):
   ''' Print given text at Pos (x,y). aSize may be an integer value or
        a tuple (x,y). '''
   if type(aSize) == int:
@@ -98,7 +122,7 @@ def char(aPos, aChar, aOn, aFont = TERMINAL, aSize = 1 ):
   _lib.Char(*aPos, aChar, aOn, aFont, sx, sy)
 
 #--------------------------------------------------------
-def text(aPos, aString, aOn, aFont = TERMINAL, aSize = 1 ):
+def text(aPos, aString, aOn = True, aFont = TERMINAL, aSize = 1 ):
   ''' Print given text at Pos (x,y). aSize may be an integer value or
        a tuple (x,y). '''
   if type(aSize) == int:

@@ -5,15 +5,15 @@
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
 //
-//     * Redistributions of source code must retain the above copyright notice,
-//       this list of conditions and the following disclaimer.
+//	 * Redistributions of source code must retain the above copyright notice,
+//	   this list of conditions and the following disclaimer.
 //
-//     * Redistributions in binary form must reproduce the above copyright notice,
-//       this list of conditions and the following disclaimer in the documentation
-//       and/or other materials provided with the distribution.
+//	 * Redistributions in binary form must reproduce the above copyright notice,
+//	   this list of conditions and the following disclaimer in the documentation
+//	   and/or other materials provided with the distribution.
 //
-//     * The name of Guy Carver may not be used to endorse or promote products derived
-//       from this software without specific prior written permission.
+//	 * The name of Guy Carver may not be used to endorse or promote products derived
+//	   from this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -26,9 +26,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// FILE    oledlib.cpp
-// BY      gcarver
-// DATE    03/06/2021 12:19 PM
+// FILE	oledlib.cpp
+// BY	  gcarver
+// DATE	03/06/2021 12:19 PM
 //----------------------------------------------------------------------
 
 //128x64 OLED display driver converted from Adafruit SSD1306 libraries.
@@ -44,6 +44,9 @@
 #include <linux/i2c-dev.h>						// For ISC_SLAVE
 #include <unistd.h>								// For usleep, close
 #include <cstring>								// For memset
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 //NOTE: This current code will set the pixel at 0,0 but the scrolling will not scroll it.  Don't know if it's software causing it or not.
 
@@ -54,23 +57,23 @@
 
 // Buffer layout in bits.  128 columns by 64 rows.
 // Each byte represents 8 pixels in a row.
-//    Column
+//	Column
 //  R 0   8   10 ... 3F8
 //  O 1   9   11 ... 3F9
 //  W 2   A   12 ... 3FA
-//    3   B   13 ... 3FB
-//    4   C   14 ... 3FC
-//    5   D   15 ... 3FD
-//    6   E   16 ... 3FE
-//    7   F   17 ... 3FF
-//    400 408
-//    401 409
-//    402 40A
-//    403 40B
-//    404 40C
-//    405 40D
-//    406 40E
-//    407 40F
+//	3   B   13 ... 3FB
+//	4   C   14 ... 3FC
+//	5   D   15 ... 3FD
+//	6   E   16 ... 3FE
+//	7   F   17 ... 3FF
+//	400 408
+//	401 409
+//	402 40A
+//	403 40B
+//	404 40C
+//	405 40D
+//	406 40E
+//	407 40F
 
 //Make the following values visible to the outside.
 extern const uint8_t STOP = 0;
@@ -91,6 +94,38 @@ extern const uint8_t SERIF = 2;
 
 namespace
 {
+	//--------------------------------------------------------
+	//C++17 has a semaphore, but we aren't using C++17 yet, so here we have an uglier semaphore.
+	class Semaphore
+	{
+	public:
+		Semaphore ( uint32_t aCount = 0) : _count(aCount) {  }
+
+		//--------------------------------------------------------
+		void Notify(  )
+		{
+			std::unique_lock<std::mutex> lock(_mutex);
+			_count++;
+			//notify the waiting thread
+			_cv.notify_one();
+		}
+
+		//--------------------------------------------------------
+		void Wait(  )
+		{
+			std::unique_lock<std::mutex> lock(_mutex);
+			while (_count == 0) {
+				//wait on the mutex until notify is called
+				_cv.wait(lock);
+			}
+			_count--;
+		}
+	private:
+		std::mutex _mutex;
+		std::condition_variable _cv;
+		uint32_t _count;
+	};
+
 	constexpr uint8_t I2C_SMBUS_WRITE = 0;
 
 	constexpr uint8_t I2C_SMBUS_I2C_BLOCK_DATA = 8u;
@@ -203,9 +238,11 @@ public:
 		SendCommands(_initCommands, sizeof(_initCommands));
 
 		SetOn(true);
-		Display();
+		Present();
+		_presented.Notify();
 
-// 		_pLoop = new std::thread([] () { _pinstance->MainLoop(); });
+		_pLoop = new std::thread([] () { _pinstance->MainLoop(); });
+
 	}
 
 	//--------------------------------------------------------
@@ -213,9 +250,10 @@ public:
 	{
 		delete [] _buffer;
 
-// 		_bRunning = false;						// Turn off loop.
-// 		_pLoop->join();							// Wait for _pLoop to exit.
-// 		delete _pLoop;
+		_bRunning = false;						// Turn off loop
+		_present.Notify();						// Trigger the BG thread to run so it can exit
+		_pLoop->join();							// Wait for _pLoop to exit
+		delete _pLoop;
 
 		close(_i2c);
 		_pinstance = nullptr;
@@ -237,6 +275,9 @@ public:
 	}
 
 	//--------------------------------------------------------
+	bool GetOn(  ) const { return _on; }
+
+	//--------------------------------------------------------
 	void SetInverted( bool aInverted )
 	{
 		if (_inverted != aInverted) {
@@ -246,10 +287,16 @@ public:
 	}
 
 	//--------------------------------------------------------
+	bool GetInverted(  ) const { return _inverted; }
+
+	//--------------------------------------------------------
 	void SetRotation( uint8_t aRotation )
 	{
 		_rotation = aRotation & 0x03;
 	}
+
+	//--------------------------------------------------------
+	uint8_t GetRotation(  ) const { return _rotation; }
 
 	//--------------------------------------------------------
 	void SetDim( uint8_t aValue )
@@ -257,6 +304,9 @@ public:
 		_dim = aValue;
 		SendCommand(_dim);
 	}
+
+	//--------------------------------------------------------
+	uint8_t GetDim(  ) const { return _dim; }
 
 	//--------------------------------------------------------
 	void Fill( uint8_t aValue )
@@ -440,9 +490,10 @@ public:
 	//--------------------------------------------------------
 	void Display(  )
 	{
-		//Send the command array.
-		SendCommands(_displayCommands, sizeof(_displayCommands));
-		SendData(_buffer, _bytes);
+		//Make sure presentation is complete before triggering a new one
+		_presented.Wait();
+		//Trigger present semaphore
+		_present.Notify();
 	}
 
 	//--------------------------------------------------------
@@ -472,8 +523,10 @@ public:
 
 private:
 
-// 	std::thread *_pLoop = nullptr;
-// 	std::mutex _suspend;
+	std::thread *_pLoop = nullptr;
+	//NOTE: These would be better as semaphores, but the c++17 semaphore doesn't seem to be available.
+	Semaphore _present;							// Signal to BG Thread to begin presentation
+	Semaphore _presented;						// Signal from BG Thread that presentation is complete
 
 	uint8_t *_buffer = nullptr;
 	
@@ -487,7 +540,7 @@ private:
 	bool _inverted = false;
 	bool _on = false;
 
-// 	bool _bRunning = true;
+	bool _bRunning = true;
 
 	static oled *_pinstance;
 
@@ -502,18 +555,19 @@ private:
 		args.size = I2C_SMBUS_I2C_BLOCK_DATA;
 		args.data = reinterpret_cast<i2c_smbus_data*>(data);
 
-		//Cut buffer into allowable sizes and send each block.
+		//Cut buffer into allowable sizes and send each block
 		while (aElems) {
 			uint32_t ds = std::min(I2C_SMBUS_BLOCK_MAX, aElems);
 			uint32_t i = 0;
 			aElems -= ds;
 			data[i++] = static_cast<uint8_t>(ds);
-			++ds;								// Add 1 to the length for the loop.
-			//Copy buffer into the data buffer.
-			for ( ; i < ds; ++i) {
-				data[i] = *aBuffer++;
-			}
+
+			//Copy source buffer into the destination
+			memcpy(&data[i], aBuffer, ds);
+			aBuffer += ds;						// Next source location
+
 			auto res = ioctl(_i2c, I2C_SMBUS, &args);
+
 			if (res < 0) {
 				std::cout << "Error" << std::endl;
 			}
@@ -540,52 +594,60 @@ private:
 	}
 
 	//--------------------------------------------------------
+	void Present(  )
+	{
+		//NOTE: It takes ~0.16 seconds on RASPI3 to send the buffer.
+		SendCommands(_displayCommands, sizeof(_displayCommands));
+		SendData(_buffer, _bytes);
+		_presented.Notify();				// Signal present is done
+	}
+
+	//--------------------------------------------------------
 	void ScrollLR( uint8_t aDirection, uint8_t aStart, uint8_t aStop )
 	{
-		uint8_t data[8];
+		uint8_t lrdata[8];
 
-		data[0] = aDirection;
-		data[1] = 0;
-		data[2] = aStart;
-		data[3] = 0;
-		data[4] = aStop;
-		data[5] = 0;
-		data[6] = 0xFF;
-		data[7] = _ACTIVATE_SCROLL;
+		lrdata[0] = aDirection;
+		lrdata[1] = 0;
+		lrdata[2] = aStart;
+		lrdata[3] = 0;
+		lrdata[4] = aStop;
+		lrdata[5] = 0;
+		lrdata[6] = 0xFF;
+		lrdata[7] = _ACTIVATE_SCROLL;
 
-		SendCommands(data, sizeof(data));
+		SendCommands(lrdata, sizeof(lrdata));
 	}
 
 	//--------------------------------------------------------
 	void ScrollDiag( uint8_t aDirection, uint8_t aStart, uint8_t aStop )
 	{
-		uint8_t data[10];
+		uint8_t sdata[10];
 
-		data[0] = _SET_VERTICAL_SCROLL_AREA;
-		data[1] = 0;
-		data[2] = static_cast<uint8_t>(_size[1]);
-		data[3] = aDirection;
-		data[4] = 0;
-		data[5] = aStart;
-		data[6] = 0;
-		data[7] = aStop;
-		data[8] = 1;
-		data[9] = _ACTIVATE_SCROLL;
+		sdata[0] = _SET_VERTICAL_SCROLL_AREA;
+		sdata[1] = 0;
+		sdata[2] = static_cast<uint8_t>(_size[1]);
+		sdata[3] = aDirection;
+		sdata[4] = 0;
+		sdata[5] = aStart;
+		sdata[6] = 0;
+		sdata[7] = aStop;
+		sdata[8] = 1;
+		sdata[9] = _ACTIVATE_SCROLL;
 
-		SendCommands(data, sizeof(data));
+		SendCommands(sdata, sizeof(sdata));
 	}
 
 	//--------------------------------------------------------
-// 	void MainLoop(  )
-// 	{
-// 		while(_bRunning) {
-// //TODO: Wait on semaphore
-// 			_suspend.lock();
-// 			UpdateAccelTempRot();
-// 			UpdateMag();
-// 			_suspend.unlock();
-// 		}
-// 	}
+	void MainLoop(  )
+	{
+		while (_bRunning) {
+			_present.Wait();					// Wait for a present to be triggered
+			if (_bRunning) {
+				Present();
+			}
+		}
+	}
 };
 
 oled *oled::_pinstance = nullptr;
@@ -598,7 +660,7 @@ oled *oled::_pinstance = nullptr;
 // 		for ( uint32_t i = 0; i < 3; ++i) {
 // 			std::cout << m[i] << ',';
 // 		}
-// 		std::cout << "                \r";
+// 		std::cout << "				\r";
 // 	}
 // 	return 0;
 // }
@@ -703,12 +765,27 @@ void SetOn( bool aOn )
 }
 
 //--------------------------------------------------------
+bool GetOn(  )
+{
+	auto p = oled::QInstance();
+	return p ? p->GetOn() : false;
+}
+
+
+//--------------------------------------------------------
 void SetInverted( bool aInverted )
 {
 	auto p = oled::QInstance();
 	if (p) {
 		p->SetInverted(aInverted);
 	}
+}
+
+//--------------------------------------------------------
+bool GetInverted(  )
+{
+	auto p = oled::QInstance();
+	return p ? p->GetInverted() : false;
 }
 
 //--------------------------------------------------------
@@ -721,12 +798,26 @@ void SetRotation( uint8_t aRotation )
 }
 
 //--------------------------------------------------------
+uint8_t GetRotation(  )
+{
+	auto p = oled::QInstance();
+	return p ? p->GetRotation() : 0;
+}
+
+//--------------------------------------------------------
 void SetDim( uint8_t aValue )
 {
 	auto p = oled::QInstance();
 	if (p) {
 		p->SetDim(aValue);
 	}
+}
+
+//--------------------------------------------------------
+uint8_t GetDim(  )
+{
+	auto p = oled::QInstance();
+	return p ? p->GetDim() : 0;
 }
 
 //--------------------------------------------------------
@@ -757,13 +848,38 @@ void Scroll( uint8_t aDirection, uint8_t aStart, uint8_t aStop )
 
 } //extern "C"
 
-// int32_t main(  )
-// {
-// 	Startup();
-// 	Fill(0x3F);
-// // 	Text(0, 0, "Hi", 0xFF, 1, 1);
-// 	Display();
-// 	usleep(4000000);
-// 	Shutdown();
-// 	return 0;
-// }
+#define _EXE 1
+#ifdef _EXE
+
+#include <ctime>
+#include <ratio>
+#include <chrono>
+
+int32_t main(  )
+{
+	using namespace std::chrono;
+
+	Startup();
+	Fill(0xFF);
+
+	high_resolution_clock::time_point t1 = high_resolution_clock::now();
+	Text(0, 10, "Hello Guy!", 0, TERMINAL, 1, 1);
+	high_resolution_clock::time_point t2 = high_resolution_clock::now();
+
+	duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+	std::cout << "Text Time: " << time_span.count() << " seconds.\n";
+
+	t1 = high_resolution_clock::now();
+	Display();
+	t2 = high_resolution_clock::now();
+
+	time_span = duration_cast<duration<double>>(t2 - t1);
+
+	std::cout << "Display Time: " << time_span.count() << " seconds.\n";
+
+	usleep(4000000);
+	Shutdown();
+
+	return 0;
+}
+#endif //_EXE
