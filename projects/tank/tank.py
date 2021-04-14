@@ -3,7 +3,6 @@
 
 # sudo apt install rpi.gpio
 
-#todo: Figure out what is causes the input delay.
 #todo: Add limits for camera movement.
 #todo: Add animation of camera movement rather than direct controller input.
 #todo: Test using x axis for camera control during movement.
@@ -18,6 +17,7 @@ from wheel import *
 from strobe import *
 from sides import *
 from area import *
+from camera import *
 import state
 
 import vl53
@@ -90,6 +90,7 @@ class tank(object):
     self._onestick = False
     self._sides = sides(tank._LSIDE, tank._RSIDE)  # Left/Right Pin #s for trigger/echo.
     self._front = vl53.create()
+    self._camera = camera(pca, tank._CAMERAPAN, tank._CAMERATILT)
 
     #Initialize the states.
     self._states = {}
@@ -235,6 +236,7 @@ class tank(object):
     if self._onestick:
       r = -self._joydz(gamepad._LX)
       r, l = onestick.vels(r, l)
+      self._cameraUD(aState, aDT)               # If in onestick mode also control the camera.
     else:
       r = -self._joydz(gamepad._RY)
 
@@ -267,7 +269,7 @@ class tank(object):
           self._prevspeed()
         elif aButton == ecodes.BTN_TR:
           self._nextspeed()
-        elif aButton == ecodes.BTN_SELECT:
+        elif aButton == ecodes.BTN_THUMBL:
           self._onestick = not self._onestick
         elif aButton == ecodes.BTN_START:
           self._area.on = not self._area.on
@@ -300,14 +302,9 @@ class tank(object):
     self._controller.update()
 
     rx = self._joydz(gamepad._RX)
-    ry = self._joydz(gamepad._RY)
+    ry = -self._joydz(gamepad._RY)
 
-    panAngle = rx * 90.0
-    tiltAngle = -ry * 90.0
-
-    #Set camera pan/tilt values.
-    pca.setangle(tank._CAMERAPAN, panAngle)
-    pca.setangle(tank._CAMERATILT, tiltAngle)
+    self._camera.update(rx, ry, aDT)
 
 #--------------------------------------------------------
   def _cameraIN( self, aState, aButton, aValue ):
