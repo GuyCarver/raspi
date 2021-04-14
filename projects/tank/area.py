@@ -52,6 +52,7 @@ class area(object):
     self._max = (aSideMax, aFrontMax)
 
     oled.startup()
+    self.on = False                             # Turn off by default.
     self._size = oled.getsize()
     w, h = self._size
     self._center = (w // 2, h // 2)
