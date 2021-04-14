@@ -120,6 +120,22 @@ namespace
 			}
 			_count--;
 		}
+
+		//--------------------------------------------------------
+		bool TryWait(  )
+		{
+			bool bres = (_count != 0);
+			if (bres) {
+				std::unique_lock<std::mutex> lock(_mutex);
+				while (_count == 0) {
+					//wait on the mutex until notify is called
+					_cv.wait(lock);
+				}
+				_count--;
+			}
+			return bres;
+		}
+
 	private:
 		std::mutex _mutex;
 		std::condition_variable _cv;
@@ -495,9 +511,10 @@ public:
 	void Display(  )
 	{
 		//Make sure presentation is complete before triggering a new one
-		_presented.Wait();
-		//Trigger present semaphore
-		_present.Notify();
+		if (_presented.TryWait()) {
+			//Trigger present semaphore
+			_present.Notify();
+		}
 	}
 
 	//--------------------------------------------------------
