@@ -466,51 +466,43 @@ public:
 	{
 		int32_t dx = static_cast<int32_t>(aEX) - static_cast<int32_t>(aSX);
 		int32_t dy = static_cast<int32_t>(aEY) - static_cast<int32_t>(aSY);
-		int32_t inx, iny;
+
+		//Draw 1 pixel.
+		if ((dx == 0) && (dy == 0)) {
+			Pixel(aSX, aSY, aOn);
+			return;
+		}
+
+		//NOTE: Could make special loops for pure vertical/horizontal lines.
+
+		int32_t dest = 0;
+		uint32_t ex, ey;
 		PixelFunc pf = GetPixelFunc(aOn);
 
-		if (dx > 0) {
-			inx = 1;
+		auto adx = abs(dx);
+		auto ady = abs(dy);
+
+		//Shift values << 8 to give 8 bits of precision for fraction.
+		if (adx > ady) {
+			ex = (dx == adx) ? 0x100u : 0xFFFFFF00u;	//1 or -1 with 8 bits precison unsigned
+			ey = static_cast<uint32_t>((dy << 8) / adx) + 0x1u;	//Add 1 to fraction to make sure we hit final value
+			dest = adx;
 		}
 		else {
-			inx = -1;
-			dx = -dx;
-		}
-		if (dy > 0) {
-			iny = 1;
-		}
-		else {
-			iny = -1;
-			dy = -dy;
+			ex = static_cast<uint32_t>((dx << 8) / ady) + 0x1u; //Add 1 to fraction to make sure we hit final value
+			ey = (dy == ady) ? 0x100u : 0xFFFFFF00u;	//1 or -1 with 8 bits precision unsigned
+			dest = ady;
 		}
 
-		if (dx >= dy) {
-			dy <<= 1;
-			auto e = dy - dx;
-			dx <<= 1;
-			while (aSX != aEX) {
-				(this->*pf)(aSX, aSY);
-				if (e >= 0) {
-					aSY += iny;
-					e -= dx;
-				}
-				e += dy;
-				aSX += inx;
-			}
-		}
-		else {
-			dx <<= 1;
-			auto e = dx - dy;
-			dy <<= 1;
-			while (aSY != aEY) {
-				(this->*pf)(aSX, aSY);
-				if (e >= 0) {
-					aSX += inx;
-					e -= dy;
-				}
-				e += dx;
-				aSY += iny;
-			}
+		//Add 8 bits of precision
+		aSX <<= 8;
+		aSY <<= 8;
+
+		//Loop for number of pixels and plot them.
+		for ( int32_t i = 0; i <= dest; ++i) {
+			(this->*pf)(aSX >> 8, aSY >> 8);
+			aSX += ex;
+			aSY += ey;
 		}
 	}
 

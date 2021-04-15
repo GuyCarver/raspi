@@ -36,6 +36,7 @@ def shutdown(  ):
   ''' Shut down the singleton system. '''
   _lib.Shutdown()
 
+#--------------------------------------------------------
 def getsize(  ):
   ''' Get display size (w,h). '''
   return _lib.GetSize().contents
