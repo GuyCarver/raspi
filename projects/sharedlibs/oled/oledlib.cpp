@@ -215,6 +215,10 @@ namespace
 
 }	//namespace
 
+class oled;
+
+typedef void(oled::*PixelFunc)( uint32_t, uint32_t);
+
 //--------------------------------------------------------
 class oled
 {
@@ -341,45 +345,120 @@ public:
 	}
 
 	//--------------------------------------------------------
-	void Pixel( uint32_t aX, uint32_t aY, bool aOn )
+	bool InRange( uint32_t aX, uint32_t aY )
 	{
-		uint32_t x, y;
+		return (aX >= 0 && aX < _size[0] && aY >= 0 && aY < _size[1]);
+	}
 
-		if ((aX >= 0) && (aX < _size[0]) && (aY >= 0) && (aY < _size[1])) {
-			switch (_rotation) {
-				case 1:
-				{
-					x = _size[0] - aY - 1;
-					y = aX;
-					break;
-				}
-				case 2:
-				{
-					x = _size[0] - aX - 1;
-					y = _size[1] - aY - 1;
-					break;
-				}
-				case 3:
-				{
-					x = aY;
-					y = _size[1] - x - 1;
-					break;
-				}
-				default:
-					x = aX;
-					y = aY;
-					break;
-			}
+	//--------------------------------------------------------
+	void Pixel0On( uint32_t aX, uint32_t aY )
+	{
+		if (InRange(aX, aY)) {
+			uint8_t bit = 1 << (aY & 7);
+			uint32_t index = aX + ((aY >> 3) * _size[0]);
+			_buffer[_index][index] |= bit;
+		}
+	}
 
+	//--------------------------------------------------------
+	void Pixel0Off( uint32_t aX, uint32_t aY )
+	{
+		if (InRange(aX, aY)) {
+			uint8_t bit = 1 << (aY & 7);
+			uint32_t index = aX + ((aY >> 3) * _size[0]);
+			_buffer[_index][index] &= ~bit;
+		}
+	}
+
+	//--------------------------------------------------------
+	void Pixel1On( uint32_t aX, uint32_t aY )
+	{
+		uint32_t y = aX;
+		uint32_t x = _size[0] - aY - 1;
+
+		if (InRange(aX, aY)) {
 			uint8_t bit = 1 << (y % 8);
 			uint32_t index = x + ((y >> 3) * _size[0]);
-			if (aOn) {
-				_buffer[_index][index] |= bit;
-			}
-			else {
-				_buffer[_index][index] &= ~bit;
-			}
+			_buffer[_index][index] |= bit;
 		}
+	}
+
+	//--------------------------------------------------------
+	void Pixel1Off( uint32_t aX, uint32_t aY )
+	{
+		uint32_t y = aX;
+		uint32_t x = _size[0] - aY - 1;
+
+		if (InRange(aX, aY)) {
+			uint8_t bit = 1 << (y % 8);
+			uint32_t index = x + ((y >> 3) * _size[0]);
+			_buffer[_index][index] &= ~bit;
+		}
+	}
+
+	//--------------------------------------------------------
+	void Pixel2On( uint32_t aX, uint32_t aY )
+	{
+		uint32_t x = _size[0] - aX - 1;
+		uint32_t y = _size[1] - aY - 1;
+
+		if (InRange(aX, aY)) {
+			uint8_t bit = 1 << (y % 8);
+			uint32_t index = x + ((y >> 3) * _size[0]);
+			_buffer[_index][index] |= bit;
+		}
+	}
+
+	//--------------------------------------------------------
+	void Pixel2Off( uint32_t aX, uint32_t aY )
+	{
+		uint32_t x = _size[0] - aX - 1;
+		uint32_t y = _size[1] - aY - 1;
+
+		if (InRange(aX, aY)) {
+			uint8_t bit = 1 << (y % 8);
+			uint32_t index = x + ((y >> 3) * _size[0]);
+			_buffer[_index][index] &= ~bit;
+		}
+	}
+
+	//--------------------------------------------------------
+	void Pixel3On( uint32_t aX, uint32_t aY )
+	{
+		uint32_t x = aY;
+		uint32_t y = _size[1] - aX - 1;
+
+		if (InRange(aX, aY)) {
+			uint8_t bit = 1 << (y % 8);
+			uint32_t index = x + ((y >> 3) * _size[0]);
+			_buffer[_index][index] |= bit;
+		}
+	}
+
+	//--------------------------------------------------------
+	void Pixel3Off( uint32_t aX, uint32_t aY )
+	{
+		uint32_t x = aY;
+		uint32_t y = _size[1] - aX - 1;
+
+		if (InRange(aX, aY)) {
+			uint8_t bit = 1 << (y % 8);
+			uint32_t index = x + ((y >> 3) * _size[0]);
+			_buffer[_index][index] &= ~bit;
+		}
+	}
+
+	//--------------------------------------------------------
+	PixelFunc GetPixelFunc( bool aOn ) const
+	{
+		uint32_t index = (_rotation << 1) | aOn;
+		return _PixelFuncs[index];
+	}
+
+	//--------------------------------------------------------
+	void Pixel( uint32_t aX, uint32_t aY, bool aOn )
+	{
+		(this->*GetPixelFunc(aOn))(aX, aY);
 	}
 
 	//--------------------------------------------------------
@@ -388,6 +467,7 @@ public:
 		int32_t dx = static_cast<int32_t>(aEX) - static_cast<int32_t>(aSX);
 		int32_t dy = static_cast<int32_t>(aEY) - static_cast<int32_t>(aSY);
 		int32_t inx, iny;
+		PixelFunc pf = GetPixelFunc(aOn);
 
 		if (dx > 0) {
 			inx = 1;
@@ -409,7 +489,7 @@ public:
 			auto e = dy - dx;
 			dx <<= 1;
 			while (aSX != aEX) {
-				Pixel(aSX, aSY, aOn);
+				(this->*pf)(aSX, aSY);
 				if (e >= 0) {
 					aSY += iny;
 					e -= dx;
@@ -423,7 +503,7 @@ public:
 			auto e = dx - dy;
 			dy <<= 1;
 			while (aSY != aEY) {
-				Pixel(aSX, aSY, aOn);
+				(this->*pf)(aSX, aSY);
 				if (e >= 0) {
 					aSX += inx;
 					e -= dy;
@@ -452,6 +532,9 @@ public:
 		const uint8_t *charData = pfont + 4;
 
 		if ((aChar >= startChar) && (aChar <= endChar)) {
+			PixelFunc pfon = GetPixelFunc(aOn);
+			PixelFunc pfoff = GetPixelFunc(!aOn);
+
 			auto w = pfont[0];
 			auto h = pfont[1];
 			uint32_t ci = (aChar - startChar) * w;
@@ -463,7 +546,10 @@ public:
 					auto py = aSY;
 					for ( uint32_t j = 0; j < h; ++j) {
 						if (c & 1) {
-							Pixel(px, py, aOn);
+							(this->*pfon)(px, py);
+						}
+						else {
+							(this->*pfoff)(px, py);
 						}
 						++py;
 						c >>= 1;
@@ -478,6 +564,9 @@ public:
 					for ( uint32_t j = 0; j < h; ++j) {
 						if (c & 1) {
 							FillRect(px, py, aSzX, aSzY, aOn);
+						}
+						else {
+							FillRect(px, py, aSzX, aSzY, !aOn);
 						}
 						py += aSzY;
 						c >>= 1;
@@ -513,6 +602,7 @@ public:
 		//Make sure presentation is complete before triggering a new one
 		if (_presented.TryWait()) {
 			//Trigger present semaphore
+			_index ^= 1;						// Switch to other buffer for rendering.
 			_present.Notify();
 		}
 	}
@@ -564,6 +654,7 @@ private:
 	bool _bRunning = true;
 
 	static oled *_pinstance;
+	static PixelFunc _PixelFuncs[8];
 
 	//--------------------------------------------------------
 	void WriteBlockData( uint8_t aCommand, const uint8_t *aBuffer, uint32_t aElems )
@@ -617,10 +708,12 @@ private:
 	//--------------------------------------------------------
 	void Present(  )
 	{
-		//NOTE: It takes ~0.16 seconds on RASPI3 to send the buffer.
+		uint32_t i = _index ^ 1;				// We present the off index as the other is set to be written to
+		//NOTE: It takes ~0.16 seconds on RASPI3 to send the buffer
 		SendCommands(_displayCommands, sizeof(_displayCommands));
-		SendData(_buffer[_index], _bytes);
-		_index = 1 - _index;					// Toggle the index.
+		SendData(_buffer[i], _bytes);
+		memset(_buffer[i], 0, _bytes);			// Clear the buffer after write
+
 		_presented.Notify();					// Signal present is done
 	}
 
@@ -674,6 +767,20 @@ private:
 
 oled *oled::_pinstance = nullptr;
 
+//--------------------------------------------------------
+PixelFunc oled::_PixelFuncs[8] =
+{
+	&oled::Pixel0Off,
+	&oled::Pixel0On,
+	&oled::Pixel1Off,
+	&oled::Pixel1On,
+	&oled::Pixel2Off,
+	&oled::Pixel2On,
+	&oled::Pixel3Off,
+	&oled::Pixel3On
+};
+
+//--------------------------------------------------------
 // int32_t main(  )
 // {
 // 	auto g = oled();
