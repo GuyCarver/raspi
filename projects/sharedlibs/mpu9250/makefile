@@ -14,7 +14,7 @@ TARGET = mpu9250
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 lib: $(OBJ)
-	$(CC) $(CFLAGS) -shared -o $(TARGET)lib.so $^
+	$(CC) $(CFLAGS) -lwiringPi  -shared -o $(TARGET)lib.so $^
 
 m3: matrix3.cpp
 	$(CC) $(CFLAGS) -shared -o m3lib.so $<

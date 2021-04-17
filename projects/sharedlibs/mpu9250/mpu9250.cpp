@@ -340,7 +340,7 @@ private:
 	}
 
 	//--------------------------------------------------------
-	const int16_t _read16( uint32_t aAddress, uint32_t aLoc )
+	int16_t _read16( uint32_t aAddress, uint32_t aLoc )
 	{
 		int8_t vh = wiringPiI2CReadReg8(aAddress, aLoc);
 		int8_t vl = wiringPiI2CReadReg8(aAddress, aLoc + 1);
@@ -352,16 +352,13 @@ private:
 	{
 		for ( uint32_t i = 0; i < aCount; ++i) {
 			auto v = _read16(aAddress, aLoc + (i * 2));
-			if (v & (1 << 15)) {
-				v -= 1 << 16;
-			}
 			_buffer[i] = static_cast<float>(v);
 		}
 		return _buffer;
 	}
 
 	//--------------------------------------------------------
-	const int16_t _read16LH( uint32_t aAddress, uint32_t aLoc )
+	int16_t _read16LH( uint32_t aAddress, uint32_t aLoc )
 	{
 		return wiringPiI2CReadReg16(aAddress, aLoc);
 	}
@@ -371,9 +368,6 @@ private:
 	{
 		for ( uint32_t i = 0; i < aCount; ++i) {
 			auto v = _read16LH(aAddress, aLoc + (i * 2));
-			if (v & (1 << 15)) {
-				v -= 1 << 16;
-			}
 			_buffer[i] = static_cast<float>(v);
 		}
 		return _buffer;
@@ -520,7 +514,8 @@ private:
 		}
 
 		//Convert temperature value to celcius.
-		_atp[i] = (pdata[i++] / 333.87) + 21.0;		// Just copy the temperature over.
+		_atp[i] = (pdata[i] / 333.87) + 21.0;		// Just copy the temperature over.
+		++i;
 
 		for ( uint32_t j = 0; j < 3; ++i, ++j) {
 			_atp[i] = (pdata[i] * _gres) - _gbias[j];
@@ -549,7 +544,7 @@ private:
 	void MainLoop(  )
 	{
 		Configure();
-		Calibrate();
+// Take this out for a bit.		Calibrate();
 
 		while(_bRunning) {
 			_suspend.lock();
