@@ -5,7 +5,7 @@
 from ctypes import CDLL, POINTER, c_float
 
 _lib = CDLL(__path__[0] + '/mpu9250lib.so')
-_lib.GetAccelTempRot.restype = POINTER(c_float * 7)
+_lib.GetRotTempAccel.restype = POINTER(c_float * 7)
 _lib.GetMag.restype = POINTER(c_float * 3)
 
 def startup(  ):
@@ -17,8 +17,8 @@ def shutdown(  ):
 def suspend( bTF ):
   _lib.Suspend(bTF)
 
-def getacceltemprot(  ):
-  return _lib.GetAccelTempRot().contents
+def getrottempaccel(  ):
+  return _lib.GetRotTempAccel().contents
 
 def getmag(  ):
   return _lib.GetMag().contents
