@@ -7,7 +7,7 @@ LFLAGS  = -lwiringPi
 CFLAGS  = -Wall -c -std=c++17 -fPIC -O3
 
 # the build target executable:
-TARGET = pca9865lib
+TARGET = pca9685lib
 
 OBJ = $(TARGET).o
 

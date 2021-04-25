@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# pca9865 servo controller driver.
+# pca9685 servo controller driver.
 
 from ctypes import CDLL, c_bool, c_float
 
 # Located in usr/local/bin
-_lib = CDLL(__path__[0] + '/pca9865lib.so')
+_lib = CDLL(__path__[0] + '/pca9685lib.so')
 
 def startup(  ):
   ''' Initialize the singleton version of the system. '''

@@ -53,7 +53,7 @@ namespace
 // 	constexpr uint32_t _LED0_ON_H = 0x7;
 // 	constexpr uint32_t _LED0_OFF_L = 0x8;
 // 	constexpr uint32_t _LED0_OFF_H = 0x9;
-// 	constexpr uint32_t _ALLLED_ON_L = 0xFA;
+	constexpr uint32_t _ALLLED_ON_L = 0xFA;
 // 	constexpr uint32_t _ALLLED_ON_H = 0xFB;
 // 	constexpr uint32_t _ALLLED_OFF_L = 0xFC;
 // 	constexpr uint32_t _ALLLED_OFF_H = 0xFD;
@@ -94,8 +94,8 @@ public:
 	}
 
 	//--------------------------------------------------------
-	// Set frequency for all servos.  A good value is 60hz (default).
-	void setfreq( float aFreq )
+	// Set frequency for all servos.  A good value is 60hz.
+	void setfreq( uint32_t aFreq )
 	{
 		auto f = static_cast<float>(aFreq) * 0.9999f;	// Correct for overshoot in frequency setting.
 		if (f < 1.0f) { f = 1.0f; } else if (f > 3500.0f) { f = 3500.0f; }
@@ -113,7 +113,7 @@ public:
 
 	//--------------------------------------------------------
 	// Turn off a servo.
-	void off( uint32_t aServo )
+	void off( uint8_t aServo )
 	{
 		_setpwm(aServo, 0, 0);
 	}
@@ -122,14 +122,13 @@ public:
 	// Turn all servos off.
 	void alloff(  )
 	{
-		for ( uint32_t i = 0; i < 16; ++i) {
-			off(i);
-		}
+		static const uint8_t buffer[4] = {0, 0, 0, 0};
+		_writebuffer(buffer, 4, _ALLLED_ON_L);
 	}
 
 	//--------------------------------------------------------
 	// Perc is an integer value from 0-100 * 100 to include 2 digits of fractional precision.
-	void set( uint32_t aServo, uint32_t aPerc )
+	void set( uint8_t aServo, uint32_t aPerc )
 	{
 		if (aPerc < 0) {
 			off(aServo);
@@ -146,7 +145,7 @@ public:
 
 	//--------------------------------------------------------
 	// Set angle -90 to +90.  < -90 is off.
-	void setangle( uint32_t aServo, float aAngle )
+	void setangle( uint8_t aServo, float aAngle )
 	{
 		// (a + 90.0) / 180.0
 		float perc = (aAngle + 90.0f) * 55.56f;  //Convert angle +/- 90 to 0.0-10000
@@ -154,7 +153,7 @@ public:
 	}
 
 	//--------------------------------------------------------
-	void setpwm( uint32_t aServo, uint32_t aOn, uint32_t aOff )
+	void setpwm( uint8_t aServo, uint32_t aOn, uint32_t aOff )
 	{
 		_setpwm(aServo, aOn, aOff);
 	}
@@ -193,7 +192,7 @@ private:
 
 	//--------------------------------------------------------
 	// Write 8 bit buffer to given address.
-	void _writebuffer( uint8_t *apBuffer, uint32_t aLen, uint32_t aLoc )
+	void _writebuffer( const uint8_t *apBuffer, uint32_t aLen, uint32_t aLoc )
 	{
 		for ( uint32_t i = 0; i < aLen; ++i) {
 			_write8(apBuffer[i], aLoc + i);
@@ -204,7 +203,7 @@ private:
 	// aServo = 0-15.
 	// aOn = 16 bit on value.
 	// aOff = 16 bit off value.
-	void _setpwm( uint32_t aServo, uint32_t aOn, uint32_t aOff )
+	void _setpwm( uint8_t aServo, uint32_t aOn, uint32_t aOff )
 	{
 // 		std::cout << aOn << ", " << aOff << std::endl;
 		if ((0 <= aServo) && (aServo <= 15)) {
@@ -253,7 +252,7 @@ void Shutdown(  )
 }
 
 //--------------------------------------------------------
-void SetFreq( float aFreq )
+void SetFreq( uint32_t aFreq )
 {
 	auto p = pca9865::QInstance();
 	if (p) {
@@ -262,7 +261,7 @@ void SetFreq( float aFreq )
 }
 
 //--------------------------------------------------------
-void Off( uint32_t aServo )
+void Off( uint8_t aServo )
 {
 	auto p = pca9865::QInstance();
 	if (p) {
@@ -281,7 +280,7 @@ void AllOff(  )
 
 //--------------------------------------------------------
 // Set servo to percentage (0.0-1.0)
-void Set( uint32_t aServo, float aPerc )
+void Set( uint8_t aServo, float aPerc )
 {
 	auto p = pca9865::QInstance();
 	if (p) {
@@ -293,7 +292,7 @@ void Set( uint32_t aServo, float aPerc )
 
 //--------------------------------------------------------
 // Set angle to range -90/+90
-void SetAngle( uint32_t aServo, float aAngle )
+void SetAngle( uint8_t aServo, float aAngle )
 {
 	auto p = pca9865::QInstance();
 	if (p) {
@@ -303,7 +302,7 @@ void SetAngle( uint32_t aServo, float aAngle )
 
 //--------------------------------------------------------
 //Set PWM values 0-4095
-void SetPWM( uint32_t aServo, uint32_t aOn, uint32_t aOff )
+void SetPWM( uint8_t aServo, uint32_t aOn, uint32_t aOff )
 {
 	auto p = pca9865::QInstance();
 	if (p) {
