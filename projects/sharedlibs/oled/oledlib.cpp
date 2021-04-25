@@ -50,9 +50,6 @@
 
 //NOTE: This current code will set the pixel at 0,0 but the scrolling will not scroll it.  Don't know if it's software causing it or not.
 
-//TODO: Background thread, at least for display update.
-//TODO: Multiple fonts
-//TODO: Scrolling
 //TODO: Multiple instances?
 
 // Buffer layout in bits.  128 columns by 64 rows.
