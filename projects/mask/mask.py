@@ -21,9 +21,9 @@ class mask(object):
  #0.045 - 0.25
  #0.13 - 0.156
 
-  _EYES = 0                                     # pca9865 eye servo index.
+  _EYES = 0                                     # pca9685 eye servo index.
   LRED, RRED, RGREEN, RBLUE = range(4)          # LED animation indexes.
-  _LEDINDEXES = [1, 2, 3, 4]                    # pca9865 LED indexes for the LEDs.
+  _LEDINDEXES = [1, 2, 3, 4]                    # pca9685 LED indexes for the LEDs.
   _LEDMIN = 0.01                                # Minimum LED value.
   _LEDMAX = 1.0                                 # Maximum LED value.
   _LEDRANGE = _LEDMAX - _LEDMIN                 # Total range of led values.
