@@ -7,7 +7,7 @@ from time import sleep
 #--------------------------------------------------------
 class quicrun(object):
   '''Controller for quicrun 1060 ESP.
-     This controller works through the pca9865 servo controller.
+     This controller works through the pca9685 servo controller.
      Converts speed values -1.0 to 1.0 into PWM signal values required to reflect that
      speed on the ESP.'''
 
@@ -31,8 +31,8 @@ class quicrun(object):
 
 #--------------------------------------------------------
   def __init__(self, aPCA, aIndex, aName = ''):
-    '''aPCA = pca9865 object to use for PWM control of the ESC.
-       aIndex = Servo index on pca9865 (0-15).
+    '''aPCA = pca9685 object to use for PWM control of the ESC.
+       aIndex = Servo index on pca9685 (0-15).
     '''
     super(quicrun, self).__init__()
     self._pca = aPCA
@@ -266,14 +266,9 @@ class quicrun(object):
 
     self._updatestate(aDelta)                   #Update the state system.
 
-#from pca9865 import *
-#p = pca9865()
-#q = quicrun(p, 8)
-#q.speed = 0.0
-
 #--------------------------------------------------------
 if __name__ == '__main__':  #start server
-  import pca9865 as pca
+  import pca9685 as pca
 
   pca.startup()
   q = quicrun(pca, 0, 'test')
