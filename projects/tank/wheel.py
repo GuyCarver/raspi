@@ -5,7 +5,7 @@ from speedo import *
 #--------------------------------------------------------
 class wheel(object):
   '''The wheels are run by an n298 dual h-bridge. The forward, backward and speed
-      pins for the n298 are attached to the pca9865. Forward and backward pins are
+      pins for the n298 are attached to the pca9685. Forward and backward pins are
       always set to either 1.0 or 0.0.  The speed is the only variable value.
       This was preferred to running separate wires to the raspi. A 3 wire servo cable
       was used for all 3 pins connecting to 3 consecutive signal pins on the pca.'''

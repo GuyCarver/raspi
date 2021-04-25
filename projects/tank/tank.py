@@ -3,9 +3,6 @@
 
 # sudo apt install rpi.gpio
 
-#todo: Add limits for camera movement.
-#todo: Add animation of camera movement rather than direct controller input.
-#todo: Test using x axis for camera control during movement.
 #todo: Add light sensor so we know when it's dark
 #todo: Add sound sensor to listen for triggers
 #todo: Add motion sensor?
@@ -21,7 +18,7 @@ from camera import *
 import state
 
 import vl53
-import pca9865 as pca
+import pca9685 as pca
 import onestick
 
 from time import perf_counter, sleep
@@ -96,7 +93,7 @@ class tank(object):
     self._states = {}
     self._states[tank._CONNECT] = state.create(u = self._connectUD)
     self._states[tank._HUMAN] = state.create(u = self._humanUD, i = self._humanIN)
-    self._states[tank._CAMERACONTROL] = state.create(u = self._cameraUD, i = self._cameraIN)
+    self._states[tank._CAMERACONTROL] = state.create(u = self._cameraUD, i = self._cameraIN. e = self._cameraEND)
     self._states[tank._TURNING] = state.create()
     self._states[tank._MOVEFWD] = state.create(s = self._movefwdST, u = self._movefwdUD)
     self._curstate = tank._CONNECT
@@ -193,17 +190,20 @@ class tank(object):
 #--------------------------------------------------------
   @property
   def stateobj( self ):
+    ''' Convert state index into object. '''
     return self._states[self._curstate]
 
 #--------------------------------------------------------
   @property
   def curstate( self ):
+    ''' Get the current state index. '''
     return self._curstate
 
 #--------------------------------------------------------
   @curstate.setter
   def curstate( self, aState ):
-    ''' Set and start a new state if changed and end the previous one. '''
+    ''' Set and start a new state if changed and end the previous one.
+        aState is a state index. '''
     if self._curstate != aState:
       state.end(self.stateobj)
       self._curstate = aState
@@ -321,6 +321,8 @@ class tank(object):
           self._strobe.toggle()
         elif aButton == ecodes.BTN_THUMBR:
           self.curstate = tank._HUMAN
+        elif aButton == ecodes.BTN_B:
+          self._camera.direct = not self._camera.direct
       else: #Handle release events.
         if aButton == ecodes.BTN_Y:
           self.togglelights()
@@ -331,6 +333,12 @@ class tank(object):
     except Exception as e:
       print(e)
       raise e
+
+#--------------------------------------------------------
+  def _cameraEND( self, aState ):
+    ''' End camera state by returning camera to center. '''
+    self._camera.center()
+    self._camera.off()                          # Turn servos off.  This may not be desired as they will be loose
 
 #--------------------------------------------------------
   def _movefwdUD( self, aState, aDT ):
@@ -369,18 +377,20 @@ class tank(object):
 
 #--------------------------------------------------------
   def _movefwdST( self, aState ):
-    '''  '''
+    ''' Start state to move forward N ticks. '''
     amount = 100
 
     self._left.update(0)
     self._right.update(0)
-    print('        ', end='\r')
+#     print('        ', end='\r')  # Put this in if wheel.update() has a print in it
 
+    #Store target speedo values on state
     aState['lw'] = self._left.dist + amount
     aState['rw'] = self._right.dist + amount
 
 #--------------------------------------------------------
   def run( self ):
+    ''' Main loop for tank. '''
     prevtime = perf_counter()
     try:
       while self.running:
@@ -389,8 +399,8 @@ class tank(object):
           print("quitting.")
         else:
           nexttime = perf_counter()
-          prevtime = nexttime
           delta = min(max(0.01, nexttime - prevtime), _dtime)
+          prevtime = nexttime
 
           state.update(self.stateobj, delta)
 
