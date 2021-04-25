@@ -76,8 +76,6 @@ class area(object):
         self._right = aRight
         self._front = aFront
 
-        oled.clear()
-
         #Calculate line for left/right/front.
         oled.pixel(self._center)
 
