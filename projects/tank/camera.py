@@ -34,10 +34,11 @@
 
 #--------------------------------------------------------
 class camera(object):
-  '''docstring for camera'''
+  ''' Object to control pan/tilt servos with a camera mounted. Has range limits
+       and smooth movement control. '''
 
-  _PANRANGE = (-75.0, 12.0, 110.0)  #right/center/left
-  _TILTRANGE = (-90.0, -10.0, 30.0) #up/center/down
+  _PANRANGE = (-75.0, 12.0, 110.0)              # right/center/left
+  _TILTRANGE = (-90.0, -10.0, 30.0)             # up/center/down
   _DEFAULTRATE = 2.0                            # v/second movement rate
 
   #--------------------------------------------------------
@@ -48,35 +49,53 @@ class camera(object):
     self._pca = aPCA
     self._pan = 0.0
     self._tilt = 0.0
+    self._direct = False                        # Flag to indicate direct input from controller.
     self._rate = camera._DEFAULTRATE
     self.update(0.0, 0.0, 0.0)
 
   #--------------------------------------------------------
   def center( self ):
-    '''  '''
+    ''' Center the pan/tilt servos. '''
     self._pan = self._tilt = 0.0
     self.update(0.0, 0.0, 0.0)
 
   def off( self ):
-    '''  '''
+    ''' Turn off the servos to save energy. '''
     self._pca.off(self._panPin)
     self._pca.off(self._tiltPin)
 
   #--------------------------------------------------------
   @property
   def rate( self ):
+    ''' Rate of movement in fractions/second. The controlled value is -1.0 - 1.0. '''
     return self._rate
 
   #--------------------------------------------------------
   @rate.setter
   def rate( self, aValue ):
+    ''' Set rate of movment in fractions/second. The controlled value is -1.0 - 1.0. '''
     self._rate = aValue
+
+  @property
+  def direct( self ):
+    ''' Flag indicating direct controller input. '''
+    return self._direct
+
+  @direct.setter
+  def direct( self, aValue ):
+    ''' Set flag for direct controller input. '''
+    self._direct = aValue
 
   #--------------------------------------------------------
   def update( self, aPan, aTilt, aDT ):
-    '''  '''
-    self._pan = min(1.0, max(-1.0, self._pan + (aPan * aDT * self._rate)))
-    self._tilt = min(1.0, max(-1.0, self._tilt + (aTilt * aDT * self._rate)))
+    ''' Update the servos controlling the camera. '''
+
+    if self.direct:
+      self._pan = aPan
+      self._tilt = aTilt
+    else:
+      self._pan = min(1.0, max(-1.0, self._pan + (aPan * aDT * self._rate)))
+      self._tilt = min(1.0, max(-1.0, self._tilt + (aTilt * aDT * self._rate)))
 
     mn = camera._PANRANGE[1]
     perc = self._pan
