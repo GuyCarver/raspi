@@ -4,10 +4,6 @@
 import RPi.GPIO as gp
 from mcp4725 import *
 
-def gpioinit(  ):
-  GPIO.setwarnings(False)
-  GPIO.setmode(GPIO.BCM)
-
 class base(object):
   ''' Object to handle the motor controller controlling the base rotation motor. '''
 
@@ -17,7 +13,8 @@ class base(object):
 
     #Make sure gpio is initialized.
     if gp.getmode() != gp.BCM:
-      gpioinit()
+      gp.setwarnings(False)
+      gp.setmode(gp.BCM)
 
     self._mcp = mcp()
     self._speed = 0.0

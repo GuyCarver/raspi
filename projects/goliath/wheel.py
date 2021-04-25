@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import RPi.GPIO as gp
+
 #--------------------------------------------------------
 class wheel(object):
   '''The wheels are run by an n298 dual h-bridge. The forward, backward and speed
@@ -17,11 +19,16 @@ class wheel(object):
   def __init__( self, pca, si, fi, bi ):
     ''' Initialize the wheel with pca, speed, forward and back indexes. '''
     super(wheel, self).__init__()
+    if gp.getmode() != gp.BCM:
+      gp.setwarnings(False)
+      gp.setmode(gp.BCM)
 
     self._pca = pca
     self._si = si
     self._fi = fi
     self._bi = bi
+    gp.setup(fi, gp.OUT)
+    gp.setup(bi, gp.OUT)
     self._name = ''
     self.speed(0.0)
 
@@ -62,14 +69,14 @@ class wheel(object):
     fwd, back, spd = aValues
 
     #Set full range of PWM signal to get a value from 0 to 1 on the pin.
-    self._pca.setpwm(self._fi, 0, int(fwd * 4095.0))
-    self._pca.setpwm(self._bi, 0, int(back * 4095.0))
+    gp.output(self._fi, fwd)
+    gp.output(self._bi, back)
     self._pca.setpwm(self._si, 0, int(spd * 4095.0))
 
 #--------------------------------------------------------
   def brake( self ):
     ''' Emergency stop by setting all values to 1. '''
-    self._write((1.0, 1.0, 1.0))
+    self._write((1, 1, 1.0))
 
 #--------------------------------------------------------
   def speed( self, aSpeed ):
@@ -77,11 +84,11 @@ class wheel(object):
     aSpeed *= wheel._scale
 
     if aSpeed < 0.0:
-      v = (0.0, 1.0, -wheel.clamp(aSpeed))
+      v = (0, 1, -wheel.clamp(aSpeed))
     elif (aSpeed > 0):
-      v = (1.0, 0.0, wheel.clamp(aSpeed))
+      v = (1, 0, wheel.clamp(aSpeed))
     else:
-      v = (0.0, 0.0, 0.0)
+      v = (0, 0, 0.0)
 
     self._write(v)
 

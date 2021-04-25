@@ -7,9 +7,57 @@ from gamepad import *
 from quicrun import *
 from base import *
 from wheel import *
+from multiplex import *
 
 from time import perf_counter, sleep
 from buttons import gpioinit, button
+
+#RASPI PINS:
+#18, 23, 24, 25, 8 = OUTPUT MUX
+#  OUTPUT PINS:
+#   0 = waist direction
+#   1 =
+#   2 =
+#   3 =
+#   4 =
+#   5 =
+#   6 =
+#   7 =
+#   8 =
+#   9 =
+#   10 =
+#   11 =
+#   12 =
+#   13 =
+#   14 =
+#   15 =
+#4, 17, 27, 22, 10= INPUT MUX
+#  INPUT PINS:
+#   0 =
+#   1 =
+#   2 =
+#   3 =
+#   4 =
+#   5 =
+#   6 =
+#   7 =
+#   8 =
+#   9 =
+#   10 =
+#   11 =
+#   12 =
+#   13 =
+#   14 =
+#   15 =
+#19, 26 = Riser motor direction
+#6, 13 = Pitch motor direction
+#ranges:
+#lwrist -30, 110  ccw/cw
+#larm horizontal 35, 57  (-90, 90 is the limits). L/R
+#larm vertical 25, 57  down/up
+#rarm vertical 65, 30  down/up
+
+
 
 gpioinit() # Initialize the GPIO system so we may use the pins for I/O.
 
@@ -20,7 +68,7 @@ _startupswitch = button(16)
 class goliath(object):
   """goliath2"""
   _DZ = 0.015                                   # Dead zone.
-  _WAISTPIN = 18                                # Pin # for WAIST motor direction control
+  _WAISTPIN = 18                                 # OUTMUX Pin # for WAIST motor direction control
   _LTRACKPIN = 0                                # PCA pin index for left track motor.
   _RTRACKPIN = 1                                # PCA pin index for right track motor.
   _MACADDRESS = '41:42:0B:90:D4:9E'             # Controller mac address
@@ -36,6 +84,7 @@ class goliath(object):
     pca.startup()
     self._buttonpressed = set()                 # Create empty set to keep track of button press events.
 
+    self._outmux = multiplex((18,23,24,25), 8, multiplex.OUT)
     onestick.adjustpoints(goliath._DZ)          # Adjust onestick values to account for dead zone.
     self._riser = wheel(pca, 2, 19, 26)
     self._pitch = wheel(pca, 3, 6, 13)
@@ -138,7 +187,7 @@ class goliath(object):
     dir = 1.0 if ecodes.BTN_SELECT in self._buttonpressed else 0.0
     if ecodes.BTN_START in self._buttonpressed:
       dir -= 1
-#    print('riser:', dir)
+#     print('riser:', dir)
 
     self._riser.speed(dir)
 #    self._pitch.speed(dir)
@@ -155,10 +204,8 @@ class goliath(object):
     try:
       while self._running:
         nexttime = perf_counter()
-        delta = max(0.01, nexttime - prevtime)
+        delta = min(max(0.01, nexttime - prevtime), _dtime)
         prevtime = nexttime
-        if delta > _dtime:
-          delta = _dtime
 
         self._controller.update()
         self.updatetracks()
@@ -186,4 +233,3 @@ if __name__ == '__main__':
   if len(sys.argv) > 1 or (_startupswitch.on):
     s = goliath()
     s.run()
-    GPIO.cleanup()
