@@ -1,24 +1,18 @@
 #!/usr/bin/env python3
 #Run the waist motor using an mcp4725 and a direction pin.
 
-import RPi.GPIO as gp
 from mcp4725 import *
 
 class base(object):
   ''' Object to handle the motor controller controlling the base rotation motor. '''
 
-  def __init__( self, aRevPin ):
-    ''' reverse button # '''
-    gp.setup(aRevPin, gp.OUT)
-
-    #Make sure gpio is initialized.
-    if gp.getmode() != gp.BCM:
-      gp.setwarnings(False)
-      gp.setmode(gp.BCM)
-
+  def __init__( self, aMux, aRevPin ):
+    ''' Control speed of base motor with mcp4725 DAC. aRevPin is a pin number on the
+         given multiplexer aMux. '''
     self._mcp = mcp()
     self._speed = 0.0
     self._reverse = False
+    self._mux = aMux
     self._revpin = aRevPin
     self.reverse = False
 
@@ -29,7 +23,7 @@ class base(object):
   @reverse.setter
   def reverse( self, aValue ):
     self._reverse = aValue
-    gp.output(self._revpin, aValue)
+    self._mux.write(self._revpin, aValue)
 
   @property
   def speed( self ):

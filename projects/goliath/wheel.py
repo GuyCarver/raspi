@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
-import RPi.GPIO as gp
-
 #--------------------------------------------------------
 class wheel(object):
   '''The wheels are run by an n298 dual h-bridge. The forward, backward and speed
-      pins for the n298 are attached to the pca9865. Forward and backward pins are
+      pins for the n298 are attached to the pca9685. Forward and backward pins are
       always set to either 1.0 or 0.0.  The speed is the only variable value.
       This was preferred to running separate wires to the raspi. A 3 wire servo cable
       was used for all 3 pins connecting to 3 consecutive signal pins on the pca.'''
@@ -16,19 +14,16 @@ class wheel(object):
   _SPEEDRANGE = 1.0 - _MINSPEED
 
 #--------------------------------------------------------
-  def __init__( self, pca, si, fi, bi ):
-    ''' Initialize the wheel with pca, speed, forward and back indexes. '''
+  def __init__( self, pca, mux, si, fi, bi ):
+    ''' Initialize the wheel with pca, mux, speed, forward and back indexes.
+        si is a pca index, fi/bi are mux indexes. '''
     super(wheel, self).__init__()
-    if gp.getmode() != gp.BCM:
-      gp.setwarnings(False)
-      gp.setmode(gp.BCM)
 
     self._pca = pca
+    self._mux = mux
     self._si = si
     self._fi = fi
     self._bi = bi
-    gp.setup(fi, gp.OUT)
-    gp.setup(bi, gp.OUT)
     self._name = ''
     self.speed(0.0)
 
@@ -69,8 +64,8 @@ class wheel(object):
     fwd, back, spd = aValues
 
     #Set full range of PWM signal to get a value from 0 to 1 on the pin.
-    gp.output(self._fi, fwd)
-    gp.output(self._bi, back)
+    self._mux.write(self._fi, fwd)
+    self._mux.write(self._bi, back)
     self._pca.setpwm(self._si, 0, int(spd * 4095.0))
 
 #--------------------------------------------------------
