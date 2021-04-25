@@ -186,10 +186,10 @@ public:
 	}
 
 	//--------------------------------------------------------
-	const float *GetAccelTempRot(  )
+	const float *GetRotTempAccel(  )
 	{
 		//Might want to lock before reading.
-		return _atp;
+		return _rta;
 	}
 
 	//--------------------------------------------------------
@@ -217,7 +217,7 @@ private:
 
 	float _buffer[8];
 
-	float _atp[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+	float _rta[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 	float _mag[3] = {0.0f, 0.0f, 0.0f};
 
 	float _magcalibration[3] = {1.0f, 1.0f, 1.0f};
@@ -358,16 +358,10 @@ private:
 	}
 
 	//--------------------------------------------------------
-	int16_t _read16LH( uint32_t aAddress, uint32_t aLoc )
-	{
-		return wiringPiI2CReadReg16(aAddress, aLoc);
-	}
-
-	//--------------------------------------------------------
 	float *_readbufferLH( uint32_t aAddress, uint32_t aLoc, uint32_t aCount )
 	{
 		for ( uint32_t i = 0; i < aCount; ++i) {
-			auto v = _read16LH(aAddress, aLoc + (i * 2));
+			int16_t v = wiringPiI2CReadReg16(aAddress, aLoc + (i * 2));
 			_buffer[i] = static_cast<float>(v);
 		}
 		return _buffer;
@@ -472,8 +466,8 @@ private:
 		}
 
 		for ( uint32_t i = 0; i < CALIBRATE_COUNT; ++i) {
-			UpdateAccelTempRot();
-			auto pdata = GetAccelTempRot();
+			UpdateRotTempAccel();
+			auto pdata = GetRotTempAccel();
 // 			for ( uint32_t i = 0; i < 7; ++i) {
 // 				std::cout << pdata[i] << ", ";
 // 			}
@@ -505,20 +499,20 @@ private:
 	}
 
 	//--------------------------------------------------------
-	void UpdateAccelTempRot(  )
+	void UpdateRotTempAccel(  )
 	{
 		auto pdata = _readbuffer(_i2cgy, ACCEL_XOUT_H, 7);
 		uint32_t i = 0;
 		for ( ; i < 3; ++i) {
-			_atp[i] = (pdata[i] * _ares) - _abias[i];
+			_rta[i] = (pdata[i] * _ares) - _abias[i];
 		}
 
 		//Convert temperature value to celcius.
-		_atp[i] = (pdata[i] / 333.87) + 21.0;		// Just copy the temperature over.
+		_rta[i] = (pdata[i] / 333.87) + 21.0;		// Just copy the temperature over.
 		++i;
 
 		for ( uint32_t j = 0; j < 3; ++i, ++j) {
-			_atp[i] = (pdata[i] * _gres) - _gbias[j];
+			_rta[i] = (pdata[i] * _gres) - _gbias[j];
 		}
 	}
 
@@ -548,7 +542,7 @@ private:
 
 		while(_bRunning) {
 			_suspend.lock();
-			UpdateAccelTempRot();
+			UpdateRotTempAccel();
 			UpdateMag();
 			_suspend.unlock();
 			delayMicroseconds(33333);			// We are going to run this at 30hz.
@@ -598,12 +592,12 @@ void Shutdown(  )
 }
 
 //--------------------------------------------------------
-const float *GetAccelTempRot(  )
+const float *GetRotTempAccel(  )
 {
 	const float *d = nullptr;
 	auto p = mpu9250::QInstance();
 	if (p) {
-		d = p->GetAccelTempRot();
+		d = p->GetRotTempAccel();
 	}
 	return d;
 }

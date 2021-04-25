@@ -11,7 +11,7 @@ mpu9250.startup()
 # oled.setdim(0xFF)
 
 while 1:
-  atr = mpu9250.getacceltemprot()
+  rta = mpu9250.getrottempaccel()
   m = mpu9250.getmag()
 
   def formattxt( aItem, aVal ):
@@ -25,5 +25,5 @@ while 1:
 #   oled.text((0, y), formattxt('z', m[2]))
 #   oled.display()
   print('{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}'.format(
-    atr[0], atr[1], atr[2], atr[4], atr[5], atr[6], m[0], m[1], m[2]), end='\r')
+    rta[0], rta[1], rta[2], rta[4], rta[5], rta[6], m[0], m[1], m[2]), end='\r')
   time.sleep(0.25)
