@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #11/15/2018 11:37 PM
 
-from pca9865 import *
+from pca9685 import *
 from quicrun import *
 from gamepad import *
 from sound import *
@@ -116,7 +116,7 @@ class sentrybot(object):
     self._gpmacaddress = '' #'E4:17:D8:2C:08:68'
     self.armangle = 0.0                         #Angle of arms used to rotate x,y input to the 2 arm servos.
     self.invert = False                         #Invert joystick y input.
-    self._pca = pca9865(100)
+    self._pca = pca9685(100)
     self._buttonpressed = set()                 #set used to hold button pressed states, used for debounce detection.
     self._gunrate = 0.15
     self._gunon = False

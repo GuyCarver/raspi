@@ -242,7 +242,7 @@ def off( aIndex = -1 ):
       if p:
         p.off()
 
-from pca9865 import *
+from pca9685 import *
 
 def test(  ):
 

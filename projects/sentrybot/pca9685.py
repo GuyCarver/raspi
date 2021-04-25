@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 #11/10/2018 11:10 AM
 
-# PCA9865 16 servo controller driver for Raspberry PI
+# PCA9685 16 servo controller driver for Raspberry PI
 
 from smbus import SMBus
 from time import sleep
 
-class pca9865(object):
+class pca9685(object):
   '''16 servo contoller. Use index 0-15 for the servo #.'''
 
   _ADDRESS = 0x40

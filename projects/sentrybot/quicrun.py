@@ -8,7 +8,7 @@ from os import environ
 #--------------------------------------------------------
 class quicrun(object):
   '''Controller for quicrun 1060 ESP.
-     This controller works through the pca9865 servo controller.'''
+     This controller works through the pca9685 servo controller.'''
 
   if 'GUY' in environ:
     _IDLE = 40
@@ -39,8 +39,8 @@ class quicrun(object):
 
 #--------------------------------------------------------
   def __init__(self, aPCA, aIndex, aName):
-    '''aPCA = pca9865 object to use for PWM control of the ESC.
-       aIndex = Servo index on pca9865 (0-15).
+    '''aPCA = pca9685 object to use for PWM control of the ESC.
+       aIndex = Servo index on pca9685 (0-15).
        If rate is > 0 then the speed value is interpolated over time.
        In this case update() must be called once per frame with delta time.
     '''
@@ -355,8 +355,8 @@ class quicrun(object):
 
     self._updatestate(aDelta)                   #Update the state system.
 
-#from pca9865 import *
-#p = pca9865()
+#from pca9685 import *
+#p = pca9685()
 #q = quicrun(p, 8)
 #q.speed = 0.0
 

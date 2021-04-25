@@ -6,8 +6,8 @@ class atom(object):
   _defminmax = (94.0, 120.0)
 
   def __init__( self, aPCA, aIndex, aName = '' ):
-    '''aPCA = pca9865 object to use for PWM control of the ESC.
-       aIndex = Servo index on pca9865 (0-15).
+    '''aPCA = pca9685 object to use for PWM control of the ESC.
+       aIndex = Servo index on pca9685 (0-15).
        If rate is > 0 then the speed value is interpolated over time.
        In this case update() must be called once per frame with delta time.
     '''
@@ -120,9 +120,9 @@ class atom(object):
     self._set(self._speed)
 
 if __name__ == '__main__':  #start server
-  from pca9865 import *
+  from pca9685 import *
 
-  p = pca9865(100)
+  p = pca9685(100)
   a = atom(p, 15)
   a.rate = 10.0
 

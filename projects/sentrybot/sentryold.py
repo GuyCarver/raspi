@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from pca9865 import *
+from pca9685 import *
 from quicrun import *
 from gamepad import *
 from sound import *
@@ -82,7 +82,7 @@ class sentrybot(object):
     self._rate = 90.0
     self.armangle = 0.0
     self.invert = False
-    self._pca = pca9865()
+    self._pca = pca9685()
 
     self.load()                                 #load settings json
 
