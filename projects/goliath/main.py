@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-import pca9865 as pca
+import pca9685 as pca
 import onestick
 from gamepad import *
 from quicrun import *
@@ -13,13 +13,14 @@ from time import perf_counter, sleep
 from buttons import gpioinit, button
 
 #RASPI PINS:
-#18, 23, 24, 25, 8 = OUTPUT MUX
-#  OUTPUT PINS:
+
+#(18, 23, 24, 25), 8 = OUTPUT MUX
+#  MUX OUTPUT PINS:
 #   0 = waist direction
-#   1 =
-#   2 =
-#   3 =
-#   4 =
+#   1 = Riser motor direction fwd
+#   2 = Riser motor direction back
+#   3 = Pitch motor direction fwd
+#   4 = Pitch motor direction back
 #   5 =
 #   6 =
 #   7 =
@@ -31,8 +32,9 @@ from buttons import gpioinit, button
 #   13 =
 #   14 =
 #   15 =
-#4, 17, 27, 22, 10= INPUT MUX
-#  INPUT PINS:
+
+#(4, 17, 27, 22), 10 = INPUT MUX
+#  MUX INPUT PINS:
 #   0 =
 #   1 =
 #   2 =
@@ -49,14 +51,17 @@ from buttons import gpioinit, button
 #   13 =
 #   14 =
 #   15 =
-#19, 26 = Riser motor direction
-#6, 13 = Pitch motor direction
+
 #ranges:
+#All servos have a range of 0 to 90 with center at 45.
 #lwrist -30, 110  ccw/cw
-#larm horizontal 35, 57  (-90, 90 is the limits). L/R
+#larm horizontal 35, 57  L/R
 #larm vertical 25, 57  down/up
 #rarm vertical 65, 30  down/up
-
+#rarm horizontal 52, 44, 35 L/R
+#larm vertical 25, 57  down/up
+#rarm vertical 65, 30  down/up
+#rwrist -30, 110  ccw/cw
 
 
 gpioinit() # Initialize the GPIO system so we may use the pins for I/O.
@@ -68,7 +73,7 @@ _startupswitch = button(16)
 class goliath(object):
   """goliath2"""
   _DZ = 0.015                                   # Dead zone.
-  _WAISTPIN = 18                                 # OUTMUX Pin # for WAIST motor direction control
+  _WAISTPIN = 0                                 # OUTMUX Pin # for WAIST motor direction control
   _LTRACKPIN = 0                                # PCA pin index for left track motor.
   _RTRACKPIN = 1                                # PCA pin index for right track motor.
   _MACADDRESS = '41:42:0B:90:D4:9E'             # Controller mac address
@@ -104,7 +109,7 @@ class goliath(object):
     #Initialize the PS4 controller.
     self._controller = gamepad(goliath._MACADDRESS, self._buttonaction)
 
-    self._waist = base(goliath._WAISTPIN)
+    self._waist = base(self._outmux, goliath._WAISTPIN)
 
     self._speed = 1.0                           #speed scale for track motors.
 
