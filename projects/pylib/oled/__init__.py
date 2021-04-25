@@ -39,7 +39,7 @@
 from smbus import SMBus
 
 __version__ = '1.0.0'
-__author__ 'Guy Carver'
+__author__ = 'Guy Carver'
 __all__ = ['terminalfont', 'sysfont', 'seriffont' ]
 
 #Buffer layout in bits.  128 columns by 64 rows.
@@ -62,6 +62,7 @@ __all__ = ['terminalfont', 'sysfont', 'seriffont' ]
 #   406 40E
 #   407 40F
 
+#--------------------------------------------------------
 class oled(object):
   """diyMall OLED 9.6 128x64 pixel display driver.
      Now also supports 128x32"""
@@ -121,6 +122,7 @@ class oled(object):
   _VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL = 0x29
   _VERTICAL_AND_LEFT_HORIZONTAL_SCROLL = 0x2A
 
+  #--------------------------------------------------------
   def __init__( self, aLoc = 1, aHeight = 64 ):
     """aLoc I2C pin location is either 1 for 'X' or 2 for 'Y'.
        aHeight should be either 64 or 32."""
@@ -155,19 +157,24 @@ class oled(object):
 
     self.display()
 
+  #--------------------------------------------------------
   @property
   def size( self ): return self._size
 
+  #--------------------------------------------------------
   @property
   def rotation( self ): return self._rotation
 
+  #--------------------------------------------------------
   @rotation.setter
   def rotation( self, aValue ):
     self._rotation = aValue & 3
 
+  #--------------------------------------------------------
   @property
   def on( self ): return self._on
 
+  #--------------------------------------------------------
   @on.setter
   def on( self, aTF ):
     '''Turn display on or off.'''
@@ -175,24 +182,29 @@ class oled(object):
       self._on = aTF
       self._command(oled._DISPLAYON if aTF else oled._DISPLAYOFF)
 
+  #--------------------------------------------------------
   @property
   def invert( self ): return self._inverted
 
+  #--------------------------------------------------------
   @invert.setter
   def invert( self, aTF ):
     if aTF != self._inverted:
       self._inverted = aTF
       self._command(oled._INVERTDISPLAY if aTF else oled._NORMALDISPLAY)
 
+  #--------------------------------------------------------
   @property
   def dim( self ):
     return self._dim
 
+  #--------------------------------------------------------
   @dim.setter
   def dim( self, aValue ):
     self._dim = aValue
     self._command(oled._SETCONTRAST, self._dim)
 
+  #--------------------------------------------------------
   def _data( self, aValue ):
     '''
     Sends a data byte or sequence of data bytes through to the
@@ -203,17 +215,21 @@ class oled(object):
     for i in range(0, len(aValue), 32):
       self._i2c.write_i2c_block_data(oled.ADDRESS, oled._DATAMODE, aValue[i:i+32])
 
+  #--------------------------------------------------------
   def _command( self, *aValue ):
     assert(len(aValue) <= 32)
     self._i2c.write_i2c_block_data(oled.ADDRESS, oled._CMDMODE, list(aValue))
 
+  #--------------------------------------------------------
   def fill( self, aValue ):
     for x in range(0, self._bytes):
       self._buffer[x] = aValue;
 
+  #--------------------------------------------------------
   def clear( self ):
     self.fill(0)
 
+  #--------------------------------------------------------
   def pixel( self, aPos, aOn ):
     '''Draw a pixel at the given position'''
     x, y = aPos
@@ -234,6 +250,7 @@ class oled(object):
       else:
         self._buffer[index] &= ~bit
 
+  #--------------------------------------------------------
   def line( self, aStart, aEnd, aOn ):
     '''Draws a line from aStart to aEnd in the given color.  Vertical or horizontal
        lines are forwarded to vline and hline.'''
@@ -269,6 +286,7 @@ class oled(object):
         e += dx
         py += iny
 
+  #--------------------------------------------------------
   def fillrect( self, aStart, aSize, aOn ):
     '''Draw a filled rectangle.  aStart is the smallest coordinate corner
        and aSize is a tuple indicating width, height.'''
@@ -279,6 +297,7 @@ class oled(object):
     for i in range(y, y + h):
       self.line((x, i), (ex, i), aOn)
 
+  #--------------------------------------------------------
   def text( self, aPos, aString, aColor, aFont, aSize = 1 ):
     '''Draw a text at the given position.  If the string reaches the end of the
        display it is wrapped to aPos[0] on the next line.  aSize may be an integer
@@ -305,6 +324,7 @@ class oled(object):
         py += aFont["Height"] * wh[1] + 1
         px = aPos[0]
 
+  #--------------------------------------------------------
   def char( self, aPos, aChar, aOn, aFont, aSizes ):
     '''Draw a character at the given position using the given font and color.
        aSizes is a tuple with x, y as integer scales indicating the
@@ -347,13 +367,16 @@ class oled(object):
             c >>= 1
           px += aSizes[0]
 
+  #--------------------------------------------------------
   def _scrollLR( self, start, stop, aDir ):
     self._command(aDir, 0x00, start, 0x00, stop, 0x00, 0xFF, oled._ACTIVATE_SCROLL)
 
+  #--------------------------------------------------------
   def _scrollDiag( self, start, stop, aDir ):
     self._command(oled._SET_VERTICAL_SCROLL_AREA, 0x00, self.size[1], aDir, 0x00,
       start, 0x00, stop, 0x01, oled._ACTIVATE_SCROLL)
 
+  #--------------------------------------------------------
   def scroll( self, adir, start=0, stop=7 ):
     '''Scroll in given direction.  Display is split in 8 vertical segments.'''
     if adir == oled.STOP:
@@ -367,6 +390,7 @@ class oled(object):
     elif adir == oled.DIAGRIGHT:
       self._scrollDiag(start, stop, oled._VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL)
 
+  #--------------------------------------------------------
   def display( self ):
     self._command(oled._COLUMNADDR, 0, self.size[0] - 1, oled._PAGEADDR, 0, self._pages - 1)
 #    self._command(oled._SETLOWCOLUMN, oled._SETHIGHCOLUMN, oled._SETSTARTLINE)
