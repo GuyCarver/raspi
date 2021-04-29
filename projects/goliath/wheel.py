@@ -66,7 +66,7 @@ class wheel(object):
     #Set full range of PWM signal to get a value from 0 to 1 on the pin.
     self._mux.write(self._fi, fwd)
     self._mux.write(self._bi, back)
-    self._pca.setpwm(self._si, 0, int(spd * 4095.0))
+    self._pca.setpwm(self._si, spd)
 
 #--------------------------------------------------------
   def brake( self ):
