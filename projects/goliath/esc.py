@@ -68,7 +68,6 @@ class esc(object):
        aRanges = tuple of 5 range values idle, fwdmin, fwdmax, backmin, backmax
     '''
     super(esc, self).__init__()
-    self._initdelay = 0.2
     self._revdelays = (0.03, 0.03)
     self._pca = aPCA
     self._index = aIndex
@@ -81,7 +80,6 @@ class esc(object):
     self._targetspeed = 0.0
     self._minmax = esc._DEFMINMAX
     self._state = esc._STOPPED
-    self.reset()
 
   #--------------------------------------------------------
   @property
@@ -96,6 +94,7 @@ class esc(object):
   def rate( self ):
     return self._rate
 
+  #--------------------------------------------------------
   @rate.setter
   def rate( self, aValue ):
     '''Set rate in units/second for update.'''
@@ -106,6 +105,7 @@ class esc(object):
   def scale( self ):
     return self._scale
 
+  #--------------------------------------------------------
   @scale.setter
   def scale( self, aValue ):
     self._scale = aValue
@@ -115,6 +115,7 @@ class esc(object):
   def minmax( self ):
     return self._minmax
 
+  #--------------------------------------------------------
   @minmax.setter
   def minmax( self, aValue ):
     '''Set min/maximum speed values between -1.0 and 1.0'''
@@ -154,13 +155,13 @@ class esc(object):
     return min(max(aValue, self._minmax[0]), self._minmax[1])
 
   #--------------------------------------------------------
-  def reset( self ) :
+  def reset( self, aDelay ) :
     self._set(self.range(esc._FWD_MAX))
-    sleep(self._initdelay)
+    sleep(aDelay)
     self._set(self.range(esc._BACK_MAX))
-    sleep(self._initdelay)
+    sleep(aDelay)
     self._set(self.range(esc._IDLE))
-    sleep(self._initdelay)
+    sleep(aDelay)
     self._speed = 0.0
     self._targetspeed = self._speed
 
@@ -181,6 +182,7 @@ class esc(object):
   def center( self ):
     return self.range(esc._IDLE)
 
+  #--------------------------------------------------------
   @center.setter
   def center( self, aValue ):
     pass
@@ -191,6 +193,7 @@ class esc(object):
   def value( self ):
     return self.speed
 
+  #--------------------------------------------------------
   @value.setter
   def value( self, aValue ):
     self.speed = aValue
@@ -200,6 +203,7 @@ class esc(object):
   def speed( self ):
     return self._targetspeed
 
+  #--------------------------------------------------------
   @speed.setter
   def speed( self, aValue ):
     '''Set target speed -1.0 to 1.0 and scale it based on the scale value.'''
@@ -241,7 +245,9 @@ class esc(object):
     '''
 
     if self._speed < 0.0:
-      if aDelta <= 0.0:
+      #if no delta time we aren't running an update.  Will only work for some escs.
+      #Also if no delay for reverse, assume no init process is needed.
+      if (aDelta <= 0.0) or (self._revdelays[0] == 0.0):
 #         print('no delta')
         self._state = esc._REVERSE
       else:
@@ -354,6 +360,7 @@ class surpass(esc):
   def __init__( self, aPCA, aIndex, aName = '' ):
     super(surpass, self).__init__(aPCA, aIndex, surpass._RANGES, aName)
     self._revdelays = (0.25, 0.03)  #The surpass esc has longer delay for 1st phase of reverse init.
+    self.reset(0.28)
 
 #--------------------------------------------------------
 class quicrun(esc):
@@ -365,6 +372,8 @@ class quicrun(esc):
   #--------------------------------------------------------
   def __init__( self, aPCA, aIndex, aName = '' ):
     super(quicrun, self).__init__(aPCA, aIndex, quicrun._RANGES, aName)
+    self._revdelays = (0.0, 0.0)  #This quicrun doesn't require a reverse init.
+    self.reset(0.25)
 
 #--------------------------------------------------------
 # if __name__ == '__main__':  #start server
