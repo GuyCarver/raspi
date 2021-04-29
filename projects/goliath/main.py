@@ -4,7 +4,7 @@ import sys
 import pca9685 as pca
 import onestick
 from gamepad import *
-from quicrun import *
+from esc import quicrun, surpass
 from base import *
 from wheel import *
 from multiplex import *
