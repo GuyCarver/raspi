@@ -36,11 +36,6 @@
 import RPi.GPIO as gp
 
 #--------------------------------------------------------
-def gpioinit(  ):
-  gp.setwarnings(False)
-  gp.setmode(gp.BCM)
-
-#--------------------------------------------------------
 class multiplex(object):
   ''' Driver for 74HC4067 16-Channel and 74HC4051 multiplexers '''
 
@@ -57,7 +52,8 @@ class multiplex(object):
 
     #Make sure gpio is initialized.
     if gp.getmode() != gp.BCM:
-      gpioinit()
+      gp.setwarnings(False)
+      gp.setmode(gp.BCM)
 
     self._pins = aPins
     self._signal = aSignal
