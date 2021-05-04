@@ -15,6 +15,7 @@ from strobe import *
 from sides import *
 from area import *
 from camera import *
+from lightbank import lightbank
 import state
 
 import vl53
@@ -391,7 +392,7 @@ class tank(object):
 #--------------------------------------------------------
   def run( self ):
     ''' Main loop for tank. '''
-    prevtime = perf_counter()
+    prevtime = perf_counter()                   # Get time in seconds.
     try:
       while self.running:
         if self._haskeyboard and keyboard.is_pressed('q'):
@@ -403,6 +404,7 @@ class tank(object):
           prevtime = nexttime
 
           state.update(self.stateobj, delta)
+          self._lightbank.update(delta)
 
           nexttime = perf_counter()
           sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted
