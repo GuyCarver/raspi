@@ -9,10 +9,6 @@ import RPi.GPIO as gp
 # gp.setup(channel, gp.IN, pull_up_down = gp.PUD_UP)
 # res = gp.input(self._channel)
 
-def gpioinit(  ):
-  gp.setwarnings(False)
-  gp.setmode(gp.BCM)
-
 class button(object):
   ''' Handle input from a single button channel on gp. '''
 
@@ -21,7 +17,8 @@ class button(object):
 
     #Make sure gpio is initialized.
     if gp.getmode() != gp.BCM:
-      gpioinit()
+      gp.setwarnings(False)
+      gp.setmode(gp.BCM)
 
     self._channel = channel
     gp.setup(channel, gp.IN, pull_up_down = gp.PUD_UP)
@@ -56,4 +53,17 @@ class button(object):
     self._prevstate = self._curstate
     res = gp.input(self._channel)
     self._curstate = (res == 0)                 # 0 = button pressed.
+
+if __name__ == '__main__':
+  import sys
+  from time import sleep
+  bi = 4
+  if len(sys.argv) > 1:
+    bi = int(sys.argv[1])
+
+  b = button(bi)
+  while True:
+    b.update()
+    print('State: ', b.state, '     ', end='\r')
+    sleep(0.1)
 
