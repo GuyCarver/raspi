@@ -1,5 +1,5 @@
 #PC version of the clock display.
-#installed requests, bs4
+#installed pygame, requests, bs4
 
 import os, sys, pygame
 from pygame.locals import *
