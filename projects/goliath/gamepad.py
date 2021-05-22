@@ -229,12 +229,18 @@ class gamepad(object):
     try:
       os.system('echo "power on \nconnect ' + self._id + ' \nquit" | sudo bluetoothctl')
 
-      sleep(2.0)
+      sleep(3.0)
+
       self._device = gamepad.finddevice()
       if self.connected:
         sleep(0.1)
         print('connected!')
         return self.connected
+      else:
+        #Disconnect because sometimes connect seems to work, but screws up and reports
+        # connected but isn't and wont work unless we disconnect.
+        os.system('echo "power on \ndisconnect ' + self._id + ' \nquit" | sudo bluetoothctl')
+        sleep(0.25)
     except Exception as e:
       if gamepad.debug:
         if gamepad.debug > 1:
