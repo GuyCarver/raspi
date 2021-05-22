@@ -41,10 +41,8 @@ _IMUX_3 = 22
 _IMUX_S = 10
 
 _WAISTPIN = 5
-_RISERF = 6                                     # Riser forward/backword pins
-_RISERB = 13
-_PITCHF = 19                                    # Pitch forward/backword pins
-_PITCHB = 26
+_RISERB = 19                                    # Riser motor backward control pin
+_PITCHB = 26                                    # Pitch motor backward control pin
 
 #--------------------------------------------------------
 #  MUX OUTPUT PINS:
@@ -120,13 +118,11 @@ class goliath(object):
     self._outmux = multiplex((_OMUX_0,_OMUX_1,_OMUX_2,_OMUX_3), _OMUX_S, multiplex.OUT)
     onestick.adjustpoints(_DZ)                  # Adjust onestick values to account for dead zone.
 
-    rfwd = pin(_RISERF)
     rback = pin(_RISERB)
-    self._riser = wheel(pca, _RISERSPD, rfwd, rback)
+    self._riser = wheel(pca, _RISERSPD, rback)
 
-    pfwd = pin(_PITCHF)
     pback = pin(_PITCHB)
-    self._pitch = wheel(pca, _PITCHSPD, pfwd, pback)
+    self._pitch = wheel(pca, _PITCHSPD, pback)
 
     def qr( aIndex ):
       q = quicrun(pca, aIndex)
