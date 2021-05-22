@@ -6,24 +6,21 @@ from mcp4725 import *
 class base(object):
   ''' Object to handle the motor controller controlling the base rotation motor. '''
 
-  def __init__( self, aMux, aRevPin ):
-    ''' Control speed of base motor with mcp4725 DAC. aRevPin is a pin number on the
-         given multiplexer aMux. '''
+  def __init__( self, aRevPin ):
+    ''' Control speed of base motor with mcp4725 DAC. aRevPin is a pin object
+        used to control reverse (see pin.py). '''
     self._mcp = mcp()
     self._speed = 0.0
     self._reverse = False
-    self._mux = aMux
     self._revpin = aRevPin
-    self.reverse = False
 
   @property
   def reverse( self ):
-    return self._reverse
+    return self._revpin.value
 
   @reverse.setter
   def reverse( self, aValue ):
-    self._reverse = aValue
-    self._mux.write(self._revpin, aValue)
+    self._revpin.value = aValue
 
   @property
   def speed( self ):

@@ -44,7 +44,7 @@ class multiplex(object):
   PUP = gp.PUD_UP
   PDOWN = gp.PUD_DOWN
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def __init__( self, aPins, aSignal, aMode = IN, aPUD = PUP ):
     '''Initialize, aPins must be a container with gpio pin values, aSignal is the signal pin
         which will be set to aMode and aPUD (input mode only). '''
@@ -69,21 +69,24 @@ class multiplex(object):
     else:
       gp.setup(aSignal, aMode, aPUD)
 
-#--------------------------------------------------------
+    self.update()
+
+  #--------------------------------------------------------
   def _setIndex( self, aIndex ):
     ''' Set index to perform I/O on. '''
     for p in self._pins:
       gp.output(p, aIndex & 1)
       aIndex >>= 1
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def _write( self, aIndex ):
     ''' Write value to given index. '''
 
     self._setIndex(aIndex)
     gp.output(self._signal, self._values[aIndex])
+#     print('index, value:', aIndex, self._values[aIndex])
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def write( self, aIndex, aValue ):
     ''' Write value to given index. Raise exception if not set for output. '''
     if self._mode != multiplex.OUT:
@@ -94,13 +97,13 @@ class multiplex(object):
     self._values[aIndex] = aValue
     self._write(aIndex)
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def _read( self, aIndex ):
     ''' Read value from given index. '''
     self._setIndex(aIndex)
     self._values[aIndex] = gp.input(self._signal)
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def read( self, aIndex ):
     ''' Read value from given index. Raise exception if not set for input. '''
     if self._mode != multiplex.IN:
@@ -111,7 +114,7 @@ class multiplex(object):
     self._read(aIndex)
     return self._values[aIndex]
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def value( self, aIndex ):
     ''' Read value from buffer that was set during update(). '''
     if self._mode != multiplex.IN:
@@ -119,7 +122,7 @@ class multiplex(object):
 
     return self._values[aIndex]
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def setvalue( self, aIndex, aValue ):
     ''' Set value to buffer for write during update(). '''
     if self._mode != multiplex.OUT:
@@ -127,7 +130,7 @@ class multiplex(object):
 
     self._values[aIndex] = aValue
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def update( self ):
     ''' Update by either reading data into or sending data from the buffer. '''
 
@@ -135,11 +138,10 @@ class multiplex(object):
     for i in range(len(self._values)):
       fn(i)
 
-
+#--------------------------------------------------------
 if __name__ == '__main__':
   from time import sleep
 
-  gpioinit()
   mx = multiplex((5,6,13,19), 26)
   while True:
     mx.update()
