@@ -8,19 +8,52 @@ from esc import quicrun, surpass
 from base import *
 from wheel import *
 from multiplex import *
+from pin import *
 
 from time import perf_counter, sleep
-from buttons import gpioinit, button
+from buttons import button
 
-#RASPI PINS:
+#NOTE:
+# A lot of Pin code has changed as well as main.py being renamed goliath.py.
+#  Suggest updating everything. Also update and rebuild pca9685.
+# Need to change evdev to run goliath.py instead of main.py
+# Wrote the arm module but it isn't currently used
 
-#(18, 23, 24, 25), 8 = OUTPUT MUX
+#--------------------------------------------------------
+#PCA9685 pins:
+_LTRACKPIN = 0                                  # left track motor
+_RTRACKPIN = 1                                  # right track motor
+_RISERSPD = 2
+_PITCHSPD = 3
+
+#--------------------------------------------------------
+#RASPI pins:
+_OMUX_0 = 18                                    # Output Multiplexer pins
+_OMUX_1 = 23
+_OMUX_2 = 24
+_OMUX_3 = 25
+_OMUX_S = 8
+
+_IMUX_0 = 4                                     # Input Multiplexer pins
+_IMUX_1 = 17
+_IMUX_2 = 27
+_IMUX_3 = 22
+_IMUX_S = 10
+
+_WAISTPIN = 5
+_RISERF = 6                                     # Riser forward/backword pins
+_RISERB = 13
+_PITCHF = 19                                    # Pitch forward/backword pins
+_PITCHB = 26
+
+#--------------------------------------------------------
 #  MUX OUTPUT PINS:
-#   0 = waist direction
-#   1 = Riser motor direction fwd
-#   2 = Riser motor direction back
-#   3 = Pitch motor direction fwd
-#   4 = Pitch motor direction back
+#Currently these are raspi pins until I figure out how to get them to work.
+#_WAISTPIN = 0                                 # OUTMUX Pin # for WAIST motor direction control
+#_RISERF = 1                                   # Riser motor direction fwd
+#_RISERB = 2                                   # Riser motor direction back
+#_PITCHF = 3                                   # Pitch motor direction fwd
+#_PITCHB = 4                                   # Pitch motor direction back
 #   5 =
 #   6 =
 #   7 =
@@ -33,7 +66,7 @@ from buttons import gpioinit, button
 #   14 =
 #   15 =
 
-#(4, 17, 27, 22), 10 = INPUT MUX
+#--------------------------------------------------------
 #  MUX INPUT PINS:
 #   0 =
 #   1 =
@@ -52,47 +85,48 @@ from buttons import gpioinit, button
 #   14 =
 #   15 =
 
-#ranges:
-#All servos have a range of 0 to 90 with center at 45.
-#lwrist -30, 110  ccw/cw
-#larm horizontal 35, 57  L/R
-#larm vertical 25, 57  down/up
-#rarm vertical 65, 30  down/up
-#rarm horizontal 52, 44, 35 L/R
-#larm vertical 25, 57  down/up
-#rarm vertical 65, 30  down/up
-#rwrist -30, 110  ccw/cw
+#--------------------------------------------------------
+#Arm angle ranges:
+#Almost all servos have a center at 45.
+_LWRIST = (-30.0, 45.0, 110.0)  #ccw/cw
+_LARMH = (35.0, 45.0, 57.0)     #L/R
+_LARMV = (25.0, 45.0, 57.0)     #D/U
 
+_RWRIST = (-30.0, 45.0, 110.0)  #ccw/cw
+_RARMH = (52.0, 44.0, 35.0)     #L/R
+_RARMV = (65.0, 45.0, 30.0)     #D/U
 
-gpioinit() # Initialize the GPIO system so we may use the pins for I/O.
-
+#--------------------------------------------------------
 _dtime = .03
 _startupswitch = button(16)
+_DZ = 0.015                                   # Dead zone.
+_MACADDRESS = '41:42:0B:90:D4:9E'             # Controller mac address
 
 #--------------------------------------------------------
 class goliath(object):
-  """goliath2"""
-  _DZ = 0.015                                   # Dead zone.
-  _WAISTPIN = 0                                 # OUTMUX Pin # for WAIST motor direction control
-  _LTRACKPIN = 0                                # PCA pin index for left track motor.
-  _RTRACKPIN = 1                                # PCA pin index for right track motor.
-  _MACADDRESS = '41:42:0B:90:D4:9E'             # Controller mac address
+  ''' goliath '''
   _speedchange = 0.25
   _trackrate = 0.0
 
   ltrack, rtrack = range(2)                     # Indexes for _qs track controllers.
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def __init__( self ):
     super(goliath, self).__init__()
 
     pca.startup()
     self._buttonpressed = set()                 # Create empty set to keep track of button press events.
 
-    self._outmux = multiplex((18,23,24,25), 8, multiplex.OUT)
-    onestick.adjustpoints(goliath._DZ)          # Adjust onestick values to account for dead zone.
-    self._riser = wheel(pca, 2, 19, 26)
-    self._pitch = wheel(pca, 3, 6, 13)
+    self._outmux = multiplex((_OMUX_0,_OMUX_1,_OMUX_2,_OMUX_3), _OMUX_S, multiplex.OUT)
+    onestick.adjustpoints(_DZ)                  # Adjust onestick values to account for dead zone.
+
+    rfwd = pin(_RISERF)
+    rback = pin(_RISERB)
+    self._riser = wheel(pca, _RISERSPD, rfwd, rback)
+
+    pfwd = pin(_PITCHF)
+    pback = pin(_PITCHB)
+    self._pitch = wheel(pca, _PITCHSPD, pfwd, pback)
 
     def qr( aIndex ):
       q = quicrun(pca, aIndex)
@@ -102,14 +136,15 @@ class goliath(object):
 
     #left/right track controllers.
     self._qs = (
-      qr(goliath._LTRACKPIN),
-      qr(goliath._RTRACKPIN)
+      qr(_LTRACKPIN),
+      qr(_RTRACKPIN)
     )
 
     #Initialize the PS4 controller.
-    self._controller = gamepad(goliath._MACADDRESS, self._buttonaction)
+    self._controller = gamepad(_MACADDRESS, self._buttonaction)
 
-    self._waist = base(self._outmux, goliath._WAISTPIN)
+    waistpin = pin(_WAISTPIN)
+    self._waist = base(waistpin)
 
     self._speed = 1.0                           #speed scale for track motors.
 
@@ -130,7 +165,7 @@ class goliath(object):
     self._qs[goliath.ltrack].scale = self._speed
     self._qs[goliath.rtrack].scale = self._speed
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def _buttonaction( self, aButton, aValue ):
     '''  '''
     try:
@@ -149,30 +184,31 @@ class goliath(object):
     except Exception as e:
       print(e)
       raise e
-#--------------------------------------------------------
+
+  #--------------------------------------------------------
   def _nextspeed( self ):
     ''' Increment speed value. '''
     self.speed = min(1.0, self.speed + goliath._speedchange)
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def _prevspeed( self ):
     ''' Decrement speed value. '''
     self.speed = max(goliath._speedchange, self.speed - goliath._speedchange)
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def _joy( self, aIndex ):
     ''' Get joystick value in range -1.0 to 1.0 '''
     v = self._controller.getjoy(aIndex)
     return v / 255.0
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def joydz( self, aInput ):
     ''' Get joystick value and remove deadzone. '''
 
     v = self._joy(aInput)
-    return v if abs(v) >= goliath._DZ else 0.0
+    return v if abs(v) >= _DZ else 0.0
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def updatetracks( self ):
     ''' Update the track speeds. '''
 
@@ -182,12 +218,12 @@ class goliath(object):
     self._qs[goliath.ltrack].value = l
     self._qs[goliath.rtrack].value = r
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def updatewaist( self ):
     ''' Update the wait rotation from joystick input. '''
     self._waist.speed = self.joydz(gamepad._RX)
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def updateriser( self ):
     dir = 1.0 if ecodes.BTN_SELECT in self._buttonpressed else 0.0
     if ecodes.BTN_START in self._buttonpressed:
@@ -197,12 +233,12 @@ class goliath(object):
     self._riser.speed(dir)
 #    self._pitch.speed(dir)
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def updatepitch( self ):
     dir = self.joydz(gamepad._RY)
     self._pitch.speed(dir)
 
-#--------------------------------------------------------
+  #--------------------------------------------------------
   def run( self ):
     ''' Main loop to update inputs and outputs '''
     prevtime = perf_counter()
