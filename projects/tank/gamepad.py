@@ -34,6 +34,7 @@ from bt import *
 #ABS_HAT0X = 16, val = -1 or 1 dpad left/right
 #ABS_HAT0Y = 17, val = -1 or 1 dpad up/down
 
+#--------------------------------------------------------
 class gamepad(object):
   '''PS4 Wireless Controller device driver.'''
 
@@ -54,6 +55,7 @@ class gamepad(object):
 
   GAMEPAD_DISCONNECT = 32                       #Special button action to indicate disconnect.
 
+#--------------------------------------------------------
   _buttonnames = {
    'A' : ecodes.BTN_A,
    'B' : ecodes.BTN_B,
@@ -74,11 +76,13 @@ class gamepad(object):
    'DP_L' : BTN_DPADL
   }
 
+  #--------------------------------------------------------
   @classmethod
   def nametobtn( self, aValue ):
     '''Get button # of given button name'''
     return self._buttonnames[aValue] if aValue in self._buttonnames else -1
 
+  #--------------------------------------------------------
   @classmethod
   def btntoname( self, aButton ):
     '''Get the name given a button value.'''
@@ -88,6 +92,7 @@ class gamepad(object):
 
     return None
 
+  #--------------------------------------------------------
   @staticmethod
   def _translate( aValue, aInvert ):
     '''Convert value 0-255 to +/-255
@@ -95,6 +100,7 @@ class gamepad(object):
     sgn = -1 if aInvert else 1
     return (((aValue - 0x80) << 1) + 1) * sgn
 
+  #--------------------------------------------------------
   @staticmethod
   def finddevice(  ):
     '''Find the correct device by name.'''
@@ -104,11 +110,13 @@ class gamepad(object):
         return d
     return None
 
+  #--------------------------------------------------------
   @staticmethod
   def isconnected(  ):
     '''Return true if gamepad device is connected.'''
     return gamepad.finddevice() != None
 
+  #--------------------------------------------------------
   def __init__( self, aID, aCallback = None ):
     '''aID is the bluetooth device ID reported by bluetoothctl during pairing.
        aCallback is the callback function to call for processing button events.'''
@@ -126,6 +134,7 @@ class gamepad(object):
     self.update()
     self._callback = aCallback
 
+  #--------------------------------------------------------
   def __del__( self ):
     self._observer.stop()
     self._disconnect()
@@ -134,6 +143,7 @@ class gamepad(object):
     except:
       pass
 
+  #--------------------------------------------------------
   def monitorconnections( self ):
     '''Monitor the udev system for device disconnect.'''
     context = pyudev.Context()
@@ -148,18 +158,22 @@ class gamepad(object):
     self._observer = pyudev.MonitorObserver(monitor, eventhandler)
     self._observer.start()
 
+  #--------------------------------------------------------
   @property
   def macaddress( self ):
     return self._id
 
+  #--------------------------------------------------------
   @macaddress.setter
   def macaddress( self, aValue ):
     self._id = aValue
 
+  #--------------------------------------------------------
   @property
   def callback( self ):
     return self._callback
 
+  #--------------------------------------------------------
   @callback.setter
   def callback( self, aCallback ):
     '''Set the callback.  Callback is func(button, value)
@@ -167,10 +181,12 @@ class gamepad(object):
        button = gamepad.GAMEPAD_DISCONNECT and value = 0.'''
     self._callback = aCallback
 
+  #--------------------------------------------------------
   @property
   def connected( self ):
     return self._device != None
 
+  #--------------------------------------------------------
   def _disconnect( self ):
     '''Soft disconnect, kill the InputDevice'''
     self._device = None
@@ -180,6 +196,7 @@ class gamepad(object):
       self._callback(gamepad.GAMEPAD_DISCONNECT, 0)
       self._dcondetect = False
 
+  #--------------------------------------------------------
   def pair( self ):
     '''Attempt to pair a new 8Bitdo controller.'''
     self._disconnect()
@@ -218,6 +235,7 @@ class gamepad(object):
 
     return paired
 
+  #--------------------------------------------------------
   def _connect( self ):
     '''Attempt to connect to the gamepad and create the InputDevice'''
     self._disconnect()
@@ -229,12 +247,18 @@ class gamepad(object):
     try:
       os.system('echo "power on \nconnect ' + self._id + ' \nquit" | sudo bluetoothctl')
 
-      sleep(2.0)
+      sleep(3.0)
       self._device = gamepad.finddevice()
       if self.connected:
-        sleep(0.1)
+#         sleep(0.1)
         print('connected!')
         return self.connected
+      else:
+        #Disconnect because sometimes connect seems to work, but screws up and reports
+        # connected but isn't and wont work unless we disconnect.
+        os.system('echo "power on \ndisconnect ' + self._id + ' \nquit" | sudo bluetoothctl')
+        sleep(0.25)
+
     except Exception as e:
       if gamepad.debug:
         if gamepad.debug > 1:
@@ -243,16 +267,19 @@ class gamepad(object):
 
     return self.connected
 
+  #--------------------------------------------------------
   def _docallback( self, aEvent ):
     '''If callback exists, call it with the given values.'''
     if self._callback:
       self._callback(aEvent.code, aEvent.value)
 
+  #--------------------------------------------------------
   def getjoy( self, aIndex ):
     '''Get joystick value for given index _LX, _LY, _RX or _RY
        Value is range +/- 255.'''
     return self._joys[aIndex]
 
+  #--------------------------------------------------------
   def update( self ):
     '''Read events from the input device, update joy values
        and use callback to process button events.'''
@@ -293,6 +320,7 @@ class gamepad(object):
     else:
       self._connect()
 
+#--------------------------------------------------------
 if __name__ == '__main__':  #start server
 
   def mytest( aButton, aValue ):
