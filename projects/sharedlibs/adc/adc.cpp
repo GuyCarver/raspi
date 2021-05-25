@@ -69,18 +69,21 @@ namespace
 	//--------------------------------------------------------
 	enum class MUX : uint16_t
 	{
-		_MUX_DIFF_0_1,		// 0x0000 Differential P  =  AIN0, N  =  AIN1 (default)
-		_MUX_DIFF_0_3,		// 0x1000 Differential P  =  AIN0, N  =  AIN3
-		_MUX_DIFF_1_3,		// 0x2000 Differential P  =  AIN1, N  =  AIN3
-		_MUX_DIFF_2_3,		// 0x3000 Differential P  =  AIN2, N  =  AIN3
-		_MUX_SINGLE_0,		// 0x4000 Single-ended AIN0
-		_MUX_SINGLE_1,		// 0x5000 Single-ended AIN1
-		_MUX_SINGLE_2,		// 0x6000 Single-ended AIN2
-		_MUX_SINGLE_3		// 0x7000 Single-ended AIN3
+		_MUX_DIFF_0_1,		// 0x0 Differential P  =  AIN0, N  =  AIN1 (default)
+		_MUX_DIFF_0_3,		// 0x1 Differential P  =  AIN0, N  =  AIN3
+		_MUX_DIFF_1_3,		// 0x2 Differential P  =  AIN1, N  =  AIN3
+		_MUX_DIFF_2_3,		// 0x3 Differential P  =  AIN2, N  =  AIN3
+		_MUX_SINGLE_0,		// 0x4 Single-ended AIN0
+		_MUX_SINGLE_1,		// 0x5 Single-ended AIN1
+		_MUX_SINGLE_2,		// 0x6 Single-ended AIN2
+		_MUX_SINGLE_3		// 0x7 Single-ended AIN3
 	};
 
-	constexpr uint16_t _RATEMASK = 0x7 << 5;
-	constexpr uint16_t _GAINMASK = 0x7 << 9;
+	constexpr uint16_t _RATEPOS = 5;
+	constexpr uint16_t _GAINPOS = 9;
+	constexpr uint16_t _MUXPOS = 12;
+	constexpr uint16_t _RATEMASK = 0x7 << _RATEPOS;
+	constexpr uint16_t _GAINMASK = 0x7 << _GAINPOS;
 
 	//--------------------------------------------------------
 	uint16_t min( uint16_t aV1, uint16_t aV2 )
@@ -113,19 +116,19 @@ public:
 	//--------------------------------------------------------
 	void SetRate( uint16_t aRate )
 	{
-		_mode = (_mode & ~_RATEMASK) | (min(7u, aRate) << 5);
+		_mode = (_mode & ~_RATEMASK) | (min(7u, aRate) << _RATEPOS);
 	}
 
 	//--------------------------------------------------------
 	void SetGain( uint16_t aGain )
 	{
-		_mode = (_mode & ~_GAINMASK) | (min(5u, aGain) << 9);
+		_mode = (_mode & ~_GAINMASK) | (min(5u, aGain) << _GAINPOS);
 	}
 
 	//--------------------------------------------------------
 	uint16_t Read( MUX aMux )
 	{
-		_write16(_mode | (static_cast<uint16_t>(aMux) << 12), _RA_CONFIG);
+		_write16(_mode | (static_cast<uint16_t>(aMux) << _MUXPOS), _RA_CONFIG);
 		//NOTE: Try _read8 and _OS_NOTBUSY >> 8.
 		//When bit is set the conversion is inactive.
 		while ((_read16(_RA_CONFIG) & _OS_NOTBUSY) == 0) {

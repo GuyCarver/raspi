@@ -22,14 +22,14 @@ def release( aInstance ):
 #--------------------------------------------------------
 def read( aInstance, aMux ):
   '''aMux = value from 0 - 7 representing read type.
-     _MUX_DIFF_0_1,    // 0x0000 Differential P  =  AIN0, N  =  AIN1 (default)
-     _MUX_DIFF_0_3,    // 0x1000 Differential P  =  AIN0, N  =  AIN3
-     _MUX_DIFF_1_3,    // 0x2000 Differential P  =  AIN1, N  =  AIN3
-     _MUX_DIFF_2_3,    // 0x3000 Differential P  =  AIN2, N  =  AIN3
-     _MUX_SINGLE_0,    // 0x4000 Single-ended AIN0
-     _MUX_SINGLE_1,    // 0x5000 Single-ended AIN1
-     _MUX_SINGLE_2,    // 0x6000 Single-ended AIN2
-     _MUX_SINGLE_3   // 0x7000 Single-ended AIN3
+     _MUX_DIFF_0_1,    // 0 Differential P  =  AIN0, N  =  AIN1 (default)
+     _MUX_DIFF_0_3,    // 1 Differential P  =  AIN0, N  =  AIN3
+     _MUX_DIFF_1_3,    // 2 Differential P  =  AIN1, N  =  AIN3
+     _MUX_DIFF_2_3,    // 3 Differential P  =  AIN2, N  =  AIN3
+     _MUX_SINGLE_0,    // 4 Single-ended AIN0
+     _MUX_SINGLE_1,    // 5 Single-ended AIN1
+     _MUX_SINGLE_2,    // 6 Single-ended AIN2
+     _MUX_SINGLE_3     // 7 Single-ended AIN3
   '''
   return _lib.Read(aInstance, aMux)
 
