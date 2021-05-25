@@ -11,12 +11,15 @@ _lib = CDLL(__path__[0] + '/adc.so')
 _lib.Create.restype = c_void_p
 _lib.Create.argtypes = [c_ubyte]
 
+#--------------------------------------------------------
 def create( aAddress ):
   return _lib.Create(aAddress)
 
+#--------------------------------------------------------
 def release( aInstance ):
   _lib.Release(aInstance)
 
+#--------------------------------------------------------
 def read( aInstance, aMux ):
   '''aMux = value from 0 - 7 representing read type.
      _MUX_DIFF_0_1,    // 0x0000 Differential P  =  AIN0, N  =  AIN1 (default)
@@ -30,3 +33,16 @@ def read( aInstance, aMux ):
   '''
   return _lib.Read(aInstance, aMux)
 
+#--------------------------------------------------------
+class adcpin(object):
+  ''' Wrap an ADS1115 adc input pin into a single object. Use the value property to get the value. '''
+  def __init__( self, aADC, aIndex ):
+    super(adcpin, self).__init__()
+
+    self._adc = aADC
+    self._index = aIndex
+
+  #--------------------------------------------------------
+  @property
+  def value( self ):
+    return read(self._adc, self._index)
