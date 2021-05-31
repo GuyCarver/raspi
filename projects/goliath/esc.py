@@ -347,14 +347,14 @@ class esc(object):
       else:
         self._speed = self._targetspeed
 
-    self._updatestate(aDelta)                   #Update the state system.
+    self._updatestate(aDelta)                   #Update the state system
 
 #--------------------------------------------------------
 class surpass(esc):
   ''' Controller for surpass 60a ESC. '''
 
   #idle, fwdmin, fwdmax, backmin, backmax
-  _RANGES = (0.60, 0.66, 1.0, 0.54, 0.15)
+  _RANGES = (0.6, 0.655, 0.89, 0.546, 0.4875)
 
   #--------------------------------------------------------
   def __init__( self, aPCA, aIndex, aName = '' ):
@@ -372,7 +372,7 @@ class quicrun(esc):
   #--------------------------------------------------------
   def __init__( self, aPCA, aIndex, aName = '' ):
     super(quicrun, self).__init__(aPCA, aIndex, quicrun._RANGES, aName)
-    self._revdelays = (0.0, 0.0)  #This quicrun doesn't require a reverse init.
+    self._revdelays = (0.0, 0.0)  #This quicrun doesn't require a reverse init
     self.reset(0.25)
 
 #--------------------------------------------------------
@@ -404,7 +404,7 @@ if __name__ == '__main__':
   from time import sleep
 
   pca.startup()
-  e = surpass(pca, 15, 'test')
+  e = surpass(pca, 13, 'test')
   e.rate = 100.0
 
   def waitforit(delay):
@@ -419,7 +419,14 @@ if __name__ == '__main__':
     waitforit(d)
 
   ss(0.10, 2.0)
-  ss(-0.5, 3.0)
+  ss(0.25, 2.0)
+#  ss(0.50, 2.0)
+#  ss(0.750, 2.0)
+  ss(1.0, 2.0)
+#  ss(0.0, 1.0)
+  ss(-0.5, 2.0)
+  ss(-0.75, 2.0)
+  ss(-1.0, 2.0)
   ss(0.0, 1.0)
   e.off()
   print('done.')
