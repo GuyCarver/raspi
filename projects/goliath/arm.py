@@ -16,7 +16,7 @@ class arm(object):
     self._index = aIndex
     self._range = aRange
     self._rate = aRate
-    self.set(0.0)
+    self.set(0.0)  #Set to center
 
   #--------------------------------------------------------
   def set( self, aValue ):
@@ -31,10 +31,10 @@ class arm(object):
 
     v = r * self._value + self._range[1]
 
-#    print(self._value, v)
+#     print(self._value, v)
     self._pca.setangle(self._index, v)
 
   #--------------------------------------------------------
-  def update( self, aDir ):
-    '''  '''
-    self.set(self._value + (aDir * self._rate))
+  def update( self, aDelta ):
+    ''' Update value based on aDelta * _rate. '''
+    self.set(self._value + (aDelta * self._rate))
