@@ -6,7 +6,7 @@ class fuelgauge(object):
 
   #This value isn't consistent and seems to be slightly different based
   # on the battery.  So it's best to check the battery and adjust this value
-  _VOLTS = 3216.0                               # Convert adc input to voltage
+  _VOLTS = 2753.28                               # (11.1v) Convert adc input to voltage
 
   #--------------------------------------------------------
   def __init__( self, aADC, aMin ):
@@ -23,4 +23,4 @@ class fuelgauge(object):
     ''' Read voltage and report false if below minimum. '''
 
     self.volts = self._adc.value / fuelgauge._VOLTS
-    return self.volts < self._min
+    return self.volts >= self._min

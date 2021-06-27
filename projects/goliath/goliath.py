@@ -18,6 +18,9 @@ from time import perf_counter, sleep
 from buttons import button
 
 #NOTE:
+#Fuel gauge needs to read and only trigger if value stays consistently below the desired value for a given amount of time.
+#Write code to control the claws from the triggers.
+
 # A lot of Pin code has changed as well as main.py being renamed goliath.py.
 #  Suggest updating everything. Also update and rebuild pca9685.
 # Need to change evdev to run goliath.py instead of main.py
@@ -49,12 +52,12 @@ _LARMVPCA = 4
 _LARMHPCA = 5
 _LARMEPCA = 6
 _LARMWPCA = 7
-#8
+_LCLAWPCA = 8
 _RARMVPCA = 9
 _RARMHPCA = 10
 _RARMEPCA = 11
 _RARMWPCA = 12
-#13
+_RCLAWPCA = 13
 #14
 #15
 
@@ -138,9 +141,9 @@ class goliath(object):
 
     onestick.adjustpoints(_DZ)                  # Adjust onestick values to account for dead zone.
 
-#    self._adc = adc.create(0x48)
-#    fuelpin = adc.adcpin(self._adc, 4)          # Read pin 0 of adc
-#    self._fuel = fualgauge(fuelpin, _MINVOLTS)
+    self._adc = adc.create(0x48)
+    fuelpin = adc.adcpin(self._adc, 4)          # Read pin 0 of adc
+    self._fuel = fuelgauge(fuelpin, _MINVOLTS)
 
     rback = pin(_RISERB)
     self._riser = wheel(pca, _RISERSPD, rback)
@@ -172,8 +175,8 @@ class goliath(object):
     self._arms[_RARMV] = arm(pca, _RARMVPCA, 0.75, _RANGE[_RARMV])
     self._arms[_RARMW] = arm(pca, _RARMWPCA, 2.0, _RANGE[_RARMW])
 
-#    self._lclaw = surpass(pca, whatpin?)
-#    self._rclaw = surpass(pca, whatpin?)
+    self._lclaw = surpass(pca, _LCLAWPCA)
+    self._rclaw = surpass(pca, _RCLAWPCA)
 
     def qr( aIndex ):
       q = quicrun(pca, aIndex)
@@ -361,7 +364,7 @@ class goliath(object):
       self._arms[_LARMV].update(y * aDT)
     else:
       self._arms[_LARMW].update(x * aDT)
-      #todo: Control extension with y value
+      self._lclaw.speed = y
 
   #--------------------------------------------------------
   def _larmINPUT( self, aState, aButton, aValue ):
@@ -393,7 +396,7 @@ class goliath(object):
       self._arms[_RARMV].update(y * aDT)
     else:
       self._arms[_RARMW].update(x * aDT)
-      #todo: Control extension with y value
+      self._rclaw.speed = -y * 2.0
 
   #--------------------------------------------------------
   def _rarmINPUT( self, aState, aButton, aValue ):
@@ -425,9 +428,9 @@ class goliath(object):
 #        delta = 0.03
         prevtime = nexttime
 
-#        if self._fuel.update() == False:
-#          self._running = False
-#          print('Battery is low! Recharge!')
+        if self._fuel.update() == False:
+          self._running = False
+          print('Battery is low! Recharge!')
 
         self._controller.update()
         state.update(self._lstate, delta)
