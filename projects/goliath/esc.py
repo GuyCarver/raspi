@@ -354,7 +354,7 @@ class surpass(esc):
   ''' Controller for surpass 60a ESC. '''
 
   #idle, fwdmin, fwdmax, backmin, backmax
-  _RANGES = (0.6, 0.655, 0.89, 0.546, 0.4875)
+  _RANGES = (0.6, 0.655, 1.0, 0.546, 0.4875)
 
   #--------------------------------------------------------
   def __init__( self, aPCA, aIndex, aName = '' ):

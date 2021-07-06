@@ -4,6 +4,8 @@ import sys
 import pca9685 as pca
 import adc
 import onestick
+import state
+# import oled
 from gamepad import *
 from esc import quicrun, surpass
 from base import *
@@ -12,19 +14,17 @@ from multiplex import *
 from pin import *
 from fuelgauge import *
 from arm import *
-import state
 
 from time import perf_counter, sleep
 from buttons import button
 
 #NOTE:
-#Fuel gauge needs to read and only trigger if value stays consistently below the desired value for a given amount of time.
-#Write code to control the claws from the triggers.
-
-# A lot of Pin code has changed as well as main.py being renamed goliath.py.
-#  Suggest updating everything. Also update and rebuild pca9685.
-# Need to change evdev to run goliath.py instead of main.py
-# Wrote the arm module but it isn't currently used
+#DONE: Fuel gauge needs to read and only trigger if value stays consistently below the desired value for a given amount of time.
+#DONE: Write code to control the claws from the triggers.
+#May need to update wheels even when in non-drive state to make sure they get correctly turned off.
+# Perhaps the end state should last until they report stopped.
+#Added oled display. Must include oled shared lib and compile.
+#Set dpad u/d to control the riser.
 
 #Double Click
 #DPAD L - change state on l-stick
@@ -41,6 +41,8 @@ from buttons import button
 
 #shoulder+trigger = weapon fire
 #dpad u/d = riser
+
+#extension center = 0.54, full rev = 1.0, full fwd = 0.0
 
 #--------------------------------------------------------
 #PCA9685 pins:
@@ -123,7 +125,8 @@ _dtime = .01
 _startupswitch = button(16)
 _DZ = 0.015                                     # Controller analog stick dead zone
 _MACADDRESS = '41:42:0B:90:D4:9E'               # Controller mac address
-_MINVOLTS = 10.0                                # Minimum battery voltage before shutdown
+_MINVOLTS = 11.1                                # Minimum battery voltage before shutdown
+_LOWVOLTTIME = 10.0                             # Time in seconds battery voltage must be below threshold before reporting low
 
 #--------------------------------------------------------
 class goliath(object):
@@ -136,6 +139,8 @@ class goliath(object):
   def __init__( self ):
     super(goliath, self).__init__()
 
+#     oled.startup()
+
     self._buttonpressed = {}                    # Create empty dict to keep track of button press events.
                                                 # Key = btn:, Item = value
 
@@ -143,7 +148,7 @@ class goliath(object):
 
     self._adc = adc.create(0x48)
     fuelpin = adc.adcpin(self._adc, 4)          # Read pin 0 of adc
-    self._fuel = fuelgauge(fuelpin, _MINVOLTS)
+    self._fuel = fuelgauge(fuelpin, _MINVOLTS, _LOWVOLTTIME)
 
     rback = pin(_RISERB)
     self._riser = wheel(pca, _RISERSPD, rback)
@@ -169,11 +174,11 @@ class goliath(object):
 
     self._arms[_LARMH] = arm(pca, _LARMHPCA, 1.75, _RANGE[_LARMH])
     self._arms[_LARMV] = arm(pca, _LARMVPCA, 0.75, _RANGE[_LARMV])
-    self._arms[_LARMW] = arm(pca, _LARMWPCA, 2.0, _RANGE[_LARMW])
+    self._arms[_LARMW] = arm(pca, _LARMWPCA, 10.0, _RANGE[_LARMW])
 
     self._arms[_RARMH] = arm(pca, _RARMHPCA, 1.75, _RANGE[_RARMH])
     self._arms[_RARMV] = arm(pca, _RARMVPCA, 0.75, _RANGE[_RARMV])
-    self._arms[_RARMW] = arm(pca, _RARMWPCA, 2.0, _RANGE[_RARMW])
+    self._arms[_RARMW] = arm(pca, _RARMWPCA, 10.0, _RANGE[_RARMW])
 
     self._lclaw = surpass(pca, _LCLAWPCA)
     self._rclaw = surpass(pca, _RCLAWPCA)
@@ -210,6 +215,7 @@ class goliath(object):
     pca.alloff()
 #    adc.release(self._adc)
     pca.shutdown()
+#     oled.shutdown()
 
   #--------------------------------------------------------
   @property
@@ -264,12 +270,18 @@ class goliath(object):
       handled = state.input(self.lstate, aButton, aValue)
       if not handled:
         handled = state.input(self.rstate, aButton, aValue)
+        if not handled:
+          claw = 1.0 if (aValue & 0x01) else -1.0
+          if aButton == ecodes.BTN_TR:
+            self._rclaw.speed -= claw
+          elif aButton == ecodes.BTN_TR2:
+            self._rclaw.speed += claw
+          elif aButton == ecodes.BTN_TL:
+            self._lclaw.speed += claw
+          elif aButton == ecodes.BTN_TL2:
+            self._lclaw.speed -= claw
 
-      if not handled:
-        pass
-        #todo: Handle button press events here
-
-      #Save the button state into the map
+       #Save the button state into the map
       self._buttonpressed[aButton] = (aValue, now)
 
     #Have to capture and output exceptions here as this code
@@ -364,7 +376,7 @@ class goliath(object):
       self._arms[_LARMV].update(y * aDT)
     else:
       self._arms[_LARMW].update(x * aDT)
-      self._lclaw.speed = y
+#       pca.set(_LARMEPCA, -y)
 
   #--------------------------------------------------------
   def _larmINPUT( self, aState, aButton, aValue ):
@@ -393,10 +405,10 @@ class goliath(object):
 
     if aState[_GROUP] == 0:
       self._arms[_RARMH].update(x * aDT)
-      self._arms[_RARMV].update(y * aDT)
+      self._arms[_RARMV].update(-y * aDT)
     else:
       self._arms[_RARMW].update(x * aDT)
-      self._rclaw.speed = -y * 2.0
+#       pca.set(_RARMEPCA, y)
 
   #--------------------------------------------------------
   def _rarmINPUT( self, aState, aButton, aValue ):
@@ -428,13 +440,21 @@ class goliath(object):
 #        delta = 0.03
         prevtime = nexttime
 
-        if self._fuel.update() == False:
+        if self._fuel.update(delta) == False:
           self._running = False
-          print('Battery is low! Recharge!')
+          print('Battery is at', self._fuel.volts, 'Recharge!')
+#           oled.text((0, 12), 'Shutting Down!')
+#         oled.text((0, 0), f'Bat: {self._fuel.volts}')
 
         self._controller.update()
         state.update(self._lstate, delta)
         state.update(self._rstate, delta)
+
+        #Update the claw escs
+        self._lclaw.update(delta)
+        self._rclaw.update(delta)
+
+#         oled.display()
 
         nexttime = perf_counter()
         sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted.
