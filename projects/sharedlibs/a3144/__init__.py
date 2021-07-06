@@ -8,12 +8,15 @@ _lib = CDLL(__path__[0] + '/a3144lib.so')
 _lib.Create.restype = c_void_p
 _lib.GetData.restype = POINTER(c_uint * 2)
 
+#--------------------------------------------------------
 def create( aPin ):
   return _lib.Create(aPin)
 
+#--------------------------------------------------------
 def release( aHall ):
   _lib.Release(aHall)
 
+#--------------------------------------------------------
 def data( aHall ):
   '''Get count, time.'''
   return _lib.GetData(aHall).contents

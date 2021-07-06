@@ -73,7 +73,7 @@ def setinverted( aTF ):
 
 #--------------------------------------------------------
 def getinverted(  ):
-  ''' Get the display on/off. '''
+  ''' Get the display inversion. '''
   return _lib.GetInverted()
 
 #--------------------------------------------------------
