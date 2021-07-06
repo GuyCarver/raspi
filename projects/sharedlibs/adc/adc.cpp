@@ -173,7 +173,7 @@ private:
 		auto res = ioctl(_i2c, I2C_SMBUS, &args);
 
 		if (res < 0) {
-			std::cout << "Error" << std::endl;
+			std::cout << "adc write16 error." << std::endl;
 		}
 
 // 		wiringPiI2CWriteReg8(_i2c, aLoc, aValue >> 8);
