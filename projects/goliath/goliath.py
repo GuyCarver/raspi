@@ -5,7 +5,7 @@ import pca9685 as pca
 import adc
 import onestick
 import state
-# import oled
+import oled
 from gamepad import *
 from esc import quicrun, surpass
 from base import *
@@ -139,7 +139,8 @@ class goliath(object):
   def __init__( self ):
     super(goliath, self).__init__()
 
-#     oled.startup()
+    oled.startup()
+    oled.setrotation(2)
 
     self._buttonpressed = {}                    # Create empty dict to keep track of button press events.
                                                 # Key = btn:, Item = value
@@ -215,7 +216,7 @@ class goliath(object):
     pca.alloff()
 #    adc.release(self._adc)
     pca.shutdown()
-#     oled.shutdown()
+    oled.shutdown()
 
   #--------------------------------------------------------
   @property
@@ -443,8 +444,8 @@ class goliath(object):
         if self._fuel.update(delta) == False:
           self._running = False
           print('Battery is at', self._fuel.volts, 'Recharge!')
-#           oled.text((0, 12), 'Shutting Down!')
-#         oled.text((0, 0), f'Bat: {self._fuel.volts}')
+          oled.text((0, 12), 'Shutting Down!')
+        oled.text((0, 0), f'Bat: {self._fuel.volts:.2f}')
 
         self._controller.update()
         state.update(self._lstate, delta)
@@ -454,7 +455,7 @@ class goliath(object):
         self._lclaw.update(delta)
         self._rclaw.update(delta)
 
-#         oled.display()
+        oled.display()
 
         nexttime = perf_counter()
         sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted.
