@@ -21,10 +21,12 @@ from buttons import button
 #NOTE:
 #DONE: Fuel gauge needs to read and only trigger if value stays consistently below the desired value for a given amount of time.
 #DONE: Write code to control the claws from the triggers.
+#DONE: Set dpad u/d to control the riser.
+#DONE: Extension code. Extension center = 0.54, full rev = 1.0, full fwd = 0.0
 #May need to update wheels even when in non-drive state to make sure they get correctly turned off.
 # Perhaps the end state should last until they report stopped.
-#Added oled display. Must include oled shared lib and compile.
-#Set dpad u/d to control the riser.
+#DONE: Add oled display. Must include oled shared lib and compile.
+#DONE: Add code to open claws for 1/4 second on startup.
 
 #Double Click
 #DPAD L - change state on l-stick
@@ -42,7 +44,6 @@ from buttons import button
 #shoulder+trigger = weapon fire
 #dpad u/d = riser
 
-#extension center = 0.54, full rev = 1.0, full fwd = 0.0
 
 #--------------------------------------------------------
 #PCA9685 pins:
@@ -103,17 +104,20 @@ _PITCHB = 26                                    # Pitch motor backward control p
 #--------------------------------------------------------
 #Arm angle ranges:
 #Almost all servos have a center at 45
-_ARMENTRIES = 6
+_ARMENTRIES = 8
 _GROUP = 50
-_LARMH, _LARMV, _LARMW, _RARMH, _RARMV, _RARMW = range(_ARMENTRIES)
+_LARMH, _LARMV, _LARMW, _LARME, _RARMH, _RARMV, _RARMW, _RARME = range(_ARMENTRIES)
 
 #Array of ranges
-_RANGE = [(0.0, 12.0, 25.0),     # L/R
-          (30.0, 10.0, -20.0),     # D/U
-          (90.0, 0.0, -70.0),   # ccw/cw
-          (0.0, 12.0, 25.0),     # L/R
-          (-3.0, 15.0, 45.0),     # D/U
-          (87.0, 10.0, -70.0)]   # ccw/cw
+_RANGE = [(0.0, 12.0, 25.0),                    # L/R
+          (30.0, 10.0, -20.0),                  # D/U
+          (90.0, 0.0, -70.0),                   # ccw/cw
+          (1.0, 0.54, 0.0),                     # Extension
+          (0.0, 12.0, 25.0),                    # L/R
+          (-3.0, 15.0, 45.0),                   # D/U
+          (87.0, 10.0, -70.0),                  # ccw/cw
+          (1.0, 0.54, 0.0)                      # Extension
+          ]
 
 #--------------------------------------------------------
 #Button flags
@@ -121,7 +125,7 @@ _DBL = 0x1000                                   # Flag set on the button even va
 _DBLTIME = 0.15                                 # Time in seconds between press/release/press to get a double tap
 
 #--------------------------------------------------------
-_dtime = .01
+_dtime = .1
 _startupswitch = button(16)
 _DZ = 0.015                                     # Controller analog stick dead zone
 _MACADDRESS = '41:42:0B:90:D4:9E'               # Controller mac address
@@ -153,7 +157,6 @@ class goliath(object):
 
     rback = pin(_RISERB)
     self._riser = wheel(pca, _RISERSPD, rback)
-    self._riser.curspeed = 0.0                  # Add current speed variable to riser
 
     pback = pin(_PITCHB)
     self._pitch = wheel(pca, _PITCHSPD, pback)
@@ -176,13 +179,31 @@ class goliath(object):
     self._arms[_LARMH] = arm(pca, _LARMHPCA, 1.75, _RANGE[_LARMH])
     self._arms[_LARMV] = arm(pca, _LARMVPCA, 0.75, _RANGE[_LARMV])
     self._arms[_LARMW] = arm(pca, _LARMWPCA, 10.0, _RANGE[_LARMW])
+    self._arms[_LARME] = extension(pca, _LARMEPCA, _RANGE[_LARME])
 
     self._arms[_RARMH] = arm(pca, _RARMHPCA, 1.75, _RANGE[_RARMH])
     self._arms[_RARMV] = arm(pca, _RARMVPCA, 0.75, _RANGE[_RARMV])
     self._arms[_RARMW] = arm(pca, _RARMWPCA, 10.0, _RANGE[_RARMW])
+    self._arms[_RARME] = extension(pca, _RARMEPCA, _RANGE[_RARME])
 
     self._lclaw = surpass(pca, _LCLAWPCA)
     self._rclaw = surpass(pca, _RCLAWPCA)
+
+    self._lclaw.speed = -1.0
+    self._rclaw.speed = 1.0
+
+    #Open claws for 1/4 second.
+    prevtime = perf_counter()
+    endtime = prevtime + 0.5
+    while prevtime < endtime:
+      nexttime = perf_counter()
+      delta = nexttime - prevtime
+      prevtime = nexttime
+      self._lclaw.update(delta)
+      self._rclaw.update(delta)
+
+    self._lclaw.speed = 0.0
+    self._rclaw.speed = 0.0
 
     def qr( aIndex ):
       q = quicrun(pca, aIndex)
@@ -272,15 +293,20 @@ class goliath(object):
       if not handled:
         handled = state.input(self.rstate, aButton, aValue)
         if not handled:
-          claw = 1.0 if (aValue & 0x01) else -1.0
-          if aButton == ecodes.BTN_TR:
-            self._rclaw.speed -= claw
+          dir = 1.0 if (aValue & 0x01) else -1.0
+          if aButton == gamepad.BTN_DPADU:
+            self._riser.speed += dir
+          elif aButton == gamepad.BTN_DPADD:
+            self._riser.speed -= dir
+          elif aButton == ecodes.BTN_TR:
+            self._rclaw.speed -= dir
           elif aButton == ecodes.BTN_TR2:
-            self._rclaw.speed += claw
+            self._rclaw.speed += dir
           elif aButton == ecodes.BTN_TL:
-            self._lclaw.speed += claw
+            self._lclaw.speed += dir
           elif aButton == ecodes.BTN_TL2:
-            self._lclaw.speed -= claw
+            self._lclaw.speed -= dir
+
 
        #Save the button state into the map
       self._buttonpressed[aButton] = (aValue, now)
@@ -345,7 +371,7 @@ class goliath(object):
     x = self.joydz(gamepad._RX)
     y = self.joydz(gamepad._RY)
     self._waist.speed = x
-    self._pitch.speed(y)
+    self._pitch.speed = y
 
   #--------------------------------------------------------
   def _bodyINPUT( self, aState, aButton, aValue ):
@@ -363,7 +389,7 @@ class goliath(object):
   def _bodyEND( self, aState ):
     ''' End body state by shutting down motors. '''
     self._waist.speed = 0.0
-    self._pitch.speed(0.0)
+    self._pitch.speed = 0.0
 
   #--------------------------------------------------------
   def _larmUD( self, aState, aDT ):
@@ -377,7 +403,7 @@ class goliath(object):
       self._arms[_LARMV].update(y * aDT)
     else:
       self._arms[_LARMW].update(x * aDT)
-#       pca.set(_LARMEPCA, -y)
+      self._arms[_LARME].speed = y
 
   #--------------------------------------------------------
   def _larmINPUT( self, aState, aButton, aValue ):
@@ -402,14 +428,14 @@ class goliath(object):
     ''' Control right arm movement. '''
 
     x = -self.joydz(gamepad._RX)
-    y = self.joydz(gamepad._RY)
+    y = -self.joydz(gamepad._RY)
 
     if aState[_GROUP] == 0:
       self._arms[_RARMH].update(x * aDT)
-      self._arms[_RARMV].update(-y * aDT)
+      self._arms[_RARMV].update(y * aDT)
     else:
       self._arms[_RARMW].update(x * aDT)
-#       pca.set(_RARMEPCA, y)
+      self._arms[_RARME].speed = y
 
   #--------------------------------------------------------
   def _rarmINPUT( self, aState, aButton, aValue ):
@@ -437,15 +463,15 @@ class goliath(object):
     try:
       while self._running:
         nexttime = perf_counter()
-        delta = min(max(0.01, nexttime - prevtime), _dtime)
+        delta = min(max(0.001, nexttime - prevtime), _dtime)
 #        delta = 0.03
         prevtime = nexttime
-
+#         print(delta)
         if self._fuel.update(delta) == False:
           self._running = False
           print('Battery is at', self._fuel.volts, 'Recharge!')
           oled.text((0, 12), 'Shutting Down!')
-        oled.text((0, 0), f'Bat: {self._fuel.volts:.2f}')
+        oled.text((0, 0), f'Bat: {self._fuel.volts:.2f}v')
 
         self._controller.update()
         state.update(self._lstate, delta)

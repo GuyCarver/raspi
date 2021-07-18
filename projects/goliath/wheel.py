@@ -4,7 +4,6 @@
 class wheel(object):
   ''' Control wheel motor controller '''
 
-  _scale = 1.0
   _MINSPEED = .2
 #   _MAXSPEED = 1.0
   _SPEEDRANGE = 1.0 - _MINSPEED
@@ -19,7 +18,7 @@ class wheel(object):
     self._si = si
     self._bi = bi
     self._name = ''
-    self.speed(0.0)
+    self.speed = 0.0
 
   #--------------------------------------------------------
   @property
@@ -40,17 +39,31 @@ class wheel(object):
   def time( self ): return self._so._time
 
   #--------------------------------------------------------
+  @property
+  def speed( self ):
+    return self._speed
+
+  #--------------------------------------------------------
+  @speed.setter
+  def speed( self, aValue ):
+    ''' Set speed from -1.0 to 1.0 '''
+
+    self._speed = aValue
+
+    if aValue < 0.0:
+      v = (1, -wheel.clamp(aValue))
+    elif (aValue > 0):
+      v = (0, wheel.clamp(aValue))
+    else:
+      v = (0, 0.0)
+
+    self._write(v)
+
+  #--------------------------------------------------------
   @classmethod
   def clamp( cls, aValue ) :
     ''' Convert float aValue to value between min and max speed. '''
     return (min(1.0, aValue) * wheel._SPEEDRANGE) + wheel._MINSPEED
-
-  #--------------------------------------------------------
-  @classmethod
-  def changegear( cls, aValue ):
-    ''' Set the speed scale to simulate gears. '''
-    cls._scale += aValue
-    cls._scale = max(0.2, min(cls._scale, 1.0))
 
   #--------------------------------------------------------
   def _write( self, aValues ):
@@ -67,20 +80,6 @@ class wheel(object):
     ''' Emergency stop by setting all values to 1. '''
     self._write(1, 1.0)
     self._write(0, 1.0)
-
-  #--------------------------------------------------------
-  def speed( self, aSpeed ):
-    ''' Set speed from -1.0 to 1.0 '''
-    aSpeed *= wheel._scale
-
-    if aSpeed < 0.0:
-      v = (1, -wheel.clamp(aSpeed))
-    elif (aSpeed > 0):
-      v = (0, wheel.clamp(aSpeed))
-    else:
-      v = (0, 0.0)
-
-    self._write(v)
 
   #--------------------------------------------------------
   def off( self ):
