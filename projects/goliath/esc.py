@@ -367,7 +367,7 @@ class quicrun(esc):
   ''' Controller for quicrun 1060 ESC. '''
 
   #idle, fwdmin, fwdmax, backmin, backmax
-  _RANGES = (0.76, 0.78, 1.0, 0.74, 0.5)
+  _RANGES = (0.59, 0.61, 1.0, 0.56, 0.08)
 
   #--------------------------------------------------------
   def __init__( self, aPCA, aIndex, aName = '' ):
