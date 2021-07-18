@@ -378,10 +378,26 @@ class goliath(object):
     ''' Handle body state input. '''
 
     handled = False
+
     if aValue & 0x01:
       if aButton == gamepad.BTN_DPADR:
         handled = True
         self.rstate = self._rarmstate           # Change state to rarm control
+
+    if not handled:
+      dir = 0.0
+      bset = False
+      if aButton == ecodes.BTN_START:
+        dir -= 1.0 if (aValue & 0x01) else -1.0
+        bset = True
+        handled = True
+      elif aButton == ecodes.BTN_SELECT:
+        dir += 1.0 if (aValue & 0x01) else -1.0
+        bset = True
+        handled = True
+
+      if bset:
+        self._riser.speed += dir
 
     return handled
 
