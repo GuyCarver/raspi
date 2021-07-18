@@ -27,6 +27,9 @@ from buttons import button
 # Perhaps the end state should last until they report stopped.
 #DONE: Add oled display. Must include oled shared lib and compile.
 #DONE: Add code to open claws for 1/4 second on startup.
+#TODO: Take out the start/select riser code.  It's on dpad u/d
+#todo: Speed of the wrist
+#todo: Limiter for the magnets.
 
 #Double Click
 #DPAD L - change state on l-stick
@@ -303,9 +306,9 @@ class goliath(object):
           elif aButton == ecodes.BTN_TR2:
             self._rclaw.speed += dir
           elif aButton == ecodes.BTN_TL:
-            self._lclaw.speed += dir
-          elif aButton == ecodes.BTN_TL2:
             self._lclaw.speed -= dir
+          elif aButton == ecodes.BTN_TL2:
+            self._lclaw.speed += dir
 
 
        #Save the button state into the map
