@@ -6,7 +6,8 @@ from time import sleep
 locprefix = 'https://weather.com/weather/today/l/'
 locsuffix = ':4:US'
 
-tempdivname = 'CurrentConditions--dataWrapperInner--2h2vG'
+tempdivname='CurrentConditions--primary--2SVPh'
+conditiondivname = 'CurrentConditions--phraseValue--2Z18W'
 
 def get( aZip ):
   temp = 0
@@ -30,8 +31,13 @@ def get( aZip ):
       span = tempdiv[0]
 #      print(span.contents[0].text)
       tempstr = span.contents[0].text #Get temperature text and remove deg symbol.
-      tempstr, cond = tempstr.split('°')
-      temp = int(tempstr)
+      temp = int(tempstr[:-1])
+
+      conddiv = soup.find_all('div', class_=conditiondivname)
+      if len(conddiv):
+        span = conddiv[0]
+#        print(span)
+        cond = span.text
       break
 
 #    print('try', x)
