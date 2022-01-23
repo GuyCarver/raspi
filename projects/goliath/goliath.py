@@ -17,8 +17,9 @@ from arm import *
 
 from time import perf_counter, sleep
 from buttons import button
+from math import sqrt
 
-#NOTE:
+#NOTES:
 #DONE: Fuel gauge needs to read and only trigger if value stays consistently below the desired value for a given amount of time.
 #DONE: Write code to control the claws from the triggers.
 #DONE: Set dpad u/d to control the riser.
@@ -27,9 +28,13 @@ from buttons import button
 # Perhaps the end state should last until they report stopped.
 #DONE: Add oled display. Must include oled shared lib and compile.
 #DONE: Add code to open claws for 1/4 second on startup.
-#TODO: Take out the start/select riser code.  It's on dpad u/d
-#todo: Speed of the wrist
-#todo: Limiter for the magnets.
+#DONE: Take out the start/select riser code.  It's on dpad u/d
+#DONE: Speed of the wrist. Added use of sqrt() of the x axis to get a ramp for the speed.
+#DONE: Limiter for the magnets. Added HAL sensor to arm:extension class with states for update.
+#DONE: Get the gun motor working, Esc PWM values, Stop=0.5, Max = 0.8
+#TODO: Override for arm limiters so we can adjust position if necessary. Must be very difficult to enter this mode.
+#TEST: Implement arm/disarm state with select/start button combo. Claws don't work in this state
+#TEST: Implement fire with l/r triggers
 
 #Double Click
 #DPAD L - change state on l-stick
@@ -44,9 +49,8 @@ from buttons import button
 #diamond+X = arm
 #triangle+circle = disarm
 
-#shoulder+trigger = weapon fire
+#rshoulder+rtrigger = weapon fire
 #dpad u/d = riser
-
 
 #--------------------------------------------------------
 #PCA9685 pins:
@@ -64,7 +68,7 @@ _RARMHPCA = 10
 _RARMEPCA = 11
 _RARMWPCA = 12
 _RCLAWPCA = 13
-#14
+_GUNS     = 14
 #15
 
 #--------------------------------------------------------
@@ -84,6 +88,14 @@ _IMUX_S = 10
 _WAISTPIN = 5
 _RISERB = 19                                    # Riser motor backward control pin
 _PITCHB = 26                                    # Pitch motor backward control pin
+_RARMELIMIT = 6                                 # Right arm extension limit HAL sensor
+_LARMELIMIT = 13                                # Left arm extension limit HAL sensor
+
+#Gun pca values
+_GUNSTART = 0.7
+_GUNSTARTDUR = 0.01
+_GUNRATE = 0.63
+_GUNOFF = 0.5
 
 #--------------------------------------------------------
 #  MUX INPUT PINS:
@@ -181,12 +193,12 @@ class goliath(object):
 
     self._arms[_LARMH] = arm(pca, _LARMHPCA, 1.75, _RANGE[_LARMH])
     self._arms[_LARMV] = arm(pca, _LARMVPCA, 0.75, _RANGE[_LARMV])
-    self._arms[_LARMW] = arm(pca, _LARMWPCA, 10.0, _RANGE[_LARMW])
+    self._arms[_LARMW] = arm(pca, _LARMWPCA, 5.0, _RANGE[_LARMW])
     self._arms[_LARME] = extension(pca, _LARMEPCA, _RANGE[_LARME])
 
     self._arms[_RARMH] = arm(pca, _RARMHPCA, 1.75, _RANGE[_RARMH])
     self._arms[_RARMV] = arm(pca, _RARMVPCA, 0.75, _RANGE[_RARMV])
-    self._arms[_RARMW] = arm(pca, _RARMWPCA, 10.0, _RANGE[_RARMW])
+    self._arms[_RARMW] = arm(pca, _RARMWPCA, 5.0, _RANGE[_RARMW])
     self._arms[_RARME] = extension(pca, _RARMEPCA, _RANGE[_RARME])
 
     self._lclaw = surpass(pca, _LCLAWPCA)
@@ -194,6 +206,13 @@ class goliath(object):
 
     self._lclaw.speed = -1.0
     self._rclaw.speed = 1.0
+
+    self._disarmedstate = state.create(i = self._disarmedINPUT, e = self._disarmedEND)
+    self._armedstate = state.create(i = self._armedINPUT)
+    self._shootstartstate = state.create(s = self._shootEnter, u = self._shootStartUD, i = self._shootINPUT, e = self._shootEND)
+    self._shootstate = state.create(s = self._shoot, i = self._shootINPUT, e = self._shootEND)
+
+    self._combatstate = self.disarmedstate  #Start off disarmed
 
     #Open claws for 1/4 second.
     prevtime = perf_counter()
@@ -221,7 +240,7 @@ class goliath(object):
     )
 
     #Initialize the PS4 controller.
-    self._controller = gamepad(_MACADDRESS, self._buttonaction)
+    self._controller = gamepad(_MACADDRESS, self._buttonAction)
 
     waistpin = pin(_WAISTPIN)
     self._waist = base(waistpin)
@@ -275,10 +294,16 @@ class goliath(object):
     self._rstate = state.switch(self._rstate, aValue)
 
   #--------------------------------------------------------
-  def _buttonaction( self, aButton, aValue ):
-    ''' Process button actions. '''
+  def _getPressed( self, aButton ):
+    ''' Return (value,timer) for given button from pressed map. (0, 0.0) if not found. '''
+    return self._buttonpressed.get(aButton, (0, 0.0))
+
+  #--------------------------------------------------------
+  def _buttonAction( self, aButton, aValue ):
+    ''' Process button actions '''
     try:
-      pv, pt = self._buttonpressed.get(aButton, (0, 0.0))
+      #Previous state and previous time
+      pv, pt = self._getPressed(aButton)
       now = perf_counter()
 
       if aValue & 0x01:
@@ -291,27 +316,14 @@ class goliath(object):
           if (now - pt < _DBLTIME):
             aValue |= _DBL
 
-      #See if left/right states consume button action
-      handled = state.input(self.lstate, aButton, aValue)
+      handled = state.input(self._combatstate, aButton, aValue)
       if not handled:
-        handled = state.input(self.rstate, aButton, aValue)
+        #See if left/right states consume button action
+        handled = state.input(self.lstate, aButton, aValue)
         if not handled:
-          dir = 1.0 if (aValue & 0x01) else -1.0
-          if aButton == gamepad.BTN_DPADU:
-            self._riser.speed += dir
-          elif aButton == gamepad.BTN_DPADD:
-            self._riser.speed -= dir
-          elif aButton == ecodes.BTN_TR:
-            self._rclaw.speed -= dir
-          elif aButton == ecodes.BTN_TR2:
-            self._rclaw.speed += dir
-          elif aButton == ecodes.BTN_TL:
-            self._lclaw.speed -= dir
-          elif aButton == ecodes.BTN_TL2:
-            self._lclaw.speed += dir
+          handled = state.input(self.rstate, aButton, aValue)
 
-
-       #Save the button state into the map
+      #Save the button state into the map
       self._buttonpressed[aButton] = (aValue, now)
 
     #Have to capture and output exceptions here as this code
@@ -346,6 +358,134 @@ class goliath(object):
 
     for q in self._qs:
       q.update(aDT)
+
+  #--------------------------------------------------------
+  def _changeCombat( self ):
+    ''' Switch combat state between _armed and _disarmed functions '''
+    other = self._armed if self._combatstate == self._disarmed else self._disarmed
+    self._combatstate = state.switch(self._combatstate, other)
+
+  #--------------------------------------------------------
+  def _checkCombatSwitch( self, aButton, aValue ):
+    ''' Check for button combo to switch combat state between armed/disarmed. '''
+    handled = False
+    other = None
+    #Only check pressed buttons, if 1 of the buttons we care about is pressed, check the other
+    # if both are pressed, switch state.
+    if aValue & 0x01:
+      if aButton == ecodes.BTN_SELECT:
+        other = ecodes.BTN_START
+        handled = True
+      elif aButton == ecodes.BTN_START:
+        other = ecodes.BTN_SELECT
+        handled = True
+
+      if handled:
+        sv, _ = self._getpressed(other)
+        if sv & 0x01:
+          self._changeCombat()
+
+  #--------------------------------------------------------
+  def _disarmedINPUT( self, aState, aButton, aValue ):
+    ''' Handle claw input '''
+
+    handled = self._checkCombatSiwtch(aButton, aValue)
+
+    if not handled:
+      def dir(  ):
+        handled = True #If we've called this local function we are handling input
+        return 1.0 if (aValue & 0x01) else -1.0
+
+      if aButton == gamepad.BTN_DPADU:
+        self._riser.speed += dir()
+      elif aButton == gamepad.BTN_DPADD:
+        self._riser.speed -= dir()
+      elif aButton == ecodes.BTN_TR:
+        self._rclaw.speed -= dir()
+      elif aButton == ecodes.BTN_TR2:
+        self._rclaw.speed += dir()
+      elif aButton == ecodes.BTN_TL:
+        self._lclaw.speed -= dir()
+      elif aButton == ecodes.BTN_TL2:
+        self._lclaw.speed += dir()
+
+    return handled
+
+  #--------------------------------------------------------
+  def _disarmedEND( self, aState ):
+    ''' Turn off riser and claws '''
+    self._riser.speed = 0.0
+    self._rclaw.speed = 0.0
+    self._lclaw.speed = 0.0
+
+  #--------------------------------------------------------
+  def _armedINPUT( self, aState, aButton, aValue ):
+    ''' Check for fire start or combat mode state switch. '''
+
+    handled = self._checkCombatSwitch(aButton, aValue)
+
+    if not handled:
+      other = None
+
+      if aValue & 0x01:
+        if aButton == ecodes.BTN_TL2:
+          other = ecodes.BTN_TR2
+          handled = True
+        elif aButton == ecodes.BTN_TR2:
+          other = ecodes.BTN_TL2
+          handled = True
+
+        if handled:
+          sv, _ = self._getpressed(other)
+          if sv & 0x01:
+            #Switch to the shoot start state
+            self._combatstate = state.switch(self._combatstate, self._shootstartstate)
+
+    return handled
+
+  #--------------------------------------------------------
+  def _shootEND( self, aState ):
+    ''' Turn off guns. '''
+    pca.set(_GUNS, _GUNOFF)
+
+  #--------------------------------------------------------
+  def _shootEnter( self, aState ):
+    ''' Enter shooting state by setting gun to High fire rate to prevent jamming.
+         Update will delay then switch to regular fire rate. '''
+    aState._timer = _GUNSTARTDUR
+    pca.set(_GUNS, _GUNSTART)
+
+  #--------------------------------------------------------
+  def _shootStartUD( self, aState, aDT ):
+    ''' Decrement timer by elapsed time to switch to regular fire rate. '''
+    aState._timer -= aDT
+    #When timer reaches 0, switch to regular shoot rate
+    if aState._timer <= 0.0:
+      self._combatstate = self._shootstate
+      #We start the shoot state without ending the shootStart state
+      # so we don't shut off the guns
+      state.start(self._combatstate)
+
+  #--------------------------------------------------------
+  def _shoot( self, aState ):
+    ''' Enter method for shooting state, set gun fire rate. '''
+    pca.set(_GUNS, _GUNRATE)
+
+  #--------------------------------------------------------
+  def _shootINPUT( self, aState, aButton, aValue ):
+    ''' Guns are active and triggers are pressed. Watch for release of either trigger and end shooting if so. '''
+
+    handled = False
+    #If button is release check if it's start or select
+    # if so, exit shooting
+    #Only check release events, we should never get a pressed event
+    # for either trigger as while in this state they are pressed
+    if not (aValue & 0x01):
+      if (aButton == ecodes.BTN_TL2) or (aButton == ecodes.BTN_TR2):
+        state.switch(self._combatstate, self._armedstate)
+        handled = True
+
+    return handled
 
   #--------------------------------------------------------
   def _driveINPUT( self, aState, aButton, aValue ):
@@ -387,21 +527,6 @@ class goliath(object):
         handled = True
         self.rstate = self._rarmstate           # Change state to rarm control
 
-    if not handled:
-      dir = 0.0
-      bset = False
-      if aButton == ecodes.BTN_START:
-        dir -= 1.0 if (aValue & 0x01) else -1.0
-        bset = True
-        handled = True
-      elif aButton == ecodes.BTN_SELECT:
-        dir += 1.0 if (aValue & 0x01) else -1.0
-        bset = True
-        handled = True
-
-      if bset:
-        self._riser.speed += dir
-
     return handled
 
   #--------------------------------------------------------
@@ -421,8 +546,12 @@ class goliath(object):
       self._arms[_LARMH].update(x * aDT)
       self._arms[_LARMV].update(y * aDT)
     else:
-      self._arms[_LARMW].update(x * aDT)
+      sn = 1 if x >=0 else -1
+      x = sqrt(x * sn) * sn * aDT
+      self._arms[_LARMW].update(x)
       self._arms[_LARME].speed = y
+#Put this in once the extension limiter code is back in.
+#      self._arms[_LARME].update(y, aDT)
 
   #--------------------------------------------------------
   def _larmINPUT( self, aState, aButton, aValue ):
@@ -453,8 +582,12 @@ class goliath(object):
       self._arms[_RARMH].update(x * aDT)
       self._arms[_RARMV].update(y * aDT)
     else:
-      self._arms[_RARMW].update(x * aDT)
+      sn = 1 if x >=0 else -1
+      x = sqrt(x * sn) * sn * aDT
+      self._arms[_RARMW].update(x)
       self._arms[_RARME].speed = y
+#Put this in once the extension limiter code is back in.
+#      self._arms[_RARME].update(y, aDT)
 
   #--------------------------------------------------------
   def _rarmINPUT( self, aState, aButton, aValue ):
@@ -481,7 +614,7 @@ class goliath(object):
     prevtime = perf_counter()
     try:
       while self._running:
-        nexttime = perf_counter()
+        nexttime = perf_counter()  #Get elapsed time in seconds
         delta = min(max(0.001, nexttime - prevtime), _dtime)
 #        delta = 0.03
         prevtime = nexttime
@@ -495,6 +628,7 @@ class goliath(object):
         self._controller.update()
         state.update(self._lstate, delta)
         state.update(self._rstate, delta)
+        state.update(self._combatstate, delta)
 
         #Update the claw escs
         self._lclaw.update(delta)
