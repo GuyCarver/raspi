@@ -42,27 +42,36 @@ def create( *, s = None, u = None, i = None, e = None ):
 #--------------------------------------------------------
 def run( aState, aKey, aArgs ):
   ''' Run the given state process indicated by aKey. '''
+  res = None
   fn = aState.get(aKey)
   if fn != None:
-    fn(aState, *aArgs)
+    res = fn(aState, *aArgs)
+  return res
 
 #--------------------------------------------------------
 def update( aState, *aArgs ):
   ''' Run the update state. '''
-  run(aState, _UPDATE, aArgs)
+  return run(aState, _UPDATE, aArgs)
 
 #--------------------------------------------------------
 def start( aState, *aArgs ):
   ''' Run the start state. '''
-  run(aState, _START, aArgs)
+  return run(aState, _START, aArgs)
 
 #--------------------------------------------------------
 def input( aState, *aArgs ):
   ''' Run the input state. '''
-  run(aState, _INPUT, aArgs)
+  return run(aState, _INPUT, aArgs)
 
 #--------------------------------------------------------
 def end( aState, *aArgs ):
   ''' Run the end state. '''
-  run(aState, _END, aArgs)
+  return run(aState, _END, aArgs)
+
+#--------------------------------------------------------
+def switch( aState0, aState1 ):
+  ''' Helper function to call end on aState0 and start on aState1. '''
+  end(aState0)
+  start(aState1)
+  return aState1
 
