@@ -408,7 +408,7 @@ if __name__ == '__main__':
   e.rate = 100.0
 
   def waitforit(delay):
-    print(e.speed)
+#    print(e.speed)
     while(e.distance or (delay > 0.0)):
       e.update(0.01)
       sleep(0.01)
