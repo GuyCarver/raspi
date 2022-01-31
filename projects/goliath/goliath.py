@@ -5,7 +5,7 @@ import pca9685 as pca
 import adc
 import onestick
 import state
-import oled
+#import oled
 from gamepad import *
 from esc import quicrun, surpass
 from base import *
@@ -93,7 +93,7 @@ _LARMELIMIT = 13                                # Left arm extension limit HAL s
 
 #Gun pca values
 _GUNSTART = 0.7
-_GUNSTARTDUR = 0.01
+_GUNSTARTDUR = 0.03
 _GUNRATE = 0.63
 _GUNOFF = 0.5
 
@@ -158,8 +158,8 @@ class goliath(object):
   def __init__( self ):
     super(goliath, self).__init__()
 
-    oled.startup()
-    oled.setrotation(2)
+#    oled.startup()
+#    oled.setrotation(2)
 
     self._buttonpressed = {}                    # Create empty dict to keep track of button press events.
                                                 # Key = btn:, Item = value
@@ -208,11 +208,15 @@ class goliath(object):
     self._rclaw.speed = 1.0
 
     self._disarmedstate = state.create(i = self._disarmedINPUT, e = self._disarmedEND)
+    self._disarmedstate['name'] = 'disarmed'
     self._armedstate = state.create(i = self._armedINPUT)
+    self._armedstate['name'] = 'armed'
     self._shootstartstate = state.create(s = self._shootEnter, u = self._shootStartUD, i = self._shootINPUT, e = self._shootEND)
+    self._shootstartstate['name'] = 'shootstart'
+    self._shootstartstate['timer'] = 0
     self._shootstate = state.create(s = self._shoot, i = self._shootINPUT, e = self._shootEND)
-
-    self._combatstate = self.disarmedstate  #Start off disarmed
+    self._shootstate['name'] = 'shootnormal'
+    self._combatstate = self._disarmedstate  #Start off disarmed
 
     #Open claws for 1/4 second.
     prevtime = perf_counter()
@@ -259,7 +263,7 @@ class goliath(object):
     pca.alloff()
 #    adc.release(self._adc)
     pca.shutdown()
-    oled.shutdown()
+#    oled.shutdown()
 
   #--------------------------------------------------------
   @property
@@ -362,7 +366,7 @@ class goliath(object):
   #--------------------------------------------------------
   def _changeCombat( self ):
     ''' Switch combat state between _armed and _disarmed functions '''
-    other = self._armed if self._combatstate == self._disarmed else self._disarmed
+    other = self._armedstate if self._combatstate == self._disarmedstate else self._disarmedstate
     self._combatstate = state.switch(self._combatstate, other)
 
   #--------------------------------------------------------
@@ -381,7 +385,7 @@ class goliath(object):
         handled = True
 
       if handled:
-        sv, _ = self._getpressed(other)
+        sv, _ = self._getPressed(other)
         if sv & 0x01:
           self._changeCombat()
 
@@ -389,7 +393,7 @@ class goliath(object):
   def _disarmedINPUT( self, aState, aButton, aValue ):
     ''' Handle claw input '''
 
-    handled = self._checkCombatSiwtch(aButton, aValue)
+    handled = self._checkCombatSwitch(aButton, aValue)
 
     if not handled:
       def dir(  ):
@@ -434,9 +438,14 @@ class goliath(object):
         elif aButton == ecodes.BTN_TR2:
           other = ecodes.BTN_TL2
           handled = True
+        elif aButton == ecodes.BTN_TR1:
+          if self._combatstate == self._armedstate:
+            pca.set(_GUNS, 0.4)
+            sleep(0.3)
+            self._shoot(None)
 
         if handled:
-          sv, _ = self._getpressed(other)
+          sv, _ = self._getPressed(other)
           if sv & 0x01:
             #Switch to the shoot start state
             self._combatstate = state.switch(self._combatstate, self._shootstartstate)
@@ -452,15 +461,16 @@ class goliath(object):
   def _shootEnter( self, aState ):
     ''' Enter shooting state by setting gun to High fire rate to prevent jamming.
          Update will delay then switch to regular fire rate. '''
-    aState._timer = _GUNSTARTDUR
+    aState['timer'] = _GUNSTARTDUR
     pca.set(_GUNS, _GUNSTART)
 
   #--------------------------------------------------------
   def _shootStartUD( self, aState, aDT ):
     ''' Decrement timer by elapsed time to switch to regular fire rate. '''
-    aState._timer -= aDT
+    aState['timer'] -= aDT
+#    print(aState['timer'])
     #When timer reaches 0, switch to regular shoot rate
-    if aState._timer <= 0.0:
+    if aState['timer'] <= 0.0:
       self._combatstate = self._shootstate
       #We start the shoot state without ending the shootStart state
       # so we don't shut off the guns
@@ -482,7 +492,8 @@ class goliath(object):
     # for either trigger as while in this state they are pressed
     if not (aValue & 0x01):
       if (aButton == ecodes.BTN_TL2) or (aButton == ecodes.BTN_TR2):
-        state.switch(self._combatstate, self._armedstate)
+        if self._combatstate != self._armedstate:
+          self._combatstate = state.switch(self._combatstate, self._armedstate)
         handled = True
 
     return handled
@@ -622,8 +633,8 @@ class goliath(object):
         if self._fuel.update(delta) == False:
           self._running = False
           print('Battery is at', self._fuel.volts, 'Recharge!')
-          oled.text((0, 12), 'Shutting Down!')
-        oled.text((0, 0), f'Bat: {self._fuel.volts:.2f}v')
+#          oled.text((0, 12), 'Shutting Down!')
+#        oled.text((0, 0), f'Bat: {self._fuel.volts:.2f}v')
 
         self._controller.update()
         state.update(self._lstate, delta)
@@ -634,7 +645,7 @@ class goliath(object):
         self._lclaw.update(delta)
         self._rclaw.update(delta)
 
-        oled.display()
+#        oled.display()
 
         nexttime = perf_counter()
         sleeptime = _dtime - (nexttime - prevtime)  # 30fps - time we've already wasted.
