@@ -438,11 +438,6 @@ class goliath(object):
         elif aButton == ecodes.BTN_TR2:
           other = ecodes.BTN_TL2
           handled = True
-        elif aButton == ecodes.BTN_TR1:
-          if self._combatstate == self._armedstate:
-            pca.set(_GUNS, 0.4)
-            sleep(0.3)
-            self._shoot(None)
 
         if handled:
           sv, _ = self._getPressed(other)
