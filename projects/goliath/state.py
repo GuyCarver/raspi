@@ -34,10 +34,17 @@
 
 _START, _UPDATE, _INPUT, _END = range(4)
 
+_debugoutput = False
+
+def SetDebugOutput( abTF ):
+  ''' Set debug output flag. '''
+  global _debugoutput
+  _debugoutput = abTF
+
 #--------------------------------------------------------
 def create( *, s = None, u = None, i = None, e = None ):
   ''' Create a state object '''
-  return { _START: s, _UPDATE: u, _INPUT: i, _END: e }
+  return { _START: s, _UPDATE: u, _INPUT: i, _END: e , 'name': '?'}
 
 #--------------------------------------------------------
 def run( aState, aKey, aArgs ):
@@ -71,6 +78,8 @@ def end( aState, *aArgs ):
 #--------------------------------------------------------
 def switch( aState0, aState1 ):
   ''' Helper function to call end on aState0 and start on aState1. '''
+  if _debugoutput:
+    print('switch from {} to {}'.format(aState0['name'], aState1['name']))
   end(aState0)
   start(aState1)
   return aState1
