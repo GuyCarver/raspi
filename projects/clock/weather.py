@@ -6,7 +6,7 @@ from time import sleep
 locprefix = 'https://weather.com/weather/today/l/'
 locsuffix = ':4:US'
 
-tempdivname='CurrentConditions--primary--2SVPh'
+tempdivname='CurrentConditions--primary--2DOqs'
 conditiondivname = 'CurrentConditions--phraseValue--2Z18W'
 
 def get( aZip ):
