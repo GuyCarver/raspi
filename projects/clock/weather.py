@@ -6,13 +6,14 @@ from time import sleep
 locprefix = 'https://weather.com/weather/today/l/'
 locsuffix = ':4:US'
 
-tempdivname='CurrentConditions--primary--2DOqs'
+tempdivname='CurrentConditions--primary--2SVPh'
 conditiondivname = 'CurrentConditions--phraseValue--2Z18W'
 
 def get( aZip ):
   temp = 0
   cond = ''
   loc = locprefix + str(aZip) + locsuffix
+  #Set this to true to save the web page text to a file for examination.
   savepage = False
 
     #We sometimes get different data that we can't parse, so iterate and keep re-trying.

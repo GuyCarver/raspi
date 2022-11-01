@@ -6,8 +6,8 @@ from time import sleep
 locprefix = 'https://weather.com/weather/today/l/'
 locsuffix = ':4:US'
 
-tempdivname='CurrentConditions--primary--2DOqs' #tempValue--MHmYY'
-conditiondivname = 'CurrentConditions--phraseValue--mZC_p'
+tempdivname='CurrentConditions--primary--2SVPh'
+conditiondivname = 'CurrentConditions--phraseValue--2Z18W'
 
 #NOTE: As of 6-11-21 this is really broken. They changed it completely and now
 # all I see is temperatures in an array for hourly values.
