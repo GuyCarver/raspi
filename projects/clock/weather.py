@@ -2,12 +2,13 @@
 import requests
 from bs4 import BeautifulSoup
 from time import sleep
+import re
 
 locprefix = 'https://weather.com/weather/today/l/'
 locsuffix = ':4:US'
 
-tempdivname='CurrentConditions--primary--2SVPh'
-conditiondivname = 'CurrentConditions--phraseValue--2Z18W'
+tempdivname = re.compile('CurrentConditions--primary--.*')
+conditiondivname = re.compile('CurrentConditions--phraseValue--.*')
 
 def get( aZip ):
   temp = 0
@@ -27,14 +28,14 @@ def get( aZip ):
 
     soup = BeautifulSoup(page.content, 'html.parser')
 
-    tempdiv = soup.find_all('div', class_=tempdivname)
+    tempdiv = soup.find_all('div', tempdivname)
     if len(tempdiv):
       span = tempdiv[0]
 #      print(span.contents[0].text)
       tempstr = span.contents[0].text #Get temperature text and remove deg symbol.
       temp = int(tempstr[:-1])
 
-      conddiv = soup.find_all('div', class_=conditiondivname)
+      conddiv = soup.find_all('div', conditiondivname)
       if len(conddiv):
         span = conddiv[0]
 #        print(span)
